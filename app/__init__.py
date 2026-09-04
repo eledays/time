@@ -7,6 +7,7 @@
 from pathlib import Path
 
 from flask import Flask, render_template
+from sqlalchemy import text
 
 from app.config import Config
 from app.extensions import db, oauth
@@ -40,6 +41,8 @@ def create_app(config_object: type[Config] = Config) -> Flask:
 
     with app.app_context():
         db.create_all()
+        db.session.execute(text("PRAGMA optimize"))
+        db.session.commit()
 
     @app.errorhandler(404)
     def not_found(_error: Exception) -> tuple[str, int]:

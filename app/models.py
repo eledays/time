@@ -1,12 +1,18 @@
 """Модели пользователей, мест и записанных перемещений."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Optional
 
 from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
+
+
+def utc_now() -> datetime:
+    """Вернуть текущее время UTC с указанием часового пояса."""
+
+    return datetime.now(UTC)
 
 
 class User(db.Model):
@@ -17,7 +23,7 @@ class User(db.Model):
     display_name: Mapped[str]
     email: Mapped[Optional[str]]
     avatar_url: Mapped[Optional[str]]
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(default=utc_now)
 
     places: Mapped[list["Place"]] = relationship(back_populates="user")
     trips: Mapped[list["Trip"]] = relationship(back_populates="user")
@@ -35,7 +41,7 @@ class Place(db.Model):
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), index=True)
     name: Mapped[str]
     normalized_name: Mapped[str]
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(default=utc_now)
 
     user: Mapped[User] = relationship(back_populates="places")
 
@@ -58,7 +64,7 @@ class Trip(db.Model):
     transport_detail: Mapped[Optional[str]]
     taxi_cost: Mapped[Optional[float]]
     taxi_tariff: Mapped[Optional[str]]
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(default=utc_now)
 
     user: Mapped[User] = relationship(back_populates="trips")
     origin: Mapped[Place] = relationship(foreign_keys=[origin_id])
@@ -69,4 +75,3 @@ class Trip(db.Model):
         """Вернуть продолжительность поездки в целых минутах."""
 
         return round((self.arrived_at - self.departed_at).total_seconds() / 60)
-

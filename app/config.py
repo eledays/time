@@ -18,6 +18,7 @@ class Config:
         "DATABASE_URL", f"sqlite:///{BASE_DIR / 'instance' / 'time.sqlite3'}"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
     YANDEX_CLIENT_ID = os.getenv("YANDEX_CLIENT_ID", "")
     YANDEX_CLIENT_SECRET = os.getenv("YANDEX_CLIENT_SECRET", "")
-
