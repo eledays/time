@@ -21,11 +21,11 @@
 
           <form class="trip-form finish-form" action="{{ url_for('main.finish_trip') }}" method="post" data-trip-form>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            {% set transport_icons = {'walk': 'walk.png', 'bus': 'bus.png', 'metro': 'rail.png', 'bike': 'bike.png', 'ebike': 'e-bike.png', 'scooter': 'scooter.png', 'taxi': 'taxi.png', 'car': 'car.png', 'train': 'rail.png', 'other': 'other.png'} %}
+            {% set transport_icons = {'walk': 'walk.png', 'bus': 'bus.png', 'metro': 'rail.png', 'bike': 'bike.png', 'ebike': 'e-bike.png', 'scooter': 'scooter.png', 'taxi': 'taxi.png', 'car': 'car.png', 'other': 'other.png'} %}
             <div class="transport-carousel" role="radiogroup" aria-label="Тип перемещения">
               {% for value, label in transport_labels.items() %}
                 <label class="transport-card">
-                  <input type="radio" name="transport_type" value="{{ value }}" {% if loop.first %}checked{% endif %}>
+                  <input type="radio" name="transport_type" value="{{ value }}" {% if loop.first %}required{% endif %}>
                   <span>
                     <img src="{{ url_for('static', filename='img/transport/' ~ transport_icons[value]) }}" alt="">
                     <small>{{ label }}</small>
@@ -34,13 +34,20 @@
               {% endfor %}
             </div>
             <div class="conditional-fields active-transport-details" data-detail-fields hidden>
-              <div class="field-group" data-detail-wrap>
+              <div class="field-group autocomplete" data-detail-wrap>
                 <label for="transport_detail" data-detail-label>Номер</label>
-                <input id="transport_detail" name="transport_detail" type="text" placeholder="Например, 39">
+                <input id="transport_detail" name="transport_detail" type="text" autocomplete="off" placeholder="Например, 39">
+                <div class="suggestions" role="listbox"></div>
               </div>
-              <div class="taxi-fields" data-taxi-fields hidden>
-                <div class="field-group"><label for="taxi_cost">Стоимость, ₽</label><input id="taxi_cost" name="taxi_cost" type="number" min="0" step="0.01" placeholder="650"></div>
-                <div class="field-group"><label for="taxi_tariff">Тариф</label><input id="taxi_tariff" name="taxi_tariff" type="text" placeholder="Комфорт"></div>
+              <div class="field-group" data-cost-field hidden>
+                <label for="trip_cost" data-cost-label>Стоимость, ₽</label>
+                <input id="trip_cost" name="cost" type="number" min="0" step="0.01" inputmode="decimal">
+              </div>
+              <div class="field-group" data-taxi-fields hidden>
+                <label for="taxi_tariff">Тариф</label>
+                <select id="taxi_tariff" name="taxi_tariff">
+                  {% for tariff in taxi_tariffs %}<option value="{{ tariff }}">{{ tariff }}</option>{% endfor %}
+                </select>
               </div>
             </div>
             <h1 class="destination-title">Куда приехали?</h1>

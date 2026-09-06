@@ -104,7 +104,9 @@ const initializeAutocomplete = (input) => {
   const load = debounce(async () => {
     const query = input.value.trim();
     try {
-      const response = await fetch(`/api/places?q=${encodeURIComponent(query)}`);
+      if (input.dataset.suggestionsDisabled === "true") return;
+      const endpoint = input.dataset.suggestionsUrl || "/api/places";
+      const response = await fetch(`${endpoint}?q=${encodeURIComponent(query)}`);
       if (!response.ok) return;
       const places = await response.json();
       if (input.value.trim() !== query) return;
@@ -130,7 +132,8 @@ const initializeAutocomplete = (input) => {
         const notice = document.createElement("div");
         notice.className = "new-place-notice";
         notice.setAttribute("role", "status");
-        notice.textContent = `Будет создано новое место · ${query}`;
+        const message = input.dataset.newItemMessage || "Будет создано новое место";
+        notice.textContent = `${message} · ${query}`;
         menu.append(notice);
       }
       menu.classList.toggle("open", places.length > 0 || Boolean(query));
@@ -179,18 +182,51 @@ if (tripForm) {
   const detailLabel = tripForm.querySelector("[data-detail-label]");
   const detailInput = tripForm.querySelector("#transport_detail");
   const taxiFields = tripForm.querySelector("[data-taxi-fields]");
+  const taxiTariff = tripForm.querySelector("#taxi_tariff");
+  const costField = tripForm.querySelector("[data-cost-field]");
+  const costLabel = tripForm.querySelector("[data-cost-label]");
+  const costInput = tripForm.querySelector("#trip_cost");
   const transportControls = [...tripForm.querySelectorAll("[name=transport_type]")];
+  initializeAutocomplete(detailInput);
+  costInput?.addEventListener("input", () => delete costInput.dataset.automaticZero);
   const updateDetails = () => {
     const selected = transportControls.find((control) => control.checked)?.value;
-    const isTransit = selected === "bus" || selected === "metro";
+    const hasDetail = selected === "bus" || selected === "metro" || selected === "other";
     const isTaxi = selected === "taxi";
-    detailBox.hidden = !isTransit && !isTaxi;
-    detailWrap.hidden = !isTransit;
+    const isRental = selected === "ebike" || selected === "scooter";
+    const hasCost = isTaxi || isRental;
+    detailBox.hidden = !hasDetail && !hasCost;
+    detailWrap.hidden = !hasDetail;
+    costField.hidden = !hasCost;
     taxiFields.hidden = !isTaxi;
-    if (isTransit) {
-      detailLabel.textContent = selected === "bus" ? "Номер автобуса" : "Ветка метро";
-      detailInput.placeholder = selected === "bus" ? "Например, 39" : "Например, Сокольническая";
+    detailInput.required = selected === "other";
+    taxiTariff.required = isTaxi;
+    costInput.required = isRental;
+    if (selected === "metro") {
+      detailLabel.textContent = "Ветка метро";
+      detailInput.placeholder = "Например, Сокольническая";
+      detailInput.dataset.suggestionsUrl = "/api/metro-lines";
+      detailInput.dataset.newItemMessage = "Будет добавлена новая ветка метро";
+      detailInput.dataset.suggestionsDisabled = "false";
+    } else {
+      detailInput.dataset.suggestionsDisabled = "true";
+      detailInput.parentElement.querySelector(".suggestions")?.classList.remove("open");
+      if (selected === "bus") {
+        detailLabel.textContent = "Номер автобуса";
+        detailInput.placeholder = "Например, 39";
+      } else if (selected === "other") {
+        detailLabel.textContent = "Вид перемещения";
+        detailInput.placeholder = "Например, ролики";
+      }
     }
+    if (isRental && (!costInput.value || costInput.dataset.automaticZero)) {
+      costInput.value = "0";
+      costInput.dataset.automaticZero = "true";
+    } else if (isTaxi && costInput.dataset.automaticZero) {
+      costInput.value = "";
+      delete costInput.dataset.automaticZero;
+    }
+    costLabel.textContent = isRental ? "Стоимость аренды, ₽" : "Стоимость, ₽";
   };
   transportControls.forEach((control) => control.addEventListener("change", updateDetails));
   updateDetails();

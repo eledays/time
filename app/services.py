@@ -18,9 +18,10 @@ TRANSPORT_LABELS = {
     "scooter": "Самокат",
     "taxi": "Такси",
     "car": "Автомобиль",
-    "train": "Поезд",
-    "other": "Другое",
+    "other": "Другой",
 }
+
+TAXI_TARIFFS = ("Эконом", "Комфорт", "Комфорт+", "Бизнес", "Другое")
 
 
 def normalize_place(value: str) -> str:

@@ -20,6 +20,7 @@ from app.extensions import db
 from app.main import bp
 from app.models import ActiveTrip, Place, Trip
 from app.services import (
+    TAXI_TARIFFS,
     TRANSPORT_LABELS,
     calculate_route,
     get_or_create_place,
@@ -43,6 +44,7 @@ def index():
         "index.html",
         active_trip=active_trip,
         transport_labels=TRANSPORT_LABELS,
+        taxi_tariffs=TAXI_TARIFFS,
     )
 
 
@@ -107,15 +109,27 @@ def finish_trip():
 
     destination = get_or_create_place(g.user.id, destination_name)
     detail = request.form.get("transport_detail", "").strip() or None
-    taxi_cost = None
+    if transport_type == "other" and detail is None:
+        flash("Укажите вид перемещения", "error")
+        return redirect(url_for("main.index"))
+    cost = None
     taxi_tariff = None
+    if transport_type in {"taxi", "ebike", "scooter"}:
+        cost_value = request.form.get("cost", "").strip()
+        if not cost_value and transport_type in {"ebike", "scooter"}:
+            cost_value = "0"
+        try:
+            cost = float(cost_value) if cost_value else None
+        except ValueError:
+            flash("Стоимость должна быть числом", "error")
+            return redirect(url_for("main.index"))
+        if cost is not None and cost < 0:
+            flash("Стоимость не может быть отрицательной", "error")
+            return redirect(url_for("main.index"))
     if transport_type == "taxi":
         taxi_tariff = request.form.get("taxi_tariff", "").strip() or None
-        try:
-            cost_value = request.form.get("taxi_cost", "").strip()
-            taxi_cost = float(cost_value) if cost_value else None
-        except ValueError:
-            flash("Стоимость такси должна быть числом", "error")
+        if taxi_tariff not in TAXI_TARIFFS:
+            flash("Выберите тариф такси", "error")
             return redirect(url_for("main.index"))
 
     trip = Trip(
@@ -125,8 +139,11 @@ def finish_trip():
         departed_at=active_trip.departed_at,
         arrived_at=arrived_at,
         transport_type=transport_type,
-        transport_detail=detail if transport_type in {"bus", "metro"} else None,
-        taxi_cost=taxi_cost,
+        transport_detail=(
+            detail if transport_type in {"bus", "metro", "other"} else None
+        ),
+        cost=cost,
+        taxi_cost=None,
         taxi_tariff=taxi_tariff,
     )
     db.session.add(trip)
@@ -352,6 +369,32 @@ def places_api():
         )
     places = db.session.scalars(statement.order_by(Place.name).limit(8)).all()
     return jsonify([{"id": place.id, "name": place.name} for place in places])
+
+
+@bp.get("/api/metro-lines")
+@login_required
+def metro_lines_api():
+    """Вернуть сохранённые пользователем названия веток метро."""
+
+    query = normalize_place(request.args.get("q", ""))
+    values = db.session.scalars(
+        select(Trip.transport_detail).where(
+            Trip.user_id == g.user.id,
+            Trip.transport_type == "metro",
+            Trip.transport_detail.is_not(None),
+        )
+    ).all()
+    unique_lines: dict[str, str] = {}
+    for value in values:
+        if value:
+            unique_lines.setdefault(normalize_place(value), value)
+    matches = [
+        name
+        for normalized, name in unique_lines.items()
+        if not query or query in normalized
+    ]
+    matches.sort(key=normalize_place)
+    return jsonify([{"name": name} for name in matches[:8]])
 
 
 @bp.post("/api/calculate")

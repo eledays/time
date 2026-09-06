@@ -102,6 +102,8 @@ h1 { margin: 0; font-size: clamp(38px, 11vw, 56px); line-height: 1.02; letter-sp
 }
 .field-group textarea { resize: vertical; font-size: 16px; line-height: 1.5; }
 .field-group input:focus, .field-group textarea:focus { border-color: var(--text); }
+.field-group select { width: 100%; padding: 13px 14px; border: 1px solid var(--line); border-radius: 12px; outline: 0; background: var(--surface); color: var(--text); cursor: pointer; }
+.field-group select:focus { border-color: var(--text); }
 input::placeholder, textarea::placeholder { color: var(--faint); }
 .time-toggle { margin: 12px 0 12px; }
 .time-options { margin: -14px 0 28px; animation: reveal .18s ease both; }

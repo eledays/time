@@ -6,7 +6,7 @@ from app.extensions import db
 
 
 def upgrade_sqlite_schema() -> None:
-    """Добавить новые поля мест в ранее созданную базу без потери данных."""
+    """Добавить новые поля в ранее созданную базу без потери данных."""
 
     columns = {
         row[1]
@@ -25,4 +25,15 @@ def upgrade_sqlite_schema() -> None:
     for name, statement in additions.items():
         if name not in columns:
             db.session.execute(text(statement))
+
+    trip_columns = {
+        row[1]
+        for row in db.session.execute(text("PRAGMA table_info(trip)")).all()
+    }
+    if "cost" not in trip_columns:
+        db.session.execute(text("ALTER TABLE trip ADD COLUMN cost FLOAT"))
+        if "taxi_cost" in trip_columns:
+            db.session.execute(
+                text("UPDATE trip SET cost = taxi_cost WHERE taxi_cost IS NOT NULL")
+            )
     db.session.commit()

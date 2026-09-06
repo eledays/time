@@ -70,6 +70,7 @@ class Trip(db.Model):
     arrived_at: Mapped[datetime]
     transport_type: Mapped[str]
     transport_detail: Mapped[Optional[str]]
+    cost: Mapped[Optional[float]]
     taxi_cost: Mapped[Optional[float]]
     taxi_tariff: Mapped[Optional[str]]
     created_at: Mapped[datetime] = mapped_column(default=utc_now)

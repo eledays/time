@@ -1,10 +1,15 @@
 """Интеграционные тесты страниц и API."""
 
+import sqlite3
 from datetime import datetime
+from pathlib import Path
 
 from flask import Flask
+from sqlalchemy import text
 
+from app import create_app
 from app.auth.routes import yandex_avatar_url
+from app.config import Config
 from app.extensions import db, oauth
 from app.models import ActiveTrip, Place, Trip, User
 from app.services import get_or_create_place
@@ -49,6 +54,9 @@ def test_trip_survives_reopen_and_finishes_with_bus_number(
     assert "Дом" in reopened_page.text
     assert 'class="transport-carousel"' in reopened_page.text
     assert 'type="radio" name="transport_type" value="walk"' in reopened_page.text
+    assert 'value="walk" required' in reopened_page.text
+    assert 'value="walk" checked' not in reopened_page.text
+    assert 'value="train"' not in reopened_page.text
     assert "/static/img/transport/walk.png" in reopened_page.text
     assert "/static/img/transport/bus.png" in reopened_page.text
     assert "/static/img/transport/rail.png" in reopened_page.text
@@ -106,6 +114,144 @@ def test_arrival_time_is_hidden_by_default(auth_client) -> None:
     assert 'data-time-custom="arrived_at"' in page.text
 
 
+def test_transport_type_is_required(app: Flask, auth_client) -> None:
+    """Поездка не сохраняется, пока пользователь не выбрал транспорт."""
+
+    auth_client.post(
+        "/trips/start",
+        data={
+            "csrf_token": "test-csrf",
+            "origin": "Дом",
+            "departed_at": "2026-09-03T09:00",
+        },
+    )
+    response = auth_client.post(
+        "/trips/finish",
+        data={
+            "csrf_token": "test-csrf",
+            "destination": "Парк",
+            "arrived_at": "2026-09-03T09:30",
+        },
+        follow_redirects=True,
+    )
+    assert "Выберите тип перемещения" in response.text
+    with app.app_context():
+        assert db.session.scalar(db.select(Trip)) is None
+        assert db.session.scalar(db.select(ActiveTrip)) is not None
+
+
+def test_other_transport_detail_is_saved(app: Flask, auth_client) -> None:
+    """Для другого способа сохраняется введённое пользователем название."""
+
+    auth_client.post(
+        "/trips/start",
+        data={
+            "csrf_token": "test-csrf",
+            "origin": "Дом",
+            "departed_at": "2026-09-03T09:00",
+        },
+    )
+    auth_client.post(
+        "/trips/finish",
+        data={
+            "csrf_token": "test-csrf",
+            "destination": "Парк",
+            "arrived_at": "2026-09-03T09:30",
+            "transport_type": "other",
+            "transport_detail": "Ролики",
+        },
+    )
+    with app.app_context():
+        trip = db.session.scalar(db.select(Trip))
+        assert trip is not None
+        assert trip.transport_detail == "Ролики"
+
+
+def test_rental_cost_defaults_to_zero(app: Flask, auth_client) -> None:
+    """Бесплатная поездка на самокате сохраняет нулевую стоимость."""
+
+    auth_client.post(
+        "/trips/start",
+        data={
+            "csrf_token": "test-csrf",
+            "origin": "Дом",
+            "departed_at": "2026-09-03T09:00",
+        },
+    )
+    auth_client.post(
+        "/trips/finish",
+        data={
+            "csrf_token": "test-csrf",
+            "destination": "Парк",
+            "arrived_at": "2026-09-03T09:30",
+            "transport_type": "scooter",
+        },
+    )
+    with app.app_context():
+        trip = db.session.scalar(db.select(Trip))
+        assert trip is not None
+        assert trip.cost == 0
+
+
+def test_taxi_tariff_is_selected_from_list(app: Flask, auth_client) -> None:
+    """Такси сохраняет выбранный тариф и общую стоимость поездки."""
+
+    auth_client.post(
+        "/trips/start",
+        data={
+            "csrf_token": "test-csrf",
+            "origin": "Дом",
+            "departed_at": "2026-09-03T09:00",
+        },
+    )
+    auth_client.post(
+        "/trips/finish",
+        data={
+            "csrf_token": "test-csrf",
+            "destination": "Парк",
+            "arrived_at": "2026-09-03T09:30",
+            "transport_type": "taxi",
+            "cost": "650",
+            "taxi_tariff": "Комфорт+",
+        },
+    )
+    with app.app_context():
+        trip = db.session.scalar(db.select(Trip))
+        assert trip is not None
+        assert trip.cost == 650
+        assert trip.taxi_tariff == "Комфорт+"
+
+
+def test_existing_taxi_cost_is_migrated(tmp_path: Path) -> None:
+    """Общая стоимость подхватывает значения из старой колонки такси."""
+
+    database_path = tmp_path / "legacy.sqlite3"
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            "CREATE TABLE trip (id INTEGER PRIMARY KEY, taxi_cost FLOAT)"
+        )
+        connection.execute("INSERT INTO trip (taxi_cost) VALUES (750)")
+
+    class LegacyConfig(Config):
+        """Конфигурация приложения с имитацией старой SQLite-базы."""
+
+        TESTING = True
+        SECRET_KEY = "migration-test"
+        SQLALCHEMY_DATABASE_URI = f"sqlite:///{database_path}"
+
+    application = create_app(LegacyConfig)
+    with application.app_context():
+        columns = {
+            row[1]
+            for row in db.session.execute(text("PRAGMA table_info(trip)")).all()
+        }
+        migrated_cost = db.session.execute(
+            text("SELECT cost FROM trip WHERE id = 1")
+        ).scalar_one()
+        assert "cost" in columns
+        assert migrated_cost == 750
+
+
 def test_active_trip_can_be_cleared(app: Flask, auth_client, user) -> None:
     """Пользователь может отменить сохранённую начальную точку."""
 
@@ -152,6 +298,33 @@ def test_place_suggestions_ignore_cyrillic_case(app: Flask, auth_client, user) -
     response = auth_client.get("/api/places?q=КОФЕЙНЯ")
     assert response.status_code == 200
     assert [place["name"] for place in response.json] == ["Кофейня Север"]
+
+
+def test_metro_line_is_saved_for_future_suggestions(app: Flask, auth_client) -> None:
+    """Ветка завершённой поездки попадает в подсказки следующих записей."""
+
+    auth_client.post(
+        "/trips/start",
+        data={
+            "csrf_token": "test-csrf",
+            "origin": "Дом",
+            "departed_at": "2026-09-03T09:00",
+        },
+    )
+    auth_client.post(
+        "/trips/finish",
+        data={
+            "csrf_token": "test-csrf",
+            "destination": "Работа",
+            "arrived_at": "2026-09-03T09:30",
+            "transport_type": "metro",
+            "transport_detail": "Сокольническая",
+        },
+    )
+
+    response = auth_client.get("/api/metro-lines?q=СОКОЛЬ")
+    assert response.status_code == 200
+    assert response.json == [{"name": "Сокольническая"}]
 
 
 def test_route_uses_average_duration(app: Flask, auth_client, user) -> None:
