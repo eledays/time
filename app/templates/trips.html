@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Все поездки{% endblock %}
+{% block page %}trips{% endblock %}
+{% block content %}
+<main class="page-shell app-page">
+  <header class="page-heading"><p>{{ trips|length }} записей</p><h1>Все поездки</h1></header>
+  {% if trips %}
+    <div class="journey-list">
+      {% for trip in trips %}
+        <article class="journey-card">
+          <time>{{ trip.departed_at.strftime('%d.%m.%Y') }}</time>
+          <div class="journey-route"><strong>{{ trip.origin.name }}</strong><span>→</span><strong>{{ trip.destination.name }}</strong></div>
+          <div class="journey-meta">
+            <span>{{ trip.departed_at.strftime('%H:%M') }}–{{ trip.arrived_at.strftime('%H:%M') }}</span>
+            <span>{{ transport_labels[trip.transport_type] }}{% if trip.transport_detail %} · {{ trip.transport_detail }}{% endif %}</span>
+            {% if trip.taxi_cost is not none %}<span>{{ '%.0f'|format(trip.taxi_cost) }} ₽{% if trip.taxi_tariff %} · {{ trip.taxi_tariff }}{% endif %}</span>{% endif %}
+          </div>
+          <b>{{ trip.duration_minutes }} <small>мин</small></b>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="quiet-empty"><p>Поездок пока нет.</p><a href="{{ url_for('main.index') }}">Записать первую</a></div>
+  {% endif %}
+</main>
+{% endblock %}
+

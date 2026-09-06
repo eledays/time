@@ -7,6 +7,13 @@ from app.extensions import db, oauth
 from app.models import User
 
 
+def yandex_avatar_url(profile: dict[str, object]) -> str:
+    """Собрать URL портрета Яндекса или его штатной заглушки."""
+
+    avatar_id = profile.get("default_avatar_id") or "0"
+    return f"https://avatars.yandex.net/get-yapic/{avatar_id}/islands-200"
+
+
 @bp.get("/login")
 def login():
     """Начать вход через Яндекс."""
@@ -30,12 +37,7 @@ def callback():
     profile = response.json()
     yandex_id = str(profile["id"])
     user = db.session.scalar(db.select(User).where(User.yandex_id == yandex_id))
-    avatar_id = profile.get("default_avatar_id")
-    avatar_url = (
-        f"https://avatars.yandex.net/get-yapic/{avatar_id}/islands-68"
-        if avatar_id
-        else None
-    )
+    avatar_url = yandex_avatar_url(profile)
     if user is None:
         user = User(
             yandex_id=yandex_id,

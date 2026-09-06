@@ -4,8 +4,9 @@ from datetime import datetime
 
 from flask import Flask
 
-from app.extensions import db
-from app.models import ActiveTrip, Place, Trip
+from app.auth.routes import yandex_avatar_url
+from app.extensions import db, oauth
+from app.models import ActiveTrip, Place, Trip, User
 from app.services import get_or_create_place
 
 
@@ -138,3 +139,77 @@ def test_csrf_is_required(auth_client) -> None:
 
     response = auth_client.post("/api/calculate", json={"points": ["A", "B"]})
     assert response.status_code == 400
+
+
+def test_yandex_avatar_uses_large_profile_image() -> None:
+    """Портрет строится из идентификатора, который вернул Яндекс."""
+
+    assert yandex_avatar_url({"default_avatar_id": "portrait-42"}) == (
+        "https://avatars.yandex.net/get-yapic/portrait-42/islands-200"
+    )
+
+
+def test_yandex_callback_saves_avatar(app: Flask, client, monkeypatch) -> None:
+    """OAuth callback сохраняет портрет из ответа Яндекс ID."""
+
+    class ProfileResponse:
+        """Минимальный ответ API профиля для теста."""
+
+        def raise_for_status(self) -> None:
+            """Имитировать успешный HTTP-ответ."""
+
+        def json(self) -> dict[str, object]:
+            """Вернуть профиль с идентификатором портрета."""
+
+            return {
+                "id": "99",
+                "display_name": "Анна",
+                "default_email": "anna@example.ru",
+                "default_avatar_id": "avatar-99",
+            }
+
+    with app.app_context():
+        yandex = oauth.create_client("yandex")
+        monkeypatch.setattr(yandex, "authorize_access_token", lambda: {"access_token": "token"})
+        monkeypatch.setattr(yandex, "get", lambda *_args, **_kwargs: ProfileResponse())
+
+    response = client.get("/auth/callback")
+    assert response.status_code == 302
+    with app.app_context():
+        account = db.session.scalar(db.select(User).where(User.yandex_id == "99"))
+        assert account is not None
+        assert account.avatar_url.endswith("/avatar-99/islands-200")
+
+
+def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
+    """Новые разделы открываются, а координаты места сохраняются."""
+
+    response = auth_client.post(
+        "/places",
+        data={
+            "csrf_token": "test-csrf",
+            "name": "Парк",
+            "address": "Большой проспект, 1",
+            "latitude": "55.7512",
+            "longitude": "37.6184",
+            "description": "У фонтана",
+            "marker_color": "#22aa66",
+        },
+    )
+    assert response.status_code == 302
+    with app.app_context():
+        place = db.session.scalar(db.select(Place))
+        assert place is not None
+        assert place.address == "Большой проспект, 1"
+        assert place.latitude == 55.7512
+        assert place.marker_color == "#22aa66"
+
+    for path, text in [
+        ("/trips", "Все поездки"),
+        ("/places", "Места"),
+        ("/map", "journey-map"),
+        ("/profile", "Статистика поездок"),
+    ]:
+        page = auth_client.get(path)
+        assert page.status_code == 200
+        assert text in page.text

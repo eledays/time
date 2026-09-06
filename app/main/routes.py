@@ -1,5 +1,8 @@
 """Страницы, JSON API и сохранение поездок."""
 
+import re
+from collections import Counter
+
 from flask import flash, g, jsonify, redirect, render_template, request, url_for
 from sqlalchemy import select
 
@@ -15,27 +18,21 @@ from app.services import (
     parse_local_datetime,
 )
 
+COLOR_PATTERN = re.compile(r"^#[0-9a-fA-F]{6}$")
+
 
 @bp.get("/")
 def index():
     """Показать форму записи поездки."""
 
-    recent_trips = []
     active_trip = None
     if g.user:
         active_trip = db.session.scalar(
             select(ActiveTrip).where(ActiveTrip.user_id == g.user.id)
         )
-        recent_trips = db.session.scalars(
-            select(Trip)
-            .where(Trip.user_id == g.user.id)
-            .order_by(Trip.departed_at.desc())
-            .limit(5)
-        ).all()
     return render_template(
         "index.html",
         active_trip=active_trip,
-        recent_trips=recent_trips,
         transport_labels=TRANSPORT_LABELS,
     )
 
@@ -152,6 +149,179 @@ def calculate():
     """Показать конструктор составного маршрута."""
 
     return render_template("calculate.html")
+
+
+@bp.get("/trips")
+@login_required
+def trips():
+    """Показать полную историю поездок пользователя."""
+
+    trip_items = db.session.scalars(
+        select(Trip)
+        .where(Trip.user_id == g.user.id)
+        .order_by(Trip.departed_at.desc())
+    ).all()
+    return render_template(
+        "trips.html", trips=trip_items, transport_labels=TRANSPORT_LABELS
+    )
+
+
+@bp.get("/places")
+@login_required
+def places():
+    """Показать сохранённые места пользователя."""
+
+    place_items = db.session.scalars(
+        select(Place)
+        .where(Place.user_id == g.user.id)
+        .order_by(Place.name)
+    ).all()
+    return render_template("places.html", places=place_items)
+
+
+@bp.post("/places")
+@login_required
+def create_place():
+    """Создать место и сохранить его дополнительные данные."""
+
+    name = request.form.get("name", "").strip()
+    if not name:
+        flash("Введите название места", "error")
+        return redirect(url_for("main.places"))
+    place = get_or_create_place(g.user.id, name)
+    if not _update_place_fields(place):
+        db.session.rollback()
+        return redirect(url_for("main.places"))
+    db.session.commit()
+    flash("Место сохранено", "success")
+    return redirect(url_for("main.places"))
+
+
+@bp.post("/places/<int:place_id>")
+@login_required
+def update_place(place_id: int):
+    """Обновить принадлежащее пользователю место."""
+
+    place = db.session.scalar(
+        select(Place).where(Place.id == place_id, Place.user_id == g.user.id)
+    )
+    if place is None:
+        return render_template("error.html", code=404, message="Место не найдено"), 404
+    name = request.form.get("name", "").strip()
+    if not name:
+        flash("Название не может быть пустым", "error")
+        return redirect(url_for("main.places"))
+    normalized = normalize_place(name)
+    duplicate = db.session.scalar(
+        select(Place).where(
+            Place.user_id == g.user.id,
+            Place.normalized_name == normalized,
+            Place.id != place.id,
+        )
+    )
+    if duplicate:
+        flash("Место с таким названием уже существует", "error")
+        return redirect(url_for("main.places"))
+    place.name = " ".join(name.split())
+    place.normalized_name = normalized
+    if not _update_place_fields(place):
+        db.session.rollback()
+        return redirect(url_for("main.places"))
+    db.session.commit()
+    flash("Изменения сохранены", "success")
+    return redirect(url_for("main.places"))
+
+
+@bp.get("/map")
+@login_required
+def map_view():
+    """Показать места и поездки с координатами на карте."""
+
+    places = db.session.scalars(
+        select(Place).where(
+            Place.user_id == g.user.id,
+            Place.latitude.is_not(None),
+            Place.longitude.is_not(None),
+        )
+    ).all()
+    trips = db.session.scalars(
+        select(Trip).where(Trip.user_id == g.user.id)
+    ).all()
+    mapped_ids = {place.id for place in places}
+    map_data = {
+        "places": [
+            {
+                "id": place.id,
+                "name": place.name,
+                "address": place.address,
+                "lat": place.latitude,
+                "lng": place.longitude,
+                "color": place.marker_color,
+            }
+            for place in places
+        ],
+        "trips": [
+            {
+                "from": trip.origin_id,
+                "to": trip.destination_id,
+                "minutes": trip.duration_minutes,
+            }
+            for trip in trips
+            if trip.origin_id in mapped_ids and trip.destination_id in mapped_ids
+        ],
+    }
+    return render_template("map.html", map_data=map_data)
+
+
+@bp.get("/profile")
+@login_required
+def profile():
+    """Показать профиль Яндекса и личную статистику поездок."""
+
+    trip_items = db.session.scalars(
+        select(Trip).where(Trip.user_id == g.user.id)
+    ).all()
+    durations = [trip.duration_minutes for trip in trip_items]
+    transport_counts = Counter(trip.transport_type for trip in trip_items)
+    favorite = transport_counts.most_common(1)[0][0] if transport_counts else None
+    place_count = db.session.scalar(
+        select(db.func.count(Place.id)).where(Place.user_id == g.user.id)
+    )
+    stats = {
+        "trips": len(trip_items),
+        "minutes": sum(durations),
+        "average": round(sum(durations) / len(durations)) if durations else 0,
+        "days": len({trip.departed_at.date() for trip in trip_items}),
+        "places": place_count or 0,
+        "favorite": TRANSPORT_LABELS.get(favorite, "—") if favorite else "—",
+    }
+    return render_template("profile.html", stats=stats)
+
+
+def _update_place_fields(place: Place) -> bool:
+    """Проверить форму и записать метаданные места."""
+
+    place.address = request.form.get("address", "").strip() or None
+    place.description = request.form.get("description", "").strip() or None
+    color = request.form.get("marker_color", "#111111")
+    place.marker_color = color if COLOR_PATTERN.fullmatch(color) else "#111111"
+    latitude = request.form.get("latitude", "").strip()
+    longitude = request.form.get("longitude", "").strip()
+    try:
+        parsed_latitude = float(latitude) if latitude else None
+        parsed_longitude = float(longitude) if longitude else None
+    except ValueError:
+        flash("Координаты должны быть числами", "error")
+        return False
+    if parsed_latitude is not None and not -90 <= parsed_latitude <= 90:
+        flash("Широта должна быть от −90 до 90", "error")
+        return False
+    if parsed_longitude is not None and not -180 <= parsed_longitude <= 180:
+        flash("Долгота должна быть от −180 до 180", "error")
+        return False
+    place.latitude = parsed_latitude
+    place.longitude = parsed_longitude
+    return True
 
 
 @bp.get("/api/places")

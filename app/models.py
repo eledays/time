@@ -44,6 +44,11 @@ class Place(db.Model):
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), index=True)
     name: Mapped[str]
     normalized_name: Mapped[str]
+    address: Mapped[Optional[str]]
+    latitude: Mapped[Optional[float]]
+    longitude: Mapped[Optional[float]]
+    description: Mapped[Optional[str]]
+    marker_color: Mapped[str] = mapped_column(default="#111111")
     created_at: Mapped[datetime] = mapped_column(default=utc_now)
 
     user: Mapped[User] = relationship(back_populates="places")

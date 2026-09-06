@@ -1,5 +1,19 @@
 "use strict";
 
+const themeButton = document.querySelector("[data-theme-toggle]");
+const updateThemeColor = () => {
+  const dark = document.documentElement.dataset.theme === "dark";
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#090909" : "#ffffff");
+  themeButton?.setAttribute("aria-label", dark ? "Включить светлую тему" : "Включить тёмную тему");
+};
+themeButton?.addEventListener("click", () => {
+  const theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = theme;
+  localStorage.setItem("theme", theme);
+  updateThemeColor();
+});
+updateThemeColor();
+
 const formatLocalNow = () => {
   const now = new Date();
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -201,4 +215,92 @@ function escapeHtml(value) {
   const element = document.createElement("span");
   element.textContent = String(value);
   return element.innerHTML;
+}
+
+const mapDialog = document.querySelector("[data-map-dialog]");
+if (mapDialog && window.L) {
+  let activeForm = null;
+  let pickerMap = null;
+  let pickerMarker = null;
+
+  const placePickerMarker = (latlng) => {
+    if (pickerMarker) pickerMarker.setLatLng(latlng);
+    else pickerMarker = L.marker(latlng).addTo(pickerMap);
+  };
+
+  document.querySelectorAll("[data-map-pick]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeForm = button.closest("form");
+      const latitude = Number.parseFloat(activeForm.querySelector("[name=latitude]").value);
+      const longitude = Number.parseFloat(activeForm.querySelector("[name=longitude]").value);
+      const hasCoordinates = Number.isFinite(latitude) && Number.isFinite(longitude);
+      mapDialog.showModal();
+      window.setTimeout(() => {
+        if (!pickerMap) {
+          pickerMap = L.map("coordinate-map").setView([55.7512, 37.6184], 11);
+          L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: "© OpenStreetMap",
+          }).addTo(pickerMap);
+          pickerMap.on("click", (event) => placePickerMarker(event.latlng));
+        }
+        pickerMap.invalidateSize();
+        if (hasCoordinates) {
+          pickerMap.setView([latitude, longitude], 15);
+          placePickerMarker([latitude, longitude]);
+        } else {
+          if (pickerMarker) pickerMap.removeLayer(pickerMarker);
+          pickerMarker = null;
+          pickerMap.setView([55.7512, 37.6184], 11);
+        }
+      }, 50);
+    });
+  });
+  mapDialog.querySelector("[data-map-close]").addEventListener("click", () => mapDialog.close());
+  mapDialog.querySelector("[data-map-apply]").addEventListener("click", () => {
+    if (!activeForm || !pickerMarker) return;
+    const point = pickerMarker.getLatLng();
+    activeForm.querySelector("[name=latitude]").value = point.lat.toFixed(6);
+    activeForm.querySelector("[name=longitude]").value = point.lng.toFixed(6);
+    mapDialog.close();
+  });
+}
+
+const journeyMapElement = document.getElementById("journey-map");
+const mapDataElement = document.getElementById("map-data");
+if (journeyMapElement && mapDataElement && window.L) {
+  const mapData = JSON.parse(mapDataElement.textContent);
+  const map = L.map(journeyMapElement, { zoomControl: false }).setView([55.7512, 37.6184], 10);
+  L.control.zoom({ position: "bottomright" }).addTo(map);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "© OpenStreetMap",
+  }).addTo(map);
+
+  const pointsById = new Map();
+  mapData.places.forEach((place) => {
+    const point = [place.lat, place.lng];
+    pointsById.set(place.id, point);
+    const icon = L.divIcon({
+      className: "",
+      html: `<div class="map-pin" style="--pin:${place.color}"></div>`,
+      iconSize: [18, 18],
+      iconAnchor: [9, 18],
+    });
+    L.marker(point, { icon })
+      .addTo(map)
+      .bindPopup(`<div class="map-popup"><strong>${escapeHtml(place.name)}</strong><span>${escapeHtml(place.address || "Адрес не указан")}</span></div>`);
+  });
+  mapData.trips.forEach((trip) => {
+    const origin = pointsById.get(trip.from);
+    const destination = pointsById.get(trip.to);
+    if (origin && destination) {
+      L.polyline([origin, destination], { color: "#777771", weight: 2, opacity: .45 })
+        .addTo(map)
+        .bindPopup(`${trip.minutes} мин`);
+    }
+  });
+  const allPoints = [...pointsById.values()];
+  if (allPoints.length === 1) map.setView(allPoints[0], 14);
+  if (allPoints.length > 1) map.fitBounds(allPoints, { padding: [42, 42], maxZoom: 15 });
 }

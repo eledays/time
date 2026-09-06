@@ -75,19 +75,6 @@
         {% endif %}
       </div>
 
-      {% if recent_trips %}
-        <details class="recent-history">
-          <summary>Последние поездки <span>{{ recent_trips|length }}</span></summary>
-          <div class="trip-list">
-            {% for trip in recent_trips %}
-              <article class="trip-item">
-                <div><h3>{{ trip.origin.name }} <span>→</span> {{ trip.destination.name }}</h3><p>{{ trip.departed_at.strftime('%d.%m') }} · {{ transport_labels[trip.transport_type] }}{% if trip.transport_detail %} · {{ trip.transport_detail }}{% endif %}</p></div>
-                <strong>{{ trip.duration_minutes }}<small> мин</small></strong>
-              </article>
-            {% endfor %}
-          </div>
-        </details>
-      {% endif %}
     </section>
   {% endif %}
 </main>

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Профиль{% endblock %}
+{% block page %}profile{% endblock %}
+{% block content %}
+<main class="page-shell app-page profile-page">
+  <section class="profile-card">
+    {% if g.user.avatar_url %}
+      <img src="{{ g.user.avatar_url }}" alt="Аватар {{ g.user.display_name }}" referrerpolicy="no-referrer">
+    {% else %}
+      <div class="avatar-fallback" aria-label="Аватар">{{ g.user.display_name[:1] }}</div>
+    {% endif %}
+    <h1>{{ g.user.display_name }}</h1>
+    {% if g.user.email %}<p>{{ g.user.email }}</p>{% endif %}
+  </section>
+  <section class="stats-grid" aria-label="Статистика поездок">
+    <article><strong>{{ stats.trips }}</strong><span>поездок</span></article>
+    <article><strong>{{ stats.minutes }}</strong><span>минут в пути</span></article>
+    <article><strong>{{ stats.average }}</strong><span>минут в среднем</span></article>
+    <article><strong>{{ stats.places }}</strong><span>мест</span></article>
+    <article><strong>{{ stats.days }}</strong><span>дней с поездками</span></article>
+    <article><strong>{{ stats.favorite }}</strong><span>чаще всего</span></article>
+  </section>
+  <form action="{{ url_for('auth.logout') }}" method="post" class="logout-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit">Выйти из аккаунта</button>
+  </form>
+</main>
+{% endblock %}

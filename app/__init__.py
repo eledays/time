@@ -12,6 +12,7 @@ from sqlalchemy import text
 from app.config import Config
 from app.extensions import db, oauth
 from app.security import init_csrf
+from app.schema import upgrade_sqlite_schema
 
 
 def create_app(config_object: type[Config] = Config) -> Flask:
@@ -30,7 +31,7 @@ def create_app(config_object: type[Config] = Config) -> Flask:
         client_secret=app.config["YANDEX_CLIENT_SECRET"],
         authorize_url="https://oauth.yandex.ru/authorize",
         access_token_url="https://oauth.yandex.ru/token",
-        client_kwargs={"scope": "login:email login:info"},
+        client_kwargs={"scope": "login:email login:info login:avatar"},
     )
 
     from app.auth import bp as auth_bp
@@ -41,6 +42,7 @@ def create_app(config_object: type[Config] = Config) -> Flask:
 
     with app.app_context():
         db.create_all()
+        upgrade_sqlite_schema()
         db.session.execute(text("PRAGMA optimize"))
         db.session.commit()
 
