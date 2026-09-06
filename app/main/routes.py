@@ -73,7 +73,6 @@ def start_trip():
         ActiveTrip(user_id=g.user.id, origin_id=origin.id, departed_at=departed_at)
     )
     db.session.commit()
-    flash("Начальная точка сохранена. Счастливого пути!", "success")
     return redirect(url_for("main.index"))
 
 
@@ -148,7 +147,6 @@ def clear_active_trip():
     if active_trip is not None:
         db.session.delete(active_trip)
         db.session.commit()
-        flash("Начальная точка очищена", "success")
     return redirect(url_for("main.index"))
 
 

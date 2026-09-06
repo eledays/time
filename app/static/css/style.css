@@ -119,11 +119,9 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .clear-start-form { display: flex; justify-content: center; }
 .clear-start-button, .logout-form button { padding: 16px; border: 0; background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; }
 .clear-start-button:hover, .logout-form button:hover { color: var(--danger); }
-.active-origin-card { padding: 17px 19px; border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(145deg, rgba(255,255,255,.035), transparent 62%); animation: settle-origin .62s cubic-bezier(.2,.75,.25,1) both; }
-.active-origin-card h2 { margin: 0 0 30px; font-size: clamp(26px, 7.5vw, 38px); font-weight: 560; line-height: 1.02; letter-spacing: -.055em; }
-.active-origin-value { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
-.active-origin-value strong { min-width: 0; overflow: hidden; font-size: 14px; font-weight: 450; letter-spacing: -.015em; text-overflow: ellipsis; white-space: nowrap; }
-.active-origin-value time { flex: none; color: var(--muted); font-size: 10px; white-space: nowrap; }
+.active-origin-card { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 17px 19px; border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(145deg, rgba(255,255,255,.035), transparent 62%); animation: settle-origin .62s cubic-bezier(.2,.75,.25,1) both; }
+.active-origin-card strong { min-width: 0; overflow: hidden; font-size: 16px; font-weight: 500; letter-spacing: -.02em; text-overflow: ellipsis; white-space: nowrap; }
+.active-origin-card time { flex: none; color: var(--muted); font-size: 11px; white-space: nowrap; }
 .transport-carousel { display: flex; gap: 9px; overflow-x: auto; margin: 30px -20px 44px; padding: 0 20px 8px; scrollbar-width: none; scroll-padding-inline: 20px; scroll-snap-type: x proximity; animation: appear .38s .15s ease both; }
 .transport-carousel::-webkit-scrollbar { display: none; }
 .transport-card { position: relative; flex: 0 0 88px; scroll-snap-align: start; cursor: pointer; }

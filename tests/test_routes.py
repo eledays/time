@@ -104,18 +104,23 @@ def test_arrival_time_is_hidden_by_default(auth_client) -> None:
 def test_active_trip_can_be_cleared(app: Flask, auth_client, user) -> None:
     """Пользователь может отменить сохранённую начальную точку."""
 
-    auth_client.post(
+    start_response = auth_client.post(
         "/trips/start",
         data={
             "csrf_token": "test-csrf",
             "origin": "Вокзал",
             "departed_at": "2026-09-03T11:00",
         },
+        follow_redirects=True,
     )
+    assert 'class="toast ' not in start_response.text
     response = auth_client.post(
-        "/trips/active/clear", data={"csrf_token": "test-csrf"}
+        "/trips/active/clear",
+        data={"csrf_token": "test-csrf"},
+        follow_redirects=True,
     )
-    assert response.status_code == 302
+    assert response.status_code == 200
+    assert 'class="toast ' not in response.text
     with app.app_context():
         assert db.session.scalar(db.select(ActiveTrip)) is None
         assert db.session.scalar(db.select(Trip)) is None

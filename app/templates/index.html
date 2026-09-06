@@ -15,11 +15,8 @@
       <div class="record-main" data-record-main>
         {% if active_trip %}
           <div class="active-origin-card">
-            <h2>Откуда едем?</h2>
-            <div class="active-origin-value">
-              <strong>{{ active_trip.origin.name }}</strong>
-              <time datetime="{{ active_trip.departed_at.isoformat() }}">{{ active_trip.departed_at.strftime('%H:%M') }}</time>
-            </div>
+            <strong>{{ active_trip.origin.name }}</strong>
+            <time datetime="{{ active_trip.departed_at.isoformat() }}">{{ active_trip.departed_at.strftime('%H:%M') }}</time>
           </div>
 
           <form class="trip-form finish-form" action="{{ url_for('main.finish_trip') }}" method="post" data-trip-form>
