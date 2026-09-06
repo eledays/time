@@ -49,6 +49,9 @@ def test_trip_survives_reopen_and_finishes_with_bus_number(
     assert "Дом" in reopened_page.text
     assert '<select id="transport_type"' in reopened_page.text
     assert "transport-grid" not in reopened_page.text
+    assert 'class="active-origin-card"' in reopened_page.text
+    assert 'class="elapsed-counter"' in reopened_page.text
+    assert 'class="destination-title"' in reopened_page.text
 
     finish_response = auth_client.post(
         "/trips/finish",
@@ -127,6 +130,18 @@ def test_place_names_are_deduplicated(app: Flask, user) -> None:
         db.session.commit()
         assert first.id == second.id
         assert db.session.query(Place).count() == 1
+
+
+def test_place_suggestions_ignore_cyrillic_case(app: Flask, auth_client, user) -> None:
+    """Поиск мест не зависит от регистра, включая кириллицу."""
+
+    with app.app_context():
+        get_or_create_place(user.id, "Кофейня Север")
+        db.session.commit()
+
+    response = auth_client.get("/api/places?q=КОФЕЙНЯ")
+    assert response.status_code == 200
+    assert [place["name"] for place in response.json] == ["Кофейня Север"]
 
 
 def test_route_uses_average_duration(app: Flask, auth_client, user) -> None:

@@ -2,7 +2,7 @@
 {% block title %}Записать поездку · Ход{% endblock %}
 {% block page %}record{% endblock %}
 {% block content %}
-<main class="page-shell">
+<main class="page-shell{% if g.user and active_trip %} active-record-page{% endif %}">
   {% if not g.user %}
     <section class="welcome" aria-labelledby="welcome-title">
       <h1 id="welcome-title">Время в пути,<br>которому можно верить</h1>
@@ -12,19 +12,37 @@
     </section>
   {% else %}
     <section class="record-layout">
-      <div class="record-main">
+      <div class="record-main" data-record-main>
         {% if active_trip %}
-          <p class="status-line"><span aria-hidden="true"></span> В пути <strong data-elapsed data-start="{{ active_trip.departed_at.isoformat(timespec='minutes') }}">—</strong></p>
-          <h1>Куда приехали?</h1>
-          <div class="active-trip-summary">
-            <div><small>Откуда</small><strong>{{ active_trip.origin.name }}</strong></div>
+          <div class="active-origin-card">
+            <h2>Откуда едем?</h2>
+            <p>{{ active_trip.origin.name }}</p>
             <time datetime="{{ active_trip.departed_at.isoformat() }}">{{ active_trip.departed_at.strftime('%H:%M') }}</time>
           </div>
 
           <form class="trip-form finish-form" action="{{ url_for('main.finish_trip') }}" method="post" data-trip-form>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="travel-status-row">
+              <strong class="elapsed-counter" data-elapsed data-start="{{ active_trip.departed_at.isoformat(timespec='minutes') }}">—</strong>
+              <div class="transport-menu">
+                <label for="transport_type">Способ</label>
+                <select id="transport_type" name="transport_type">
+                  {% for value, label in transport_labels.items() %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="conditional-fields active-transport-details" data-detail-fields hidden>
+              <div class="field-group" data-detail-wrap>
+                <label for="transport_detail" data-detail-label>Номер</label>
+                <input id="transport_detail" name="transport_detail" type="text" placeholder="Например, 39">
+              </div>
+              <div class="taxi-fields" data-taxi-fields hidden>
+                <div class="field-group"><label for="taxi_cost">Стоимость, ₽</label><input id="taxi_cost" name="taxi_cost" type="number" min="0" step="0.01" placeholder="650"></div>
+                <div class="field-group"><label for="taxi_tariff">Тариф</label><input id="taxi_tariff" name="taxi_tariff" type="text" placeholder="Комфорт"></div>
+              </div>
+            </div>
+            <h1 class="destination-title">Куда приехали?</h1>
             <div class="field-group autocomplete">
-              <label for="destination">Конечная точка</label>
               <input id="destination" name="destination" type="text" autocomplete="off" placeholder="Название места" required data-place-input data-time-target="arrived_at">
               <div class="suggestions" role="listbox"></div>
             </div>
@@ -40,22 +58,6 @@
                 <input id="arrived_at" name="arrived_at" type="datetime-local" aria-label="Время прибытия" data-default-now required>
               </div>
             </div>
-            <div class="select-group">
-              <label for="transport_type">Как добирались</label>
-              <select id="transport_type" name="transport_type">
-                {% for value, label in transport_labels.items() %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
-              </select>
-            </div>
-            <div class="conditional-fields" data-detail-fields hidden>
-              <div class="field-group" data-detail-wrap>
-                <label for="transport_detail" data-detail-label>Номер</label>
-                <input id="transport_detail" name="transport_detail" type="text" placeholder="Например, 39">
-              </div>
-              <div class="taxi-fields" data-taxi-fields hidden>
-                <div class="field-group"><label for="taxi_cost">Стоимость, ₽</label><input id="taxi_cost" name="taxi_cost" type="number" min="0" step="0.01" placeholder="650"></div>
-                <div class="field-group"><label for="taxi_tariff">Тариф</label><input id="taxi_tariff" name="taxi_tariff" type="text" placeholder="Комфорт"></div>
-              </div>
-            </div>
             <button class="primary-button save-button" type="submit">Сохранить поездку</button>
           </form>
           <form class="clear-start-form" action="{{ url_for('main.clear_active_trip') }}" method="post" data-clear-form>
@@ -63,12 +65,14 @@
             <button type="submit" class="clear-start-button">Отменить поездку</button>
           </form>
         {% else %}
-          <h1>Откуда едем?</h1>
           <form class="trip-form start-form" action="{{ url_for('main.start_trip') }}" method="post">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="field-group autocomplete">
-              <input id="origin" name="origin" type="text" autocomplete="off" placeholder="Название места" required data-place-input data-time-target="departed_at">
-              <div class="suggestions" role="listbox"></div>
+            <div class="start-origin-stage">
+              <h1>Откуда едем?</h1>
+              <div class="field-group autocomplete">
+                <input id="origin" name="origin" type="text" autocomplete="off" placeholder="Название места" required data-place-input data-time-target="departed_at">
+                <div class="suggestions" role="listbox"></div>
+              </div>
             </div>
             <button class="secondary-button time-toggle" type="button" data-time-toggle="departed_at" aria-controls="departed-time-options" aria-expanded="false">Отправился не сейчас</button>
             <div class="time-options" id="departed-time-options" data-time-panel="departed_at" hidden>

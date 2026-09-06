@@ -67,6 +67,21 @@ document.querySelectorAll("form").forEach((form) => {
   });
 });
 
+const startForm = document.querySelector(".start-form");
+if (startForm) {
+  let transitionStarted = false;
+  startForm.addEventListener("submit", (event) => {
+    if (transitionStarted || !startForm.checkValidity()) return;
+    event.preventDefault();
+    startForm.classList.add("is-transitioning");
+    startForm.querySelector('[type="submit"]').disabled = true;
+    window.setTimeout(() => {
+      transitionStarted = true;
+      startForm.requestSubmit();
+    }, 420);
+  });
+}
+
 const debounce = (callback, delay = 180) => {
   let timer;
   return (...args) => {
@@ -74,6 +89,11 @@ const debounce = (callback, delay = 180) => {
     timer = window.setTimeout(() => callback(...args), delay);
   };
 };
+
+const normalizePlaceName = (value) => value
+  .trim()
+  .toLocaleLowerCase("ru-RU")
+  .replace(/\s+/g, " ");
 
 const initializeAutocomplete = (input) => {
   if (input.dataset.autocompleteReady) return;
@@ -87,6 +107,7 @@ const initializeAutocomplete = (input) => {
       const response = await fetch(`/api/places?q=${encodeURIComponent(query)}`);
       if (!response.ok) return;
       const places = await response.json();
+      if (input.value.trim() !== query) return;
       menu.replaceChildren();
       places.forEach((place) => {
         const option = document.createElement("button");
@@ -102,7 +123,17 @@ const initializeAutocomplete = (input) => {
         });
         menu.append(option);
       });
-      menu.classList.toggle("open", places.length > 0);
+      const isExistingPlace = places.some(
+        (place) => normalizePlaceName(place.name) === normalizePlaceName(query),
+      );
+      if (query && !isExistingPlace) {
+        const notice = document.createElement("div");
+        notice.className = "new-place-notice";
+        notice.setAttribute("role", "status");
+        notice.textContent = `Будет создано новое место · ${query}`;
+        menu.append(notice);
+      }
+      menu.classList.toggle("open", places.length > 0 || Boolean(query));
     } catch (_) {
       menu.classList.remove("open");
     }

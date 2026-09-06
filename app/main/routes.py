@@ -349,7 +349,9 @@ def places_api():
     query = request.args.get("q", "").strip()
     statement = select(Place).where(Place.user_id == g.user.id)
     if query:
-        statement = statement.where(Place.name.ilike(f"%{query}%"))
+        statement = statement.where(
+            Place.normalized_name.contains(normalize_place(query), autoescape=True)
+        )
     places = db.session.scalars(statement.order_by(Place.name).limit(8)).all()
     return jsonify([{"id": place.id, "name": place.name} for place in places])
 
