@@ -52,7 +52,13 @@ const initializeAutocomplete = (input) => {
     }
   });
 
-  input.addEventListener("input", load);
+  input.addEventListener("input", () => {
+    load();
+    const timeInput = input.dataset.timeTarget
+      ? document.getElementById(input.dataset.timeTarget)
+      : null;
+    if (input.value.trim() && timeInput && !timeInput.value) setCurrentTime(input.dataset.timeTarget);
+  });
   input.addEventListener("focus", load);
   input.addEventListener("change", () => {
     if (input.value.trim() && input.dataset.timeTarget) setCurrentTime(input.dataset.timeTarget);
@@ -69,6 +75,31 @@ document.querySelectorAll("[data-place-input]").forEach(initializeAutocomplete);
 document.querySelectorAll("[data-now]").forEach((button) => {
   button.addEventListener("click", () => setCurrentTime(button.dataset.now));
 });
+
+const elapsed = document.querySelector("[data-elapsed]");
+if (elapsed) {
+  const updateElapsed = () => {
+    const startedAt = new Date(elapsed.dataset.start);
+    const minutes = Math.max(0, Math.floor((Date.now() - startedAt.getTime()) / 60000));
+    const days = Math.floor(minutes / 1440);
+    const hours = Math.floor((minutes % 1440) / 60);
+    const remainder = minutes % 60;
+    elapsed.textContent = days > 0
+      ? `${days} д ${hours} ч`
+      : hours > 0 ? `${hours} ч ${remainder} мин` : `${remainder} мин`;
+  };
+  updateElapsed();
+  window.setInterval(updateElapsed, 60000);
+}
+
+const clearForm = document.querySelector("[data-clear-form]");
+if (clearForm) {
+  clearForm.addEventListener("submit", (event) => {
+    if (!window.confirm("Очистить начальную точку? Текущая поездка не сохранится.")) {
+      event.preventDefault();
+    }
+  });
+}
 
 const tripForm = document.querySelector("[data-trip-form]");
 if (tripForm) {

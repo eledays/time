@@ -27,6 +27,9 @@ class User(db.Model):
 
     places: Mapped[list["Place"]] = relationship(back_populates="user")
     trips: Mapped[list["Trip"]] = relationship(back_populates="user")
+    active_trip: Mapped[Optional["ActiveTrip"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class Place(db.Model):
@@ -75,3 +78,16 @@ class Trip(db.Model):
         """Вернуть продолжительность поездки в целых минутах."""
 
         return round((self.arrived_at - self.departed_at).total_seconds() / 60)
+
+
+class ActiveTrip(db.Model):
+    """Незавершённая поездка, ожидающая конечную точку."""
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), unique=True)
+    origin_id: Mapped[int] = mapped_column(ForeignKey("place.id"))
+    departed_at: Mapped[datetime]
+    created_at: Mapped[datetime] = mapped_column(default=utc_now)
+
+    user: Mapped[User] = relationship(back_populates="active_trip")
+    origin: Mapped[Place] = relationship()

@@ -19,34 +19,61 @@
   {% else %}
     <section class="record-layout">
       <div class="record-main">
-        <p class="eyebrow">Новая запись</p>
-        <h1>Как вы добрались?</h1>
-        <form class="trip-form" action="{{ url_for('main.create_trip') }}" method="post" data-trip-form>
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <div class="route-fields">
-            <div class="route-line" aria-hidden="true"><span></span><i></i><span></span></div>
-            <div class="field-group autocomplete">
-              <label for="origin">Откуда</label>
-              <input id="origin" name="origin" type="text" autocomplete="off" placeholder="Например, Дом" required data-place-input data-time-target="departed_at">
-              <div class="suggestions" role="listbox"></div>
+        {% if active_trip %}
+          <p class="eyebrow">Поездка началась</p>
+          <h1>Вы уже в пути</h1>
+          <div class="active-trip-card">
+            <div class="active-trip-pulse" aria-hidden="true"><span></span></div>
+            <div>
+              <p>Старт</p>
+              <h2>{{ active_trip.origin.name }}</h2>
+              <time datetime="{{ active_trip.departed_at.isoformat() }}">{{ active_trip.departed_at.strftime('%d.%m · %H:%M') }}</time>
             </div>
-            <div class="time-row">
-              <label for="departed_at">Отправление</label>
-              <input id="departed_at" name="departed_at" type="datetime-local" required>
-              <button type="button" class="text-button" data-now="departed_at">Сейчас</button>
-            </div>
-            <div class="field-group autocomplete destination-field">
-              <label for="destination">Куда</label>
-              <input id="destination" name="destination" type="text" autocomplete="off" placeholder="Например, Работа" required data-place-input data-time-target="arrived_at">
-              <div class="suggestions" role="listbox"></div>
-            </div>
-            <div class="time-row">
-              <label for="arrived_at">Прибытие</label>
-              <input id="arrived_at" name="arrived_at" type="datetime-local" required>
-              <button type="button" class="text-button" data-now="arrived_at">Сейчас</button>
-            </div>
+            <strong data-elapsed data-start="{{ active_trip.departed_at.isoformat(timespec='minutes') }}">—</strong>
           </div>
+          <form class="clear-start-form" action="{{ url_for('main.clear_active_trip') }}" method="post" data-clear-form>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="clear-start-button">×&nbsp; Очистить начальную точку</button>
+          </form>
+          <form class="trip-form finish-form" action="{{ url_for('main.finish_trip') }}" method="post" data-trip-form>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="route-fields finish-route-fields">
+              <div class="route-line compact" aria-hidden="true"><span></span><i></i><span></span></div>
+              <div class="field-group autocomplete destination-field">
+                <label for="destination">Куда приехали</label>
+                <input id="destination" name="destination" type="text" autocomplete="off" placeholder="Например, Работа" required data-place-input data-time-target="arrived_at">
+                <div class="suggestions" role="listbox"></div>
+              </div>
+              <div class="time-row">
+                <label for="arrived_at">Прибытие</label>
+                <input id="arrived_at" name="arrived_at" type="datetime-local" required>
+                <button type="button" class="text-button" data-now="arrived_at">Сейчас</button>
+              </div>
+            </div>
+        {% else %}
+          <p class="eyebrow">Новая поездка</p>
+          <h1>Откуда вы едете?</h1>
+          <p class="form-intro">Сохраним точку и время. Конечное место можно указать, когда доберётесь.</p>
+          <form class="trip-form start-form" action="{{ url_for('main.start_trip') }}" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="route-fields start-route-fields">
+              <div class="route-line start-line" aria-hidden="true"><span></span></div>
+              <div class="field-group autocomplete">
+                <label for="origin">Начальная точка</label>
+                <input id="origin" name="origin" type="text" autocomplete="off" placeholder="Например, Дом" required data-place-input data-time-target="departed_at">
+                <div class="suggestions" role="listbox"></div>
+              </div>
+              <div class="time-row">
+                <label for="departed_at">Отправление</label>
+                <input id="departed_at" name="departed_at" type="datetime-local" required>
+                <button type="button" class="text-button" data-now="departed_at">Сейчас</button>
+              </div>
+            </div>
+            <button class="primary-button save-button" type="submit"><span>Начать поездку</span><b>→</b></button>
+          </form>
+        {% endif %}
 
+        {% if active_trip %}
           <fieldset class="transport-picker">
             <legend>Тип перемещения</legend>
             <div class="transport-grid">
@@ -69,8 +96,9 @@
               <div class="field-group"><label for="taxi_tariff">Тариф</label><input id="taxi_tariff" name="taxi_tariff" type="text" placeholder="Комфорт"></div>
             </div>
           </div>
-          <button class="primary-button save-button" type="submit"><span>Сохранить поездку</span><b>→</b></button>
+          <button class="primary-button save-button" type="submit"><span>Завершить и сохранить</span><b>→</b></button>
         </form>
+        {% endif %}
       </div>
 
       <aside class="recent" aria-labelledby="recent-title">

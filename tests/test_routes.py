@@ -5,7 +5,7 @@ from datetime import datetime
 from flask import Flask
 
 from app.extensions import db
-from app.models import Place, Trip
+from app.models import ActiveTrip, Place, Trip
 from app.services import get_or_create_place
 
 
@@ -25,22 +25,37 @@ def test_calculator_requires_login(client) -> None:
     assert response.headers["Location"].endswith("/auth/login")
 
 
-def test_trip_is_saved_with_bus_number(app: Flask, auth_client, user) -> None:
-    """Сохранение поездки создаёт места и оставляет номер автобуса."""
+def test_trip_survives_reopen_and_finishes_with_bus_number(
+    app: Flask, auth_client, user
+) -> None:
+    """Старт хранится между запросами и превращается в завершённую поездку."""
 
-    response = auth_client.post(
-        "/trips",
+    start_response = auth_client.post(
+        "/trips/start",
         data={
             "csrf_token": "test-csrf",
             "origin": "  Дом  ",
-            "destination": "Парк",
             "departed_at": "2026-09-03T09:00",
+        },
+    )
+    assert start_response.status_code == 302
+
+    reopened_page = auth_client.get("/")
+    assert reopened_page.status_code == 200
+    assert "Вы уже в пути" in reopened_page.text
+    assert "Дом" in reopened_page.text
+
+    finish_response = auth_client.post(
+        "/trips/finish",
+        data={
+            "csrf_token": "test-csrf",
+            "destination": "Парк",
             "arrived_at": "2026-09-03T09:36",
             "transport_type": "bus",
             "transport_detail": "39",
         },
     )
-    assert response.status_code == 302
+    assert finish_response.status_code == 302
     with app.app_context():
         trip = db.session.scalar(db.select(Trip))
         assert trip is not None
@@ -48,6 +63,27 @@ def test_trip_is_saved_with_bus_number(app: Flask, auth_client, user) -> None:
         assert trip.transport_detail == "39"
         assert trip.origin.name == "Дом"
         assert db.session.query(Place).count() == 2
+        assert db.session.scalar(db.select(ActiveTrip)) is None
+
+
+def test_active_trip_can_be_cleared(app: Flask, auth_client, user) -> None:
+    """Пользователь может отменить сохранённую начальную точку."""
+
+    auth_client.post(
+        "/trips/start",
+        data={
+            "csrf_token": "test-csrf",
+            "origin": "Вокзал",
+            "departed_at": "2026-09-03T11:00",
+        },
+    )
+    response = auth_client.post(
+        "/trips/active/clear", data={"csrf_token": "test-csrf"}
+    )
+    assert response.status_code == 302
+    with app.app_context():
+        assert db.session.scalar(db.select(ActiveTrip)) is None
+        assert db.session.scalar(db.select(Trip)) is None
 
 
 def test_place_names_are_deduplicated(app: Flask, user) -> None:
@@ -100,4 +136,3 @@ def test_csrf_is_required(auth_client) -> None:
 
     response = auth_client.post("/api/calculate", json={"points": ["A", "B"]})
     assert response.status_code == 400
-

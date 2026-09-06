@@ -6,11 +6,12 @@ from sqlalchemy import select
 from app.auth.helpers import login_required
 from app.extensions import db
 from app.main import bp
-from app.models import Place, Trip
+from app.models import ActiveTrip, Place, Trip
 from app.services import (
     TRANSPORT_LABELS,
     calculate_route,
     get_or_create_place,
+    normalize_place,
     parse_local_datetime,
 )
 
@@ -20,7 +21,11 @@ def index():
     """Показать форму записи поездки."""
 
     recent_trips = []
+    active_trip = None
     if g.user:
+        active_trip = db.session.scalar(
+            select(ActiveTrip).where(ActiveTrip.user_id == g.user.id)
+        )
         recent_trips = db.session.scalars(
             select(Trip)
             .where(Trip.user_id == g.user.id)
@@ -29,37 +34,72 @@ def index():
         ).all()
     return render_template(
         "index.html",
+        active_trip=active_trip,
         recent_trips=recent_trips,
         transport_labels=TRANSPORT_LABELS,
     )
 
 
-@bp.post("/trips")
+@bp.post("/trips/start")
 @login_required
-def create_trip():
-    """Проверить и сохранить завершённую поездку."""
+def start_trip():
+    """Сохранить начальную точку и время активной поездки."""
 
     origin_name = request.form.get("origin", "").strip()
+    try:
+        departed_at = parse_local_datetime(request.form.get("departed_at", ""))
+    except ValueError:
+        flash("Проверьте время отправления", "error")
+        return redirect(url_for("main.index"))
+
+    if not origin_name:
+        flash("Укажите начальную точку", "error")
+        return redirect(url_for("main.index"))
+    active_trip = db.session.scalar(
+        select(ActiveTrip).where(ActiveTrip.user_id == g.user.id)
+    )
+    if active_trip is not None:
+        flash("Сначала завершите или очистите активную поездку", "warning")
+        return redirect(url_for("main.index"))
+
+    origin = get_or_create_place(g.user.id, origin_name)
+    db.session.add(
+        ActiveTrip(user_id=g.user.id, origin_id=origin.id, departed_at=departed_at)
+    )
+    db.session.commit()
+    flash("Начальная точка сохранена. Счастливого пути!", "success")
+    return redirect(url_for("main.index"))
+
+
+@bp.post("/trips/finish")
+@login_required
+def finish_trip():
+    """Дополнить активную поездку конечной точкой и сохранить маршрут."""
+
+    active_trip = db.session.scalar(
+        select(ActiveTrip).where(ActiveTrip.user_id == g.user.id)
+    )
+    if active_trip is None:
+        flash("Сначала задайте начальную точку", "warning")
+        return redirect(url_for("main.index"))
+
     destination_name = request.form.get("destination", "").strip()
     transport_type = request.form.get("transport_type", "")
     try:
-        departed_at = parse_local_datetime(request.form.get("departed_at", ""))
         arrived_at = parse_local_datetime(request.form.get("arrived_at", ""))
     except ValueError:
-        flash("Проверьте время отправления и прибытия", "error")
+        flash("Проверьте время прибытия", "error")
         return redirect(url_for("main.index"))
-
-    if not origin_name or not destination_name or origin_name.casefold() == destination_name.casefold():
-        flash("Укажите две разные точки маршрута", "error")
+    if not destination_name or active_trip.origin.normalized_name == normalize_place(destination_name):
+        flash("Укажите конечную точку, отличную от начальной", "error")
         return redirect(url_for("main.index"))
     if transport_type not in TRANSPORT_LABELS:
         flash("Выберите тип перемещения", "error")
         return redirect(url_for("main.index"))
-    if arrived_at <= departed_at:
+    if arrived_at <= active_trip.departed_at:
         flash("Прибытие должно быть позже отправления", "error")
         return redirect(url_for("main.index"))
 
-    origin = get_or_create_place(g.user.id, origin_name)
     destination = get_or_create_place(g.user.id, destination_name)
     detail = request.form.get("transport_detail", "").strip() or None
     taxi_cost = None
@@ -75,9 +115,9 @@ def create_trip():
 
     trip = Trip(
         user_id=g.user.id,
-        origin_id=origin.id,
+        origin_id=active_trip.origin_id,
         destination_id=destination.id,
-        departed_at=departed_at,
+        departed_at=active_trip.departed_at,
         arrived_at=arrived_at,
         transport_type=transport_type,
         transport_detail=detail if transport_type in {"bus", "metro"} else None,
@@ -85,8 +125,24 @@ def create_trip():
         taxi_tariff=taxi_tariff,
     )
     db.session.add(trip)
+    db.session.delete(active_trip)
     db.session.commit()
     flash(f"Поездка сохранена · {trip.duration_minutes} мин", "success")
+    return redirect(url_for("main.index"))
+
+
+@bp.post("/trips/active/clear")
+@login_required
+def clear_active_trip():
+    """Удалить сохранённую начальную точку без создания поездки."""
+
+    active_trip = db.session.scalar(
+        select(ActiveTrip).where(ActiveTrip.user_id == g.user.id)
+    )
+    if active_trip is not None:
+        db.session.delete(active_trip)
+        db.session.commit()
+        flash("Начальная точка очищена", "success")
     return redirect(url_for("main.index"))
 
 

@@ -82,6 +82,33 @@ h1 em { color: var(--muted); font-family: Georgia, serif; font-weight: 400; }
 .record-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, .75fr); gap: 80px; }
 .record-main h1, .calculator-head h1 { font-size: clamp(42px, 5vw, 64px); }
 .trip-form { margin-top: 52px; }
+.form-intro { max-width: 520px; margin: 20px 0 -20px; color: var(--muted); line-height: 1.55; }
+.start-route-fields { margin-top: 52px; }
+.start-line { bottom: auto; height: 12px; }
+.finish-form { margin-top: 34px; }
+.finish-route-fields .route-line { top: 22px; bottom: 24px; }
+.active-trip-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 38px 1fr auto;
+  gap: 16px;
+  align-items: center;
+  margin-top: 42px;
+  padding: 24px;
+  border: 1px solid var(--acid-dark);
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, rgba(216,255,62,.09), rgba(17,18,16,.72));
+  animation: rise .4s both;
+}
+.active-trip-pulse { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: rgba(216,255,62,.1); }
+.active-trip-pulse span { width: 9px; height: 9px; border-radius: 50%; background: var(--acid); box-shadow: 0 0 0 0 rgba(216,255,62,.35); animation: pulse 2s infinite; }
+.active-trip-card p { margin: 0 0 5px; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .12em; }
+.active-trip-card h2 { margin: 0 0 5px; font-size: 22px; font-weight: 570; letter-spacing: -.03em; }
+.active-trip-card time { color: var(--muted); font-size: 12px; }
+.active-trip-card > strong { color: var(--acid); font-size: 14px; font-weight: 600; }
+.clear-start-form { display: flex; justify-content: flex-end; }
+.clear-start-button { padding: 11px 3px; border: 0; background: transparent; color: #696b64; font-size: 11px; cursor: pointer; transition: color .2s ease; }
+.clear-start-button:hover { color: var(--danger); }
 .route-fields { position: relative; padding-left: 46px; }
 .route-line { position: absolute; left: 4px; top: 21px; bottom: 23px; width: 12px; display: flex; flex-direction: column; align-items: center; }
 .route-line span { width: 10px; height: 10px; border: 2px solid var(--acid); border-radius: 50%; background: var(--bg); }
@@ -194,6 +221,7 @@ input::placeholder { color: #484a45; }
 @keyframes float { 0%,100% { transform: rotate(4deg) translateY(0); } 50% { transform: rotate(2.5deg) translateY(-12px); } }
 @keyframes toast-in { from { opacity: 0; transform: translateX(20px); } }
 @keyframes toast-out { to { opacity: 0; transform: translateY(-8px); pointer-events: none; } }
+@keyframes pulse { 70% { box-shadow: 0 0 0 10px rgba(216,255,62,0); } 100% { box-shadow: 0 0 0 0 rgba(216,255,62,0); } }
 
 @media (max-width: 900px) {
   .record-layout, .calculator-grid { grid-template-columns: 1fr; gap: 55px; }
