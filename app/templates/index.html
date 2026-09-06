@@ -28,10 +28,17 @@
               <input id="destination" name="destination" type="text" autocomplete="off" placeholder="Название места" required data-place-input data-time-target="arrived_at">
               <div class="suggestions" role="listbox"></div>
             </div>
-            <div class="time-row">
-              <label for="arrived_at">Прибытие</label>
-              <input id="arrived_at" name="arrived_at" type="datetime-local" required>
-              <button type="button" class="text-button" data-now="arrived_at">Сейчас</button>
+            <button class="secondary-button time-toggle" type="button" data-time-toggle="arrived_at" aria-controls="arrived-time-options" aria-expanded="false">Приехал не сейчас</button>
+            <div class="time-options" id="arrived-time-options" data-time-panel="arrived_at" hidden>
+              <div class="time-chips" aria-label="Время прибытия">
+                <button type="button" class="time-chip active" data-time-offset="0" data-time-target="arrived_at" aria-pressed="true">Сейчас</button>
+                <button type="button" class="time-chip" data-time-offset="5" data-time-target="arrived_at" aria-pressed="false">−5 мин</button>
+                <button type="button" class="time-chip" data-time-offset="15" data-time-target="arrived_at" aria-pressed="false">−15 мин</button>
+                <button type="button" class="time-chip" data-time-custom="arrived_at" aria-pressed="false">Другое</button>
+              </div>
+              <div class="time-exact" data-time-exact="arrived_at" hidden>
+                <input id="arrived_at" name="arrived_at" type="datetime-local" aria-label="Время прибытия" data-default-now required>
+              </div>
             </div>
             <div class="select-group">
               <label for="transport_type">Как добирались</label>
@@ -63,10 +70,17 @@
               <input id="origin" name="origin" type="text" autocomplete="off" placeholder="Название места" required data-place-input data-time-target="departed_at">
               <div class="suggestions" role="listbox"></div>
             </div>
-            <button class="optional-action" type="button" data-custom-departure>Отправился не сейчас</button>
-            <div class="time-row departure-time-row" data-departure-time hidden>
-              <input id="departed_at" name="departed_at" type="datetime-local" aria-label="Время отправления" required>
-              <button type="button" class="text-button" data-now="departed_at">Сейчас</button>
+            <button class="secondary-button time-toggle" type="button" data-time-toggle="departed_at" aria-controls="departed-time-options" aria-expanded="false">Отправился не сейчас</button>
+            <div class="time-options" id="departed-time-options" data-time-panel="departed_at" hidden>
+              <div class="time-chips" aria-label="Время отправления">
+                <button type="button" class="time-chip active" data-time-offset="0" data-time-target="departed_at" aria-pressed="true">Сейчас</button>
+                <button type="button" class="time-chip" data-time-offset="5" data-time-target="departed_at" aria-pressed="false">−5 мин</button>
+                <button type="button" class="time-chip" data-time-offset="15" data-time-target="departed_at" aria-pressed="false">−15 мин</button>
+                <button type="button" class="time-chip" data-time-custom="departed_at" aria-pressed="false">Другое</button>
+              </div>
+              <div class="time-exact" data-time-exact="departed_at" hidden>
+                <input id="departed_at" name="departed_at" type="datetime-local" aria-label="Время отправления" data-default-now required>
+              </div>
             </div>
             <button class="primary-button save-button" type="submit">Начать поездку</button>
           </form>

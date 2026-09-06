@@ -3,7 +3,16 @@
 import re
 from collections import Counter
 
-from flask import flash, g, jsonify, redirect, render_template, request, url_for
+from flask import (
+    current_app,
+    flash,
+    g,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from sqlalchemy import select
 
 from app.auth.helpers import login_required
@@ -176,7 +185,11 @@ def places():
         .where(Place.user_id == g.user.id)
         .order_by(Place.name)
     ).all()
-    return render_template("places.html", places=place_items)
+    return render_template(
+        "places.html",
+        places=place_items,
+        maps_api_key=current_app.config["YANDEX_MAPS_API_KEY"],
+    )
 
 
 @bp.post("/places")
@@ -270,7 +283,11 @@ def map_view():
             if trip.origin_id in mapped_ids and trip.destination_id in mapped_ids
         ],
     }
-    return render_template("map.html", map_data=map_data)
+    return render_template(
+        "map.html",
+        map_data=map_data,
+        maps_api_key=current_app.config["YANDEX_MAPS_API_KEY"],
+    )
 
 
 @bp.get("/profile")

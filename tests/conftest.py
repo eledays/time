@@ -20,6 +20,7 @@ class TestConfig(Config):
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     YANDEX_CLIENT_ID = ""
     YANDEX_CLIENT_SECRET = ""
+    YANDEX_MAPS_API_KEY = "test-map-key"
 
 
 @pytest.fixture()
@@ -63,4 +64,3 @@ def auth_client(client: FlaskClient, user: User) -> FlaskClient:
         session["user_id"] = user.id
         session["csrf_token"] = "test-csrf"
     return client
-

@@ -1,24 +1,70 @@
 "use strict";
 
-const formatLocalNow = () => {
-  const now = new Date();
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  return now.toISOString().slice(0, 16);
+const formatLocalTime = (date = new Date()) => {
+  const localDate = new Date(date);
+  localDate.setMinutes(localDate.getMinutes() - localDate.getTimezoneOffset());
+  return localDate.toISOString().slice(0, 16);
 };
 
 const setCurrentTime = (id) => {
   const input = document.getElementById(id);
-  if (input) input.value = formatLocalNow();
+  if (input) input.value = formatLocalTime();
 };
 
-const departureTime = document.getElementById("departed_at");
-if (departureTime) setCurrentTime("departed_at");
-document.querySelector("[data-custom-departure]")?.addEventListener("click", (event) => {
-  const row = document.querySelector("[data-departure-time]");
-  if (!row) return;
-  row.hidden = false;
-  event.currentTarget.hidden = true;
-  departureTime?.focus();
+document.querySelectorAll("[data-default-now]").forEach((input) => {
+  setCurrentTime(input.id);
+  input.dataset.timeMode = "now";
+});
+
+document.querySelectorAll("[data-time-toggle]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const panel = document.querySelector(`[data-time-panel="${button.dataset.timeToggle}"]`);
+    if (!panel) return;
+    panel.hidden = !panel.hidden;
+    button.setAttribute("aria-expanded", String(!panel.hidden));
+  });
+});
+
+const selectTimeChip = (button, target) => {
+  const panel = button.closest("[data-time-panel]");
+  panel?.querySelectorAll(".time-chip").forEach((chip) => {
+    const selected = chip === button;
+    chip.classList.toggle("active", selected);
+    chip.setAttribute("aria-pressed", String(selected));
+  });
+  const exact = document.querySelector(`[data-time-exact="${target}"]`);
+  if (exact) exact.hidden = !button.hasAttribute("data-time-custom");
+};
+
+document.querySelectorAll("[data-time-offset]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const target = button.dataset.timeTarget;
+    const input = document.getElementById(target);
+    const offset = Number.parseInt(button.dataset.timeOffset, 10);
+    if (!input || !Number.isFinite(offset)) return;
+    input.value = formatLocalTime(new Date(Date.now() - offset * 60000));
+    input.dataset.timeMode = offset === 0 ? "now" : "fixed";
+    selectTimeChip(button, target);
+  });
+});
+
+document.querySelectorAll("[data-time-custom]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const target = button.dataset.timeCustom;
+    const input = document.getElementById(target);
+    if (!input) return;
+    input.dataset.timeMode = "custom";
+    selectTimeChip(button, target);
+    input.focus();
+  });
+});
+
+document.querySelectorAll("form").forEach((form) => {
+  form.addEventListener("submit", () => {
+    form.querySelectorAll('[data-default-now][data-time-mode="now"]').forEach((input) => {
+      setCurrentTime(input.id);
+    });
+  });
 });
 
 const debounce = (callback, delay = 180) => {
@@ -85,10 +131,6 @@ const initializeAutocomplete = (input) => {
 };
 
 document.querySelectorAll("[data-place-input]").forEach(initializeAutocomplete);
-document.querySelectorAll("[data-now]").forEach((button) => {
-  button.addEventListener("click", () => setCurrentTime(button.dataset.now));
-});
-
 const elapsed = document.querySelector("[data-elapsed]");
 if (elapsed) {
   const updateElapsed = () => {
@@ -216,96 +258,102 @@ function escapeHtml(value) {
   return element.innerHTML;
 }
 
-const mapDialog = document.querySelector("[data-map-dialog]");
-if (mapDialog && window.L) {
-  let activeForm = null;
-  let pickerMap = null;
-  let pickerMarker = null;
+const initializeYandexMaps = () => {
+  const mapDialog = document.querySelector("[data-map-dialog]");
+  if (mapDialog) {
+    let activeForm = null;
+    let pickerMap = null;
+    let pickerMarker = null;
 
-  const placePickerMarker = (latlng) => {
-    if (pickerMarker) pickerMarker.setLatLng(latlng);
-    else pickerMarker = L.marker(latlng, { icon: createMapIcon("#f7f7f2") }).addTo(pickerMap);
-  };
+    const placePickerMarker = (coordinates) => {
+      if (pickerMarker) {
+        pickerMarker.geometry.setCoordinates(coordinates);
+        return;
+      }
+      pickerMarker = new ymaps.Placemark(
+        coordinates,
+        {},
+        { preset: "islands#circleDotIcon", iconColor: "#191919" },
+      );
+      pickerMap.geoObjects.add(pickerMarker);
+    };
 
-  document.querySelectorAll("[data-map-pick]").forEach((button) => {
-    button.addEventListener("click", () => {
-      activeForm = button.closest("form");
-      const latitude = Number.parseFloat(activeForm.querySelector("[name=latitude]").value);
-      const longitude = Number.parseFloat(activeForm.querySelector("[name=longitude]").value);
-      const hasCoordinates = Number.isFinite(latitude) && Number.isFinite(longitude);
-      mapDialog.showModal();
-      window.setTimeout(() => {
-        if (!pickerMap) {
-          pickerMap = L.map("coordinate-map").setView([55.7512, 37.6184], 11);
-          L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-            maxZoom: 20,
-            subdomains: "abcd",
-            attribution: "© OpenStreetMap · © CARTO",
-          }).addTo(pickerMap);
-          pickerMap.on("click", (event) => placePickerMarker(event.latlng));
-        }
-        pickerMap.invalidateSize();
-        if (hasCoordinates) {
-          pickerMap.setView([latitude, longitude], 15);
-          placePickerMarker([latitude, longitude]);
-        } else {
-          if (pickerMarker) pickerMap.removeLayer(pickerMarker);
-          pickerMarker = null;
-          pickerMap.setView([55.7512, 37.6184], 11);
-        }
-      }, 50);
+    document.querySelectorAll("[data-map-pick]").forEach((button) => {
+      button.addEventListener("click", () => {
+        activeForm = button.closest("form");
+        const latitude = Number.parseFloat(activeForm.querySelector("[name=latitude]").value);
+        const longitude = Number.parseFloat(activeForm.querySelector("[name=longitude]").value);
+        const hasCoordinates = Number.isFinite(latitude) && Number.isFinite(longitude);
+        mapDialog.showModal();
+        window.setTimeout(() => {
+          if (!pickerMap) {
+            pickerMap = new ymaps.Map("coordinate-map", {
+              center: [55.7512, 37.6184],
+              zoom: 11,
+              controls: ["zoomControl"],
+            });
+            pickerMap.events.add("click", (event) => placePickerMarker(event.get("coords")));
+          }
+          pickerMap.container.fitToViewport();
+          if (hasCoordinates) {
+            pickerMap.setCenter([latitude, longitude], 15);
+            placePickerMarker([latitude, longitude]);
+          } else {
+            if (pickerMarker) pickerMap.geoObjects.remove(pickerMarker);
+            pickerMarker = null;
+            pickerMap.setCenter([55.7512, 37.6184], 11);
+          }
+        }, 50);
+      });
     });
-  });
-  mapDialog.querySelector("[data-map-close]").addEventListener("click", () => mapDialog.close());
-  mapDialog.querySelector("[data-map-apply]").addEventListener("click", () => {
-    if (!activeForm || !pickerMarker) return;
-    const point = pickerMarker.getLatLng();
-    activeForm.querySelector("[name=latitude]").value = point.lat.toFixed(6);
-    activeForm.querySelector("[name=longitude]").value = point.lng.toFixed(6);
-    mapDialog.close();
-  });
-}
+    mapDialog.querySelector("[data-map-close]").addEventListener("click", () => mapDialog.close());
+    mapDialog.querySelector("[data-map-apply]").addEventListener("click", () => {
+      if (!activeForm || !pickerMarker) return;
+      const [latitude, longitude] = pickerMarker.geometry.getCoordinates();
+      activeForm.querySelector("[name=latitude]").value = latitude.toFixed(6);
+      activeForm.querySelector("[name=longitude]").value = longitude.toFixed(6);
+      mapDialog.close();
+    });
+  }
 
-const journeyMapElement = document.getElementById("journey-map");
-const mapDataElement = document.getElementById("map-data");
-if (journeyMapElement && mapDataElement && window.L) {
-  const mapData = JSON.parse(mapDataElement.textContent);
-  const map = L.map(journeyMapElement, { zoomControl: false }).setView([55.7512, 37.6184], 10);
-  L.control.zoom({ position: "bottomright" }).addTo(map);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-    maxZoom: 20,
-    subdomains: "abcd",
-    attribution: "© OpenStreetMap · © CARTO",
-  }).addTo(map);
+  const journeyMapElement = document.getElementById("journey-map");
+  const mapDataElement = document.getElementById("map-data");
+  if (journeyMapElement && mapDataElement) {
+    const mapData = JSON.parse(mapDataElement.textContent);
+    const map = new ymaps.Map(journeyMapElement, {
+      center: [55.7512, 37.6184],
+      zoom: 10,
+      controls: ["zoomControl"],
+    });
 
-  const pointsById = new Map();
-  mapData.places.forEach((place) => {
-    const point = [place.lat, place.lng];
-    pointsById.set(place.id, point);
-    const icon = createMapIcon(place.color);
-    L.marker(point, { icon })
-      .addTo(map)
-      .bindPopup(`<div class="map-popup"><strong>${escapeHtml(place.name)}</strong><span>${escapeHtml(place.address || "Адрес не указан")}</span></div>`);
-  });
-  mapData.trips.forEach((trip) => {
-    const origin = pointsById.get(trip.from);
-    const destination = pointsById.get(trip.to);
-    if (origin && destination) {
-      L.polyline([origin, destination], { color: "#777771", weight: 2, opacity: .45 })
-        .addTo(map)
-        .bindPopup(`${trip.minutes} мин`);
-    }
-  });
-  const allPoints = [...pointsById.values()];
-  if (allPoints.length === 1) map.setView(allPoints[0], 14);
-  if (allPoints.length > 1) map.fitBounds(allPoints, { padding: [42, 42], maxZoom: 15 });
-}
+    const pointsById = new Map();
+    mapData.places.forEach((place) => {
+      const point = [place.lat, place.lng];
+      pointsById.set(place.id, point);
+      map.geoObjects.add(new ymaps.Placemark(
+        point,
+        {
+          balloonContentHeader: escapeHtml(place.name),
+          balloonContentBody: escapeHtml(place.address || "Адрес не указан"),
+        },
+        { preset: "islands#circleDotIcon", iconColor: place.color },
+      ));
+    });
+    mapData.trips.forEach((trip) => {
+      const origin = pointsById.get(trip.from);
+      const destination = pointsById.get(trip.to);
+      if (origin && destination) {
+        map.geoObjects.add(new ymaps.Polyline(
+          [origin, destination],
+          { balloonContent: `${trip.minutes} мин` },
+          { strokeColor: "#5f5f59", strokeWidth: 3, strokeOpacity: 0.65 },
+        ));
+      }
+    });
+    const bounds = map.geoObjects.getBounds();
+    if (mapData.places.length === 1) map.setCenter(pointsById.values().next().value, 14);
+    else if (bounds) map.setBounds(bounds, { checkZoomRange: true, zoomMargin: 48 });
+  }
+};
 
-function createMapIcon(color) {
-  return L.divIcon({
-    className: "",
-    html: `<div class="map-pin" style="--pin:${color}"></div>`,
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
-  });
-}
+if (window.ymaps) ymaps.ready(initializeYandexMaps);

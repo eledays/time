@@ -1,9 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Места{% endblock %}
 {% block page %}places{% endblock %}
-{% block head %}
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-{% endblock %}
 {% block content %}
 <main class="page-shell app-page">
   <header class="page-heading"><h1>Места</h1></header>
@@ -30,10 +27,12 @@
     {% endfor %}
   </div>
 </main>
-<dialog class="map-dialog" data-map-dialog>
-  <div class="dialog-head"><strong>Укажите точку</strong><button type="button" data-map-close aria-label="Закрыть">×</button></div>
-  <div id="coordinate-map"></div>
-  <button class="primary-button" type="button" data-map-apply>Готово</button>
-</dialog>
+{% if maps_api_key %}
+  <dialog class="map-dialog" data-map-dialog>
+    <div class="dialog-head"><strong>Укажите точку</strong><button type="button" data-map-close aria-label="Закрыть">×</button></div>
+    <div id="coordinate-map"></div>
+    <button class="primary-button" type="button" data-map-apply>Готово</button>
+  </dialog>
+{% endif %}
 {% endblock %}
-{% block scripts %}<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>{% endblock %}
+{% block scripts %}{% if maps_api_key %}<script src="https://api-maps.yandex.ru/2.1/?apikey={{ maps_api_key|urlencode }}&lang=ru_RU"></script>{% endif %}{% endblock %}

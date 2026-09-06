@@ -5,7 +5,6 @@
   <div class="field-group"><label>Широта</label><input name="latitude" inputmode="decimal" value="{{ item.latitude if item and item.latitude is not none else '' }}" placeholder="55.7512"></div>
   <div class="field-group"><label>Долгота</label><input name="longitude" inputmode="decimal" value="{{ item.longitude if item and item.longitude is not none else '' }}" placeholder="37.6184"></div>
 </div>
-<button class="map-pick-button" type="button" data-map-pick>Указать на карте</button>
+{% if maps_api_key %}<button class="map-pick-button" type="button" data-map-pick>Указать на карте</button>{% endif %}
 <div class="field-group"><label>Описание</label><textarea name="description" rows="3" placeholder="Ориентир или заметка">{{ item.description or '' if item else '' }}</textarea></div>
 <label class="color-field">Цвет метки <input name="marker_color" type="color" value="{{ item.marker_color if item else '#111111' }}"></label>
-

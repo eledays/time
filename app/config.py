@@ -22,3 +22,4 @@ class Config:
     SESSION_COOKIE_SAMESITE = "Lax"
     YANDEX_CLIENT_ID = os.getenv("YANDEX_CLIENT_ID", "")
     YANDEX_CLIENT_SECRET = os.getenv("YANDEX_CLIENT_SECRET", "")
+    YANDEX_MAPS_API_KEY = os.getenv("YANDEX_MAPS_API_KEY", "")

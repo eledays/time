@@ -76,7 +76,26 @@ def test_departure_time_is_hidden_by_default(auth_client) -> None:
 
     page = auth_client.get("/")
     assert "Отправился не сейчас" in page.text
-    assert 'data-departure-time hidden' in page.text
+    assert 'data-time-panel="departed_at" hidden' in page.text
+    assert 'data-time-offset="5"' in page.text
+    assert 'data-time-custom="departed_at"' in page.text
+
+
+def test_arrival_time_is_hidden_by_default(auth_client) -> None:
+    """Ручной выбор времени прибытия раскрывается только по запросу."""
+
+    auth_client.post(
+        "/trips/start",
+        data={
+            "csrf_token": "test-csrf",
+            "origin": "Дом",
+            "departed_at": "2026-09-03T09:00",
+        },
+    )
+    page = auth_client.get("/")
+    assert "Приехал не сейчас" in page.text
+    assert 'data-time-panel="arrived_at" hidden' in page.text
+    assert 'data-time-custom="arrived_at"' in page.text
 
 
 def test_active_trip_can_be_cleared(app: Flask, auth_client, user) -> None:
@@ -223,3 +242,7 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
         page = auth_client.get(path)
         assert page.status_code == 200
         assert text in page.text
+
+    map_page = auth_client.get("/map")
+    assert "api-maps.yandex.ru/2.1/" in map_page.text
+    assert "OpenStreetMap" not in map_page.text
