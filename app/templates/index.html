@@ -21,7 +21,7 @@
 
           <form class="trip-form finish-form" action="{{ url_for('main.finish_trip') }}" method="post" data-trip-form>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            {% set transport_icons = {'walk': 'walk.png', 'bus': 'bus.png', 'metro': 'rail.png', 'bike': 'bike.png', 'taxi': 'taxi.png', 'car': 'car.png', 'train': 'rail.png', 'other': 'other.png'} %}
+            {% set transport_icons = {'walk': 'walk.png', 'bus': 'bus.png', 'metro': 'rail.png', 'bike': 'bike.png', 'ebike': 'e-bike.png', 'scooter': 'scooter.png', 'taxi': 'taxi.png', 'car': 'car.png', 'train': 'rail.png', 'other': 'other.png'} %}
             <div class="transport-carousel" role="radiogroup" aria-label="Тип перемещения">
               {% for value, label in transport_labels.items() %}
                 <label class="transport-card">

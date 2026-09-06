@@ -52,6 +52,8 @@ def test_trip_survives_reopen_and_finishes_with_bus_number(
     assert "/static/img/transport/walk.png" in reopened_page.text
     assert "/static/img/transport/bus.png" in reopened_page.text
     assert "/static/img/transport/rail.png" in reopened_page.text
+    assert "/static/img/transport/e-bike.png" in reopened_page.text
+    assert "/static/img/transport/scooter.png" in reopened_page.text
     assert 'class="active-origin-card"' in reopened_page.text
     assert "data-elapsed" not in reopened_page.text
     assert 'class="destination-title"' in reopened_page.text
