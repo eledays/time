@@ -16,6 +16,8 @@ def test_home_is_available_without_login(client) -> None:
     response = client.get("/")
     assert response.status_code == 200
     assert "Войти через Яндекс" in response.text
+    assert "data-theme-toggle" not in response.text
+    assert '<meta name="theme-color" content="#090909">' in response.text
 
 
 def test_calculator_requires_login(client) -> None:

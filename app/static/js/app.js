@@ -1,19 +1,5 @@
 "use strict";
 
-const themeButton = document.querySelector("[data-theme-toggle]");
-const updateThemeColor = () => {
-  const dark = document.documentElement.dataset.theme === "dark";
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#090909" : "#ffffff");
-  themeButton?.setAttribute("aria-label", dark ? "Включить светлую тему" : "Включить тёмную тему");
-};
-themeButton?.addEventListener("click", () => {
-  const theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-  document.documentElement.dataset.theme = theme;
-  localStorage.setItem("theme", theme);
-  updateThemeColor();
-});
-updateThemeColor();
-
 const formatLocalNow = () => {
   const now = new Date();
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());

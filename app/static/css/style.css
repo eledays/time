@@ -1,19 +1,4 @@
 :root {
-  color-scheme: light;
-  --bg: #ffffff;
-  --surface: #f5f5f2;
-  --surface-raised: rgba(255, 255, 255, .9);
-  --text: #111110;
-  --muted: #777771;
-  --faint: #aaa9a2;
-  --line: #e7e7e2;
-  --button: #111110;
-  --button-text: #ffffff;
-  --danger: #b83a34;
-  --shadow: 0 12px 40px rgba(15, 15, 10, .08);
-}
-
-:root[data-theme="dark"] {
   color-scheme: dark;
   --bg: #090909;
   --surface: #151513;
@@ -43,23 +28,6 @@ button, input, select, textarea { font: inherit; }
 button, a, summary { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; text-decoration: none; }
 [hidden] { display: none !important; }
-
-.theme-toggle {
-  position: fixed;
-  z-index: 900;
-  top: max(18px, env(safe-area-inset-top));
-  right: 18px;
-  width: 42px;
-  height: 42px;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  background: var(--surface-raised);
-  color: var(--text);
-  backdrop-filter: blur(16px);
-  cursor: pointer;
-}
-.theme-toggle span { display: block; width: 14px; height: 14px; margin: auto; border: 1.5px solid currentColor; border-radius: 50%; background: linear-gradient(90deg, currentColor 50%, transparent 50%); transform: rotate(-30deg); }
 
 .bottom-nav {
   position: fixed;
@@ -210,7 +178,7 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 #coordinate-map { height: min(54vh, 420px); margin-bottom: 16px; border-radius: 14px; background: var(--surface); }
 
 .map-page { position: relative; height: calc(100dvh - 88px - env(safe-area-inset-bottom)); padding-top: 0; }
-.map-heading { position: absolute; z-index: 500; top: max(18px, env(safe-area-inset-top)); left: 18px; max-width: calc(100% - 82px); padding: 14px 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface-raised); box-shadow: var(--shadow); backdrop-filter: blur(14px); }
+.map-heading { position: absolute; z-index: 500; top: max(18px, env(safe-area-inset-top)); left: 18px; max-width: calc(100% - 36px); padding: 14px 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface-raised); box-shadow: var(--shadow); backdrop-filter: blur(14px); }
 .map-heading h1 { font-size: 25px; letter-spacing: -.04em; }
 .map-heading p { margin: 5px 0 0; color: var(--muted); font-size: 10px; line-height: 1.35; }
 .journey-map { width: 100%; height: 100%; background: var(--surface); }
@@ -230,7 +198,7 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .stats-grid span { color: var(--muted); font-size: 10px; }
 .logout-form { display: flex; justify-content: center; margin-top: 26px; }
 
-.toast-stack { position: fixed; z-index: 1200; top: max(18px, env(safe-area-inset-top)); left: 16px; right: 70px; display: grid; gap: 8px; }
+.toast-stack { position: fixed; z-index: 1200; top: max(18px, env(safe-area-inset-top)); left: 16px; right: 16px; display: grid; gap: 8px; }
 .toast { padding: 13px 15px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); box-shadow: var(--shadow); font-size: 12px; animation: toast-in .2s both, toast-out .25s 4s forwards; }
 .toast.error { color: var(--danger); }
 .error-page { min-height: 70vh; display: grid; place-content: center; justify-items: center; padding: 20px; text-align: center; }
