@@ -71,6 +71,14 @@ def test_trip_survives_reopen_and_finishes_with_bus_number(
         assert db.session.scalar(db.select(ActiveTrip)) is None
 
 
+def test_departure_time_is_hidden_by_default(auth_client) -> None:
+    """Ручной выбор времени отправления раскрывается только по запросу."""
+
+    page = auth_client.get("/")
+    assert "Отправился не сейчас" in page.text
+    assert 'data-departure-time hidden' in page.text
+
+
 def test_active_trip_can_be_cleared(app: Flask, auth_client, user) -> None:
     """Пользователь может отменить сохранённую начальную точку."""
 

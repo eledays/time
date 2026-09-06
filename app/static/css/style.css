@@ -93,6 +93,9 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .time-row label { grid-column: 1 / -1; }
 .time-row input { width: auto; padding: 0; border: 0; color: var(--muted); font-size: 13px; }
 .text-button { padding: 7px 0 7px 16px; border: 0; background: transparent; color: var(--text); font-size: 12px; cursor: pointer; }
+.optional-action { display: block; margin: -14px 0 34px; padding: 8px 0; border: 0; background: transparent; color: var(--muted); font-size: 12px; text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 4px; cursor: pointer; }
+.optional-action:hover { color: var(--text); }
+.departure-time-row { margin-top: -14px; }
 .select-group { margin-bottom: 28px; }
 .select-group select { width: 100%; padding: 14px; border: 1px solid var(--line); border-radius: 12px; outline: 0; background: var(--surface); color: var(--text); cursor: pointer; }
 .select-group select:focus { border-color: var(--text); }
@@ -115,7 +118,6 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .suggestion { width: 100%; padding: 14px; border: 0; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
 .suggestion:hover, .suggestion:focus { background: var(--surface); outline: none; }
 
-.calculator-head > p:last-child { margin: 16px 0 0; color: var(--muted); line-height: 1.5; }
 .calculator-grid { display: grid; gap: 46px; margin-top: 48px; }
 .point-row { position: relative; display: grid; grid-template-columns: 28px 1fr 28px; align-items: center; gap: 10px; margin-bottom: 22px; }
 .point-index { color: var(--muted); font-size: 10px; }
@@ -128,8 +130,6 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .add-point span { margin-right: 8px; color: var(--text); }
 .result-panel { min-height: 220px; padding-top: 32px; border-top: 1px solid var(--line); }
 .result-placeholder { min-height: 160px; display: grid; place-content: center; text-align: center; color: var(--muted); }
-.result-placeholder > span { font-size: 28px; }
-.result-placeholder h2 { margin: 12px 0 6px; color: var(--text); font-size: 17px; }
 .result-placeholder p { margin: 0; font-size: 12px; }
 .result-summary { display: flex; align-items: flex-start; justify-content: space-between; padding-bottom: 26px; border-bottom: 1px solid var(--line); }
 .result-summary p { margin: 0 0 6px; color: var(--muted); font-size: 11px; }
@@ -162,7 +162,7 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .place-editor > summary > span { display: grid; gap: 4px; font-weight: 550; }
 .place-editor > summary small { color: var(--muted); font-size: 11px; font-weight: 400; }
 .place-editor > summary b { margin-left: auto; color: var(--muted); font-size: 10px; font-weight: 400; }
-.new-place { margin-bottom: 40px; border-bottom: 1px solid var(--line); }
+.new-place { margin-bottom: 44px; border-bottom: 1px solid var(--line); }
 .new-place > summary { font-weight: 600; }
 .place-form { padding: 12px 0 32px; }
 .coordinate-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
@@ -174,15 +174,14 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .map-dialog::backdrop { background: rgba(0, 0, 0, .42); backdrop-filter: blur(4px); }
 .dialog-head { display: flex; justify-content: space-between; align-items: center; }
 .dialog-head button { width: 38px; height: 38px; border: 0; background: transparent; color: var(--text); font-size: 24px; cursor: pointer; }
-.map-dialog > p { margin: 4px 0 16px; color: var(--muted); font-size: 12px; }
-#coordinate-map { height: min(54vh, 420px); margin-bottom: 16px; border-radius: 14px; background: var(--surface); }
+#coordinate-map { height: min(54vh, 420px); margin: 16px 0; border-radius: 14px; background: var(--surface); }
 
 .map-page { position: relative; height: calc(100dvh - 88px - env(safe-area-inset-bottom)); padding-top: 0; }
-.map-heading { position: absolute; z-index: 500; top: max(18px, env(safe-area-inset-top)); left: 18px; max-width: calc(100% - 36px); padding: 14px 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface-raised); box-shadow: var(--shadow); backdrop-filter: blur(14px); }
+.map-heading { position: absolute; z-index: 500; top: max(18px, env(safe-area-inset-top)); left: 18px; max-width: calc(100% - 36px); padding: 12px 14px; border-radius: 12px; background: rgba(9, 9, 9, .82); backdrop-filter: blur(12px); }
 .map-heading h1 { font-size: 25px; letter-spacing: -.04em; }
 .map-heading p { margin: 5px 0 0; color: var(--muted); font-size: 10px; line-height: 1.35; }
 .journey-map { width: 100%; height: 100%; background: var(--surface); }
-.map-pin { width: 18px; height: 18px; border: 3px solid #fff; border-radius: 50% 50% 50% 0; background: var(--pin); box-shadow: 0 2px 8px rgba(0,0,0,.25); transform: rotate(-45deg); }
+.map-pin { width: 18px; height: 18px; border: 3px solid #fff; border-radius: 50%; background: var(--pin); box-shadow: 0 2px 8px rgba(0,0,0,.35); }
 .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--bg); color: var(--text); }
 .map-popup strong { display: block; margin-bottom: 3px; }
 .map-popup span { color: var(--muted); font-size: 11px; }
@@ -192,8 +191,8 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .avatar-fallback { display: grid; place-items: center; font-size: 40px; }
 .profile-card h1 { margin-top: 22px; font-size: 34px; }
 .profile-card p { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
-.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; margin-top: 52px; background: var(--line); border: 1px solid var(--line); }
-.stats-grid article { min-height: 112px; display: flex; flex-direction: column; justify-content: space-between; padding: 18px; background: var(--bg); }
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; margin-top: 52px; }
+.stats-grid article { min-height: 106px; display: flex; flex-direction: column; justify-content: space-between; padding: 20px 0; border-top: 1px solid var(--line); }
 .stats-grid strong { font-size: 25px; font-weight: 560; letter-spacing: -.03em; }
 .stats-grid span { color: var(--muted); font-size: 10px; }
 .logout-form { display: flex; justify-content: center; margin-top: 26px; }

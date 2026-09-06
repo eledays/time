@@ -11,6 +11,16 @@ const setCurrentTime = (id) => {
   if (input) input.value = formatLocalNow();
 };
 
+const departureTime = document.getElementById("departed_at");
+if (departureTime) setCurrentTime("departed_at");
+document.querySelector("[data-custom-departure]")?.addEventListener("click", (event) => {
+  const row = document.querySelector("[data-departure-time]");
+  if (!row) return;
+  row.hidden = false;
+  event.currentTarget.hidden = true;
+  departureTime?.focus();
+});
+
 const debounce = (callback, delay = 180) => {
   let timer;
   return (...args) => {
@@ -61,7 +71,10 @@ const initializeAutocomplete = (input) => {
   });
   input.addEventListener("focus", load);
   input.addEventListener("change", () => {
-    if (input.value.trim() && input.dataset.timeTarget) setCurrentTime(input.dataset.timeTarget);
+    const timeInput = input.dataset.timeTarget
+      ? document.getElementById(input.dataset.timeTarget)
+      : null;
+    if (input.value.trim() && timeInput && !timeInput.value) setCurrentTime(input.dataset.timeTarget);
   });
   input.addEventListener("keydown", (event) => {
     if (event.key === "Escape") menu.classList.remove("open");
@@ -211,7 +224,7 @@ if (mapDialog && window.L) {
 
   const placePickerMarker = (latlng) => {
     if (pickerMarker) pickerMarker.setLatLng(latlng);
-    else pickerMarker = L.marker(latlng).addTo(pickerMap);
+    else pickerMarker = L.marker(latlng, { icon: createMapIcon("#f7f7f2") }).addTo(pickerMap);
   };
 
   document.querySelectorAll("[data-map-pick]").forEach((button) => {
@@ -224,9 +237,10 @@ if (mapDialog && window.L) {
       window.setTimeout(() => {
         if (!pickerMap) {
           pickerMap = L.map("coordinate-map").setView([55.7512, 37.6184], 11);
-          L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            maxZoom: 19,
-            attribution: "© OpenStreetMap",
+          L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+            maxZoom: 20,
+            subdomains: "abcd",
+            attribution: "© OpenStreetMap · © CARTO",
           }).addTo(pickerMap);
           pickerMap.on("click", (event) => placePickerMarker(event.latlng));
         }
@@ -258,21 +272,17 @@ if (journeyMapElement && mapDataElement && window.L) {
   const mapData = JSON.parse(mapDataElement.textContent);
   const map = L.map(journeyMapElement, { zoomControl: false }).setView([55.7512, 37.6184], 10);
   L.control.zoom({ position: "bottomright" }).addTo(map);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: "© OpenStreetMap",
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    maxZoom: 20,
+    subdomains: "abcd",
+    attribution: "© OpenStreetMap · © CARTO",
   }).addTo(map);
 
   const pointsById = new Map();
   mapData.places.forEach((place) => {
     const point = [place.lat, place.lng];
     pointsById.set(place.id, point);
-    const icon = L.divIcon({
-      className: "",
-      html: `<div class="map-pin" style="--pin:${place.color}"></div>`,
-      iconSize: [18, 18],
-      iconAnchor: [9, 18],
-    });
+    const icon = createMapIcon(place.color);
     L.marker(point, { icon })
       .addTo(map)
       .bindPopup(`<div class="map-popup"><strong>${escapeHtml(place.name)}</strong><span>${escapeHtml(place.address || "Адрес не указан")}</span></div>`);
@@ -289,4 +299,13 @@ if (journeyMapElement && mapDataElement && window.L) {
   const allPoints = [...pointsById.values()];
   if (allPoints.length === 1) map.setView(allPoints[0], 14);
   if (allPoints.length > 1) map.fitBounds(allPoints, { padding: [42, 42], maxZoom: 15 });
+}
+
+function createMapIcon(color) {
+  return L.divIcon({
+    className: "",
+    html: `<div class="map-pin" style="--pin:${color}"></div>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+  });
 }

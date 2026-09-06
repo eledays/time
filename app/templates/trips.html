@@ -3,7 +3,7 @@
 {% block page %}trips{% endblock %}
 {% block content %}
 <main class="page-shell app-page">
-  <header class="page-heading"><p>{{ trips|length }} записей</p><h1>Все поездки</h1></header>
+  <header class="page-heading"><h1>Поездки</h1></header>
   {% if trips %}
     <div class="journey-list">
       {% for trip in trips %}
@@ -24,4 +24,3 @@
   {% endif %}
 </main>
 {% endblock %}
-

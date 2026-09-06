@@ -6,10 +6,10 @@
 {% endblock %}
 {% block content %}
 <main class="page-shell app-page">
-  <header class="page-heading"><p>{{ places|length }} мест</p><h1>Места</h1></header>
+  <header class="page-heading"><h1>Места</h1></header>
 
-  <details class="place-editor new-place" open>
-    <summary>Добавить место</summary>
+  <details class="place-editor new-place">
+    <summary>＋ Добавить</summary>
     <form action="{{ url_for('main.create_place') }}" method="post" class="place-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       {% include "partials/place_fields.html" %}
@@ -20,7 +20,7 @@
   <div class="places-list">
     {% for place in places %}
       <details class="place-editor">
-        <summary><i style="--marker: {{ place.marker_color }}"></i><span>{{ place.name }}<small>{{ place.address or 'Адрес не указан' }}</small></span><b>Изменить</b></summary>
+        <summary><i style="--marker: {{ place.marker_color }}"></i><span>{{ place.name }}{% if place.address %}<small>{{ place.address }}</small>{% endif %}</span><b>›</b></summary>
         <form action="{{ url_for('main.update_place', place_id=place.id) }}" method="post" class="place-form">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           {% with current=place %}{% include "partials/place_fields.html" %}{% endwith %}
@@ -32,10 +32,8 @@
 </main>
 <dialog class="map-dialog" data-map-dialog>
   <div class="dialog-head"><strong>Укажите точку</strong><button type="button" data-map-close aria-label="Закрыть">×</button></div>
-  <p>Коснитесь нужного места на карте.</p>
   <div id="coordinate-map"></div>
   <button class="primary-button" type="button" data-map-apply>Готово</button>
 </dialog>
 {% endblock %}
 {% block scripts %}<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>{% endblock %}
-

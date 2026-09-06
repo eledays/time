@@ -6,10 +6,9 @@
 {% endblock %}
 {% block content %}
 <main class="map-page">
-  <div class="map-heading"><h1>Карта</h1><p>{% if map_data.places %}{{ map_data.places|length }} точек · линии показывают записанные поездки{% else %}Добавьте координаты в разделе «Места»{% endif %}</p></div>
+  <div class="map-heading"><h1>Карта</h1>{% if not map_data.places %}<p>Добавьте координаты в «Местах»</p>{% endif %}</div>
   <div id="journey-map" class="journey-map" aria-label="Карта сохранённых мест"></div>
   <script id="map-data" type="application/json">{{ map_data|tojson }}</script>
 </main>
 {% endblock %}
 {% block scripts %}<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>{% endblock %}
-

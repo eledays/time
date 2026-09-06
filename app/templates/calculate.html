@@ -4,9 +4,7 @@
 {% block content %}
 <main class="page-shell calculate-page">
   <section class="calculator-head">
-    <p class="eyebrow">По вашим данным</p>
-    <h1>Сколько займёт путь?</h1>
-    <p>Добавьте точки по порядку — Ход соберёт маршрут из ваших поездок.</p>
+    <h1>Сколько ехать?</h1>
   </section>
   <section class="calculator-grid">
     <form class="route-builder" data-calculator>
@@ -16,12 +14,11 @@
         <div class="point-row autocomplete"><span class="point-index">02</span><input type="text" placeholder="Куда" autocomplete="off" required data-place-input><div class="suggestions" role="listbox"></div><button type="button" class="remove-point" aria-label="Удалить точку">×</button></div>
       </div>
       <button type="button" class="add-point" data-add-point><span>+</span> Добавить точку</button>
-      <button type="submit" class="primary-button calculate-button">Посчитать <b>→</b></button>
+      <button type="submit" class="primary-button calculate-button">Посчитать</button>
     </form>
     <div class="result-panel" data-result aria-live="polite">
-      <div class="result-placeholder"><span>⌁</span><h2>Здесь появится маршрут</h2><p>Нужны хотя бы две сохранённые точки.</p></div>
+      <div class="result-placeholder"><p>Здесь появится расчёт</p></div>
     </div>
   </section>
 </main>
 {% endblock %}
-
