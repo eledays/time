@@ -80,7 +80,7 @@ h1 { margin: 0; font-size: clamp(38px, 11vw, 56px); line-height: 1.02; letter-sp
 .start-origin-stage .field-group { margin-top: 44px; transition: margin .38s ease; }
 .start-origin-stage h1, .start-origin-stage input { transition: color .3s ease, font-size .38s cubic-bezier(.2,.75,.25,1), border-color .3s ease; }
 .start-form > .secondary-button, .start-form > .time-options, .start-form > .primary-button { transition: opacity .2s ease, transform .3s ease; }
-.start-form.is-transitioning .start-origin-stage { padding: 18px 20px 19px; border-color: var(--line); border-radius: 18px; background: linear-gradient(145deg, rgba(255,255,255,.035), transparent 62%); transform: translateY(-56px); }
+.start-form.is-transitioning .start-origin-stage { padding: 18px 20px 19px; border-color: var(--line); border-radius: 18px; background: var(--bg); transform: translateY(-56px); }
 .start-form.is-transitioning .start-origin-stage h1 { font-size: clamp(26px, 7.5vw, 38px); }
 .start-form.is-transitioning .start-origin-stage .field-group { margin: 30px 0 0; }
 .start-form.is-transitioning .start-origin-stage input { padding-bottom: 0; border-color: transparent; font-size: 14px; }
@@ -117,16 +117,21 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .select-group select { width: 100%; padding: 14px; border: 1px solid var(--line); border-radius: 12px; outline: 0; background: var(--surface); color: var(--text); cursor: pointer; }
 .select-group select:focus { border-color: var(--text); }
 .conditional-fields { margin-bottom: 28px; animation: reveal .18s ease both; }
+.conditional-fields.taxi-layout { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 12px; }
+.conditional-fields.taxi-layout .field-group { margin-bottom: 0; }
+.conditional-fields.taxi-layout [data-cost-field] input { padding: 12px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-size: 14px; }
 .taxi-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .clear-start-form { display: flex; justify-content: center; }
 .clear-start-button, .logout-form button { padding: 16px; border: 0; background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; }
 .clear-start-button:hover, .logout-form button:hover { color: var(--danger); }
-.active-origin-card { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 17px 19px; border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(145deg, rgba(255,255,255,.035), transparent 62%); animation: settle-origin .62s cubic-bezier(.2,.75,.25,1) both; }
+.active-origin-card { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 17px 19px; border: 1px solid var(--line); border-radius: 18px; background: var(--bg); animation: settle-origin .62s cubic-bezier(.2,.75,.25,1) both; }
 .active-origin-card strong { min-width: 0; overflow: hidden; font-size: 16px; font-weight: 500; letter-spacing: -.02em; text-overflow: ellipsis; white-space: nowrap; }
 .active-origin-card time { flex: none; color: var(--muted); font-size: 11px; white-space: nowrap; }
 .transport-carousel { display: flex; gap: 9px; overflow-x: auto; margin: 30px -20px 44px; padding: 0 20px 8px; scrollbar-width: none; scroll-padding-inline: 20px; scroll-snap-type: x proximity; animation: appear .38s .15s ease both; }
 .transport-carousel::-webkit-scrollbar { display: none; }
-.transport-card { position: relative; flex: 0 0 94px; scroll-snap-align: start; cursor: pointer; }
+.transport-card { position: relative; flex: 0 0 94px; scroll-snap-align: start; cursor: pointer; transition: opacity .2s ease; }
+.transport-card.is-muted { opacity: .18; }
+.transport-card.is-muted:hover, .transport-card.is-muted:focus-within { opacity: .5; }
 .transport-card input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .transport-card > span { height: 88px; display: grid; place-content: center; justify-items: center; gap: 8px; padding: 9px 7px 8px; border: 1px solid var(--text); border-radius: 17px; background: transparent; transition: background .16s ease, color .16s ease, transform .16s ease; }
 .transport-card img { width: 66px; height: 43px; object-fit: contain; transition: filter .16s ease; }

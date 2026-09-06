@@ -187,6 +187,7 @@ if (tripForm) {
   const costLabel = tripForm.querySelector("[data-cost-label]");
   const costInput = tripForm.querySelector("#trip_cost");
   const transportControls = [...tripForm.querySelectorAll("[name=transport_type]")];
+  const transportCards = transportControls.map((control) => control.closest(".transport-card"));
   initializeAutocomplete(detailInput);
   costInput?.addEventListener("input", () => delete costInput.dataset.automaticZero);
   const updateDetails = () => {
@@ -195,7 +196,11 @@ if (tripForm) {
     const isTaxi = selected === "taxi";
     const isRental = selected === "ebike" || selected === "scooter";
     const hasCost = isTaxi || isRental;
+    transportCards.forEach((card, index) => {
+      card.classList.toggle("is-muted", Boolean(selected) && !transportControls[index].checked);
+    });
     detailBox.hidden = !hasDetail && !hasCost;
+    detailBox.classList.toggle("taxi-layout", isTaxi);
     detailWrap.hidden = !hasDetail;
     costField.hidden = !hasCost;
     taxiFields.hidden = !isTaxi;
