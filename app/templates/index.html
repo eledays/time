@@ -56,17 +56,14 @@
             <button type="submit" class="clear-start-button">Отменить поездку</button>
           </form>
         {% else %}
-          <h1>Откуда едете?</h1>
-          <p class="form-intro">Конечную точку укажете после прибытия.</p>
+          <h1>Откуда едем?</h1>
           <form class="trip-form start-form" action="{{ url_for('main.start_trip') }}" method="post">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="field-group autocomplete">
-              <label for="origin">Начальная точка</label>
               <input id="origin" name="origin" type="text" autocomplete="off" placeholder="Название места" required data-place-input data-time-target="departed_at">
               <div class="suggestions" role="listbox"></div>
             </div>
             <div class="time-row">
-              <label for="departed_at">Отправление</label>
               <input id="departed_at" name="departed_at" type="datetime-local" required>
               <button type="button" class="text-button" data-now="departed_at">Сейчас</button>
             </div>
