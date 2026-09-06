@@ -124,12 +124,14 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .active-origin-card time { flex: none; color: var(--muted); font-size: 11px; white-space: nowrap; }
 .transport-carousel { display: flex; gap: 9px; overflow-x: auto; margin: 30px -20px 44px; padding: 0 20px 8px; scrollbar-width: none; scroll-padding-inline: 20px; scroll-snap-type: x proximity; animation: appear .38s .15s ease both; }
 .transport-carousel::-webkit-scrollbar { display: none; }
-.transport-card { position: relative; flex: 0 0 88px; scroll-snap-align: start; cursor: pointer; }
+.transport-card { position: relative; flex: 0 0 94px; scroll-snap-align: start; cursor: pointer; }
 .transport-card input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-.transport-card > span { height: 76px; display: grid; place-content: center; justify-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); font-size: 27px; transition: border-color .16s ease, background .16s ease, color .16s ease, transform .16s ease; }
-.transport-card small { display: block; margin-top: 7px; overflow: hidden; color: var(--muted); font-size: 10px; text-align: center; text-overflow: ellipsis; white-space: nowrap; transition: color .16s ease; }
+.transport-card > span { height: 88px; display: grid; place-content: center; justify-items: center; gap: 8px; padding: 9px 7px 8px; border: 1px solid var(--text); border-radius: 17px; background: transparent; transition: background .16s ease, color .16s ease, transform .16s ease; }
+.transport-card img { width: 66px; height: 43px; object-fit: contain; transition: filter .16s ease; }
+.transport-card small { display: block; max-width: 78px; overflow: hidden; color: var(--text); font-size: 10px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .transport-card input:checked + span { border-color: var(--text); background: var(--text); color: var(--bg); transform: translateY(-2px); }
-.transport-card input:checked ~ small { color: var(--text); }
+.transport-card input:checked + span img { filter: invert(1); }
+.transport-card input:checked + span small { color: var(--bg); }
 .transport-card input:focus-visible + span { outline: 2px solid var(--text); outline-offset: 3px; }
 .active-transport-details { margin: -18px 0 40px; }
 .destination-title { margin-bottom: 40px !important; animation: appear .38s .26s ease both; }
