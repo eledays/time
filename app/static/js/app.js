@@ -162,21 +162,6 @@ const initializeAutocomplete = (input) => {
 };
 
 document.querySelectorAll("[data-place-input]").forEach(initializeAutocomplete);
-const elapsed = document.querySelector("[data-elapsed]");
-if (elapsed) {
-  const updateElapsed = () => {
-    const startedAt = new Date(elapsed.dataset.start);
-    const minutes = Math.max(0, Math.floor((Date.now() - startedAt.getTime()) / 60000));
-    const days = Math.floor(minutes / 1440);
-    const hours = Math.floor((minutes % 1440) / 60);
-    const remainder = minutes % 60;
-    elapsed.textContent = days > 0
-      ? `${days} д ${hours} ч`
-      : hours > 0 ? `${hours} ч ${remainder} мин` : `${remainder} мин`;
-  };
-  updateElapsed();
-  window.setInterval(updateElapsed, 60000);
-}
 
 const clearForm = document.querySelector("[data-clear-form]");
 if (clearForm) {
@@ -194,9 +179,9 @@ if (tripForm) {
   const detailLabel = tripForm.querySelector("[data-detail-label]");
   const detailInput = tripForm.querySelector("#transport_detail");
   const taxiFields = tripForm.querySelector("[data-taxi-fields]");
-  const transportControl = tripForm.querySelector("[name=transport_type]");
+  const transportControls = [...tripForm.querySelectorAll("[name=transport_type]")];
   const updateDetails = () => {
-    const selected = transportControl?.value;
+    const selected = transportControls.find((control) => control.checked)?.value;
     const isTransit = selected === "bus" || selected === "metro";
     const isTaxi = selected === "taxi";
     detailBox.hidden = !isTransit && !isTaxi;
@@ -207,7 +192,7 @@ if (tripForm) {
       detailInput.placeholder = selected === "bus" ? "Например, 39" : "Например, Сокольническая";
     }
   };
-  transportControl?.addEventListener("change", updateDetails);
+  transportControls.forEach((control) => control.addEventListener("change", updateDetails));
   updateDetails();
 }
 

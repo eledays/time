@@ -119,16 +119,21 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .clear-start-form { display: flex; justify-content: center; }
 .clear-start-button, .logout-form button { padding: 16px; border: 0; background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; }
 .clear-start-button:hover, .logout-form button:hover { color: var(--danger); }
-.active-origin-card { padding: 18px 20px 19px; border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(145deg, rgba(255,255,255,.035), transparent 62%); animation: settle-origin .62s cubic-bezier(.2,.75,.25,1) both; }
-.active-origin-card h2 { margin: 0 0 20px; color: var(--muted); font-size: 13px; font-weight: 500; letter-spacing: -.01em; }
-.active-origin-card p { margin: 0 0 7px; font-size: 20px; font-weight: 540; letter-spacing: -.025em; }
-.active-origin-card time { color: var(--muted); font-size: 12px; }
-.travel-status-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(138px, .72fr); align-items: end; gap: 22px; margin-bottom: 50px; animation: appear .38s .18s ease both; }
-.elapsed-counter { min-width: 0; font-size: clamp(38px, 11vw, 54px); font-weight: 550; line-height: .92; letter-spacing: -.055em; }
-.transport-menu label { display: block; margin-bottom: 7px; color: var(--muted); font-size: 10px; }
-.transport-menu select { width: 100%; padding: 11px 30px 11px 12px; border: 1px solid var(--line); border-radius: 12px; outline: 0; background-color: var(--surface); color: var(--text); font-size: 13px; cursor: pointer; }
-.transport-menu select:focus { border-color: var(--text); }
-.active-transport-details { margin: -24px 0 40px; }
+.active-origin-card { padding: 17px 19px; border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(145deg, rgba(255,255,255,.035), transparent 62%); animation: settle-origin .62s cubic-bezier(.2,.75,.25,1) both; }
+.active-origin-card p { margin: 0; font-size: 18px; line-height: 1.45; letter-spacing: -.025em; }
+.active-origin-card span { font-weight: 450; }
+.active-origin-card strong { font-weight: 600; }
+.active-origin-card time { margin-left: 7px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.transport-carousel { display: flex; gap: 9px; overflow-x: auto; margin: 30px -20px 44px; padding: 0 20px 8px; scrollbar-width: none; scroll-padding-inline: 20px; scroll-snap-type: x proximity; animation: appear .38s .15s ease both; }
+.transport-carousel::-webkit-scrollbar { display: none; }
+.transport-card { position: relative; flex: 0 0 88px; scroll-snap-align: start; cursor: pointer; }
+.transport-card input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.transport-card > span { height: 76px; display: grid; place-content: center; justify-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); font-size: 27px; transition: border-color .16s ease, background .16s ease, color .16s ease, transform .16s ease; }
+.transport-card small { display: block; margin-top: 7px; overflow: hidden; color: var(--muted); font-size: 10px; text-align: center; text-overflow: ellipsis; white-space: nowrap; transition: color .16s ease; }
+.transport-card input:checked + span { border-color: var(--text); background: var(--text); color: var(--bg); transform: translateY(-2px); }
+.transport-card input:checked ~ small { color: var(--text); }
+.transport-card input:focus-visible + span { outline: 2px solid var(--text); outline-offset: 3px; }
+.active-transport-details { margin: -18px 0 40px; }
 .destination-title { margin-bottom: 40px !important; animation: appear .38s .26s ease both; }
 
 .suggestions { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); box-shadow: var(--shadow); opacity: 0; transform: translateY(-4px); pointer-events: none; transition: opacity .12s ease, transform .12s ease; }

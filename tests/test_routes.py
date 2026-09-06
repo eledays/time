@@ -47,10 +47,10 @@ def test_trip_survives_reopen_and_finishes_with_bus_number(
     assert reopened_page.status_code == 200
     assert "Куда приехали?" in reopened_page.text
     assert "Дом" in reopened_page.text
-    assert '<select id="transport_type"' in reopened_page.text
-    assert "transport-grid" not in reopened_page.text
+    assert 'class="transport-carousel"' in reopened_page.text
+    assert 'type="radio" name="transport_type" value="walk"' in reopened_page.text
     assert 'class="active-origin-card"' in reopened_page.text
-    assert 'class="elapsed-counter"' in reopened_page.text
+    assert "data-elapsed" not in reopened_page.text
     assert 'class="destination-title"' in reopened_page.text
 
     finish_response = auth_client.post(

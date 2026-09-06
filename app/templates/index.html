@@ -15,21 +15,20 @@
       <div class="record-main" data-record-main>
         {% if active_trip %}
           <div class="active-origin-card">
-            <h2>Откуда едем?</h2>
-            <p>{{ active_trip.origin.name }}</p>
-            <time datetime="{{ active_trip.departed_at.isoformat() }}">{{ active_trip.departed_at.strftime('%H:%M') }}</time>
+            <p><span>Откуда едем?</span> <strong>{{ active_trip.origin.name }}</strong> <time datetime="{{ active_trip.departed_at.isoformat() }}">{{ active_trip.departed_at.strftime('%H:%M') }}</time></p>
           </div>
 
           <form class="trip-form finish-form" action="{{ url_for('main.finish_trip') }}" method="post" data-trip-form>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="travel-status-row">
-              <strong class="elapsed-counter" data-elapsed data-start="{{ active_trip.departed_at.isoformat(timespec='minutes') }}">—</strong>
-              <div class="transport-menu">
-                <label for="transport_type">Способ</label>
-                <select id="transport_type" name="transport_type">
-                  {% for value, label in transport_labels.items() %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
-                </select>
-              </div>
+            {% set transport_icons = {'walk': '🚶', 'bus': '🚌', 'metro': '🚇', 'bike': '🚲', 'taxi': '🚕', 'car': '🚗', 'train': '🚆', 'other': '•••'} %}
+            <div class="transport-carousel" role="radiogroup" aria-label="Тип перемещения">
+              {% for value, label in transport_labels.items() %}
+                <label class="transport-card">
+                  <input type="radio" name="transport_type" value="{{ value }}" {% if loop.first %}checked{% endif %}>
+                  <span aria-hidden="true">{{ transport_icons[value] }}</span>
+                  <small>{{ label }}</small>
+                </label>
+              {% endfor %}
             </div>
             <div class="conditional-fields active-transport-details" data-detail-fields hidden>
               <div class="field-group" data-detail-wrap>
