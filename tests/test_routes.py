@@ -42,8 +42,10 @@ def test_trip_survives_reopen_and_finishes_with_bus_number(
 
     reopened_page = auth_client.get("/")
     assert reopened_page.status_code == 200
-    assert "Вы уже в пути" in reopened_page.text
+    assert "Куда приехали?" in reopened_page.text
     assert "Дом" in reopened_page.text
+    assert '<select id="transport_type"' in reopened_page.text
+    assert "transport-grid" not in reopened_page.text
 
     finish_response = auth_client.post(
         "/trips/finish",

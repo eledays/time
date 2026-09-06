@@ -108,8 +108,9 @@ if (tripForm) {
   const detailLabel = tripForm.querySelector("[data-detail-label]");
   const detailInput = tripForm.querySelector("#transport_detail");
   const taxiFields = tripForm.querySelector("[data-taxi-fields]");
+  const transportControl = tripForm.querySelector("[name=transport_type]");
   const updateDetails = () => {
-    const selected = tripForm.querySelector("[name=transport_type]:checked")?.value;
+    const selected = transportControl?.value;
     const isTransit = selected === "bus" || selected === "metro";
     const isTaxi = selected === "taxi";
     detailBox.hidden = !isTransit && !isTaxi;
@@ -120,7 +121,7 @@ if (tripForm) {
       detailInput.placeholder = selected === "bus" ? "Например, 39" : "Например, Сокольническая";
     }
   };
-  tripForm.querySelectorAll("[name=transport_type]").forEach((radio) => radio.addEventListener("change", updateDetails));
+  transportControl?.addEventListener("change", updateDetails);
   updateDetails();
 }
 

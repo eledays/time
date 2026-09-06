@@ -5,119 +5,89 @@
 <main class="page-shell">
   {% if not g.user %}
     <section class="welcome" aria-labelledby="welcome-title">
-      <p class="eyebrow">Личный навигатор</p>
-      <h1 id="welcome-title">Знайте, сколько<br><em>занимает путь.</em></h1>
-      <p class="lede">Ход запоминает ваши реальные перемещения и помогает планировать следующие — по личному опыту, а не общим оценкам.</p>
+      <h1 id="welcome-title">Время в пути,<br>которому можно верить</h1>
+      <p class="lede">Записывайте реальные поездки и планируйте маршруты по собственному опыту.</p>
       <a class="primary-button yandex-button" href="{{ url_for('auth.login') }}"><span class="ya-mark">Я</span> Войти через Яндекс</a>
       <p class="privacy-note">Ваши поездки видны только вам.</p>
     </section>
-    <div class="preview-card" aria-hidden="true">
-      <div class="preview-head"><span>Сегодня</span><span>38 мин</span></div>
-      <div class="preview-route"><span>Дом</span><i></i><b>Музей</b></div>
-      <div class="preview-meta"><span>М</span> Метро · Сокольническая</div>
-    </div>
   {% else %}
     <section class="record-layout">
       <div class="record-main">
         {% if active_trip %}
-          <p class="eyebrow">Поездка началась</p>
-          <h1>Вы уже в пути</h1>
-          <div class="active-trip-card">
-            <div class="active-trip-pulse" aria-hidden="true"><span></span></div>
-            <div>
-              <p>Старт</p>
-              <h2>{{ active_trip.origin.name }}</h2>
-              <time datetime="{{ active_trip.departed_at.isoformat() }}">{{ active_trip.departed_at.strftime('%d.%m · %H:%M') }}</time>
-            </div>
-            <strong data-elapsed data-start="{{ active_trip.departed_at.isoformat(timespec='minutes') }}">—</strong>
+          <p class="status-line"><span aria-hidden="true"></span> В пути <strong data-elapsed data-start="{{ active_trip.departed_at.isoformat(timespec='minutes') }}">—</strong></p>
+          <h1>Куда приехали?</h1>
+          <div class="active-trip-summary">
+            <div><small>Откуда</small><strong>{{ active_trip.origin.name }}</strong></div>
+            <time datetime="{{ active_trip.departed_at.isoformat() }}">{{ active_trip.departed_at.strftime('%H:%M') }}</time>
           </div>
-          <form class="clear-start-form" action="{{ url_for('main.clear_active_trip') }}" method="post" data-clear-form>
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="clear-start-button">×&nbsp; Очистить начальную точку</button>
-          </form>
+
           <form class="trip-form finish-form" action="{{ url_for('main.finish_trip') }}" method="post" data-trip-form>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="route-fields finish-route-fields">
-              <div class="route-line compact" aria-hidden="true"><span></span><i></i><span></span></div>
-              <div class="field-group autocomplete destination-field">
-                <label for="destination">Куда приехали</label>
-                <input id="destination" name="destination" type="text" autocomplete="off" placeholder="Например, Работа" required data-place-input data-time-target="arrived_at">
-                <div class="suggestions" role="listbox"></div>
+            <div class="field-group autocomplete">
+              <label for="destination">Конечная точка</label>
+              <input id="destination" name="destination" type="text" autocomplete="off" placeholder="Название места" required data-place-input data-time-target="arrived_at">
+              <div class="suggestions" role="listbox"></div>
+            </div>
+            <div class="time-row">
+              <label for="arrived_at">Прибытие</label>
+              <input id="arrived_at" name="arrived_at" type="datetime-local" required>
+              <button type="button" class="text-button" data-now="arrived_at">Сейчас</button>
+            </div>
+            <div class="select-group">
+              <label for="transport_type">Как добирались</label>
+              <select id="transport_type" name="transport_type">
+                {% for value, label in transport_labels.items() %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="conditional-fields" data-detail-fields hidden>
+              <div class="field-group" data-detail-wrap>
+                <label for="transport_detail" data-detail-label>Номер</label>
+                <input id="transport_detail" name="transport_detail" type="text" placeholder="Например, 39">
               </div>
-              <div class="time-row">
-                <label for="arrived_at">Прибытие</label>
-                <input id="arrived_at" name="arrived_at" type="datetime-local" required>
-                <button type="button" class="text-button" data-now="arrived_at">Сейчас</button>
+              <div class="taxi-fields" data-taxi-fields hidden>
+                <div class="field-group"><label for="taxi_cost">Стоимость, ₽</label><input id="taxi_cost" name="taxi_cost" type="number" min="0" step="0.01" placeholder="650"></div>
+                <div class="field-group"><label for="taxi_tariff">Тариф</label><input id="taxi_tariff" name="taxi_tariff" type="text" placeholder="Комфорт"></div>
               </div>
             </div>
+            <button class="primary-button save-button" type="submit">Сохранить поездку</button>
+          </form>
+          <form class="clear-start-form" action="{{ url_for('main.clear_active_trip') }}" method="post" data-clear-form>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="clear-start-button">Отменить поездку</button>
+          </form>
         {% else %}
-          <p class="eyebrow">Новая поездка</p>
-          <h1>Откуда вы едете?</h1>
-          <p class="form-intro">Сохраним точку и время. Конечное место можно указать, когда доберётесь.</p>
+          <h1>Откуда едете?</h1>
+          <p class="form-intro">Конечную точку укажете после прибытия.</p>
           <form class="trip-form start-form" action="{{ url_for('main.start_trip') }}" method="post">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="route-fields start-route-fields">
-              <div class="route-line start-line" aria-hidden="true"><span></span></div>
-              <div class="field-group autocomplete">
-                <label for="origin">Начальная точка</label>
-                <input id="origin" name="origin" type="text" autocomplete="off" placeholder="Например, Дом" required data-place-input data-time-target="departed_at">
-                <div class="suggestions" role="listbox"></div>
-              </div>
-              <div class="time-row">
-                <label for="departed_at">Отправление</label>
-                <input id="departed_at" name="departed_at" type="datetime-local" required>
-                <button type="button" class="text-button" data-now="departed_at">Сейчас</button>
-              </div>
+            <div class="field-group autocomplete">
+              <label for="origin">Начальная точка</label>
+              <input id="origin" name="origin" type="text" autocomplete="off" placeholder="Название места" required data-place-input data-time-target="departed_at">
+              <div class="suggestions" role="listbox"></div>
             </div>
-            <button class="primary-button save-button" type="submit"><span>Начать поездку</span><b>→</b></button>
+            <div class="time-row">
+              <label for="departed_at">Отправление</label>
+              <input id="departed_at" name="departed_at" type="datetime-local" required>
+              <button type="button" class="text-button" data-now="departed_at">Сейчас</button>
+            </div>
+            <button class="primary-button save-button" type="submit">Начать поездку</button>
           </form>
-        {% endif %}
-
-        {% if active_trip %}
-          <fieldset class="transport-picker">
-            <legend>Тип перемещения</legend>
-            <div class="transport-grid">
-              {% for value, label, icon in [('walk','Пешком','↗'),('bus','Автобус','А'),('metro','Метро','М'),('bike','Велосипед','◌'),('taxi','Такси','Т'),('car','Авто','●'),('train','Поезд','П'),('other','Другое','+') ] %}
-                <label class="transport-option">
-                  <input type="radio" name="transport_type" value="{{ value }}" {{ 'checked' if value == 'walk' }}>
-                  <span class="transport-icon">{{ icon }}</span><span>{{ label }}</span>
-                </label>
-              {% endfor %}
-            </div>
-          </fieldset>
-
-          <div class="conditional-fields" data-detail-fields hidden>
-            <div class="field-group" data-detail-wrap>
-              <label for="transport_detail" data-detail-label>Номер</label>
-              <input id="transport_detail" name="transport_detail" type="text" placeholder="Например, 39">
-            </div>
-            <div class="taxi-fields" data-taxi-fields hidden>
-              <div class="field-group"><label for="taxi_cost">Стоимость, ₽</label><input id="taxi_cost" name="taxi_cost" type="number" min="0" step="0.01" placeholder="650"></div>
-              <div class="field-group"><label for="taxi_tariff">Тариф</label><input id="taxi_tariff" name="taxi_tariff" type="text" placeholder="Комфорт"></div>
-            </div>
-          </div>
-          <button class="primary-button save-button" type="submit"><span>Завершить и сохранить</span><b>→</b></button>
-        </form>
         {% endif %}
       </div>
 
-      <aside class="recent" aria-labelledby="recent-title">
-        <div class="section-heading"><p class="eyebrow">Недавние</p><span>{{ recent_trips|length }}</span></div>
-        <h2 id="recent-title">В пути</h2>
-        {% if recent_trips %}
+      {% if recent_trips %}
+        <details class="recent-history">
+          <summary>Последние поездки <span>{{ recent_trips|length }}</span></summary>
           <div class="trip-list">
             {% for trip in recent_trips %}
               <article class="trip-item">
-                <div class="trip-date">{{ trip.departed_at.strftime('%d.%m') }}</div>
-                <div><h3>{{ trip.origin.name }} <span>→</span> {{ trip.destination.name }}</h3><p>{{ transport_labels[trip.transport_type] }}{% if trip.transport_detail %} · {{ trip.transport_detail }}{% endif %}</p></div>
+                <div><h3>{{ trip.origin.name }} <span>→</span> {{ trip.destination.name }}</h3><p>{{ trip.departed_at.strftime('%d.%m') }} · {{ transport_labels[trip.transport_type] }}{% if trip.transport_detail %} · {{ trip.transport_detail }}{% endif %}</p></div>
                 <strong>{{ trip.duration_minutes }}<small> мин</small></strong>
               </article>
             {% endfor %}
           </div>
-        {% else %}
-          <div class="empty-state"><span>↗</span><p>Первая поездка появится здесь</p></div>
-        {% endif %}
-      </aside>
+        </details>
+      {% endif %}
     </section>
   {% endif %}
 </main>
