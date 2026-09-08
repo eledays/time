@@ -23,6 +23,7 @@ class User(db.Model):
     display_name: Mapped[str]
     email: Mapped[Optional[str]]
     avatar_url: Mapped[Optional[str]]
+    timezone: Mapped[Optional[str]]
     created_at: Mapped[datetime] = mapped_column(default=utc_now)
 
     places: Mapped[list["Place"]] = relationship(back_populates="user")

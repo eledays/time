@@ -23,6 +23,22 @@ TRANSPORT_LABELS = {
 
 TAXI_TARIFFS = ("Эконом", "Комфорт", "Комфорт+", "Бизнес", "Другое")
 
+TIMEZONE_CHOICES = {
+    "Europe/Kaliningrad": "Калининград",
+    "Europe/Moscow": "Москва",
+    "Europe/Samara": "Самара",
+    "Asia/Yekaterinburg": "Екатеринбург",
+    "Asia/Omsk": "Омск",
+    "Asia/Novosibirsk": "Новосибирск",
+    "Asia/Krasnoyarsk": "Красноярск",
+    "Asia/Irkutsk": "Иркутск",
+    "Asia/Yakutsk": "Якутск",
+    "Asia/Vladivostok": "Владивосток",
+    "Asia/Magadan": "Магадан",
+    "Asia/Kamchatka": "Камчатка",
+    "UTC": "UTC",
+}
+
 
 def normalize_place(value: str) -> str:
     """Нормализовать пробелы и регистр названия места."""

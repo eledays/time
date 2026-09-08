@@ -20,6 +20,18 @@
     <article><strong>{{ stats.days }}</strong><span>дней с поездками</span></article>
     <article><strong>{{ stats.favorite }}</strong><span>чаще всего</span></article>
   </section>
+  <section class="profile-settings" id="settings">
+    <h2>Настройки</h2>
+    <form action="{{ url_for('main.update_timezone') }}" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label for="profile-timezone">Часовой пояс</label>
+      <select id="profile-timezone" name="timezone">
+        {% if g.user.timezone and g.user.timezone not in timezone_choices %}<option value="{{ g.user.timezone }}" selected>{{ g.user.timezone }}</option>{% endif %}
+        {% for value, label in timezone_choices.items() %}<option value="{{ value }}" {% if g.user.timezone == value %}selected{% endif %}>{{ label }} · {{ value }}</option>{% endfor %}
+      </select>
+      <button class="secondary-button" type="submit">Сохранить пояс</button>
+    </form>
+  </section>
   <form action="{{ url_for('auth.logout') }}" method="post" class="logout-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit">Выйти из аккаунта</button>

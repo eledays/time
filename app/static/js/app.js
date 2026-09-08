@@ -1,9 +1,27 @@
 "use strict";
 
+const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+const activeTimezone = document.body.dataset.timezone || detectedTimezone;
+
 const formatLocalTime = (date = new Date()) => {
-  const localDate = new Date(date);
-  localDate.setMinutes(localDate.getMinutes() - localDate.getTimezoneOffset());
-  return localDate.toISOString().slice(0, 16);
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: activeTimezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+      numberingSystem: "latn",
+    }).formatToParts(date);
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}`;
+  } catch (_) {
+    const localDate = new Date(date);
+    localDate.setMinutes(localDate.getMinutes() - localDate.getTimezoneOffset());
+    return localDate.toISOString().slice(0, 16);
+  }
 };
 
 const setCurrentTime = (id) => {
@@ -16,48 +34,51 @@ document.querySelectorAll("[data-default-now]").forEach((input) => {
   input.dataset.timeMode = "now";
 });
 
-document.querySelectorAll("[data-time-toggle]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const panel = document.querySelector(`[data-time-panel="${button.dataset.timeToggle}"]`);
-    if (!panel) return;
-    panel.hidden = !panel.hidden;
-    button.setAttribute("aria-expanded", String(!panel.hidden));
-  });
-});
+document.querySelectorAll("[data-time-dialog-open]").forEach((button) => {
+  const target = button.dataset.timeDialogOpen;
+  const input = document.getElementById(target);
+  const dialog = document.querySelector(`[data-time-dialog="${target}"]`);
+  if (!input || !dialog) return;
+  const dateInput = dialog.querySelector("[data-picker-date]");
+  const clockInput = dialog.querySelector("[data-picker-clock]");
+  dialog.querySelector("[data-timezone-label]").textContent = activeTimezone;
 
-const selectTimeChip = (button, target) => {
-  const panel = button.closest("[data-time-panel]");
-  panel?.querySelectorAll(".time-chip").forEach((chip) => {
-    const selected = chip === button;
-    chip.classList.toggle("active", selected);
-    chip.setAttribute("aria-pressed", String(selected));
-  });
-  const exact = document.querySelector(`[data-time-exact="${target}"]`);
-  if (exact) exact.hidden = !button.hasAttribute("data-time-custom");
-};
-
-document.querySelectorAll("[data-time-offset]").forEach((button) => {
   button.addEventListener("click", () => {
-    const target = button.dataset.timeTarget;
-    const input = document.getElementById(target);
-    const offset = Number.parseInt(button.dataset.timeOffset, 10);
-    if (!input || !Number.isFinite(offset)) return;
-    input.value = formatLocalTime(new Date(Date.now() - offset * 60000));
-    input.dataset.timeMode = offset === 0 ? "now" : "fixed";
-    selectTimeChip(button, target);
+    if (input.dataset.timeMode === "now") setCurrentTime(target);
+    const [date, time] = input.value.split("T");
+    dateInput.value = date;
+    clockInput.value = time;
+    dialog.showModal();
   });
-});
-
-document.querySelectorAll("[data-time-custom]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const target = button.dataset.timeCustom;
-    const input = document.getElementById(target);
-    if (!input) return;
+  dialog.querySelector("[data-time-dialog-close]").addEventListener("click", () => dialog.close());
+  dialog.querySelector("[data-time-dialog-apply]").addEventListener("click", () => {
+    if (!dateInput.reportValidity() || !clockInput.reportValidity()) return;
+    input.value = `${dateInput.value}T${clockInput.value}`;
     input.dataset.timeMode = "custom";
-    selectTimeChip(button, target);
-    input.focus();
+    button.classList.add("custom-time");
+    button.setAttribute("aria-pressed", "true");
+    button.title = `${button.getAttribute("aria-label")} · ${dateInput.value} ${clockInput.value}`;
+    dialog.close();
+  });
+  dialog.addEventListener("click", (event) => {
+    if (event.target !== dialog) return;
+    const bounds = dialog.getBoundingClientRect();
+    const inside = event.clientX >= bounds.left && event.clientX <= bounds.right
+      && event.clientY >= bounds.top && event.clientY <= bounds.bottom;
+    if (!inside) dialog.close();
   });
 });
+
+if (document.body.dataset.timezoneAuto === "true" && detectedTimezone) {
+  fetch("/api/timezone", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": document.body.dataset.csrfToken,
+    },
+    body: JSON.stringify({ timezone: detectedTimezone }),
+  }).catch(() => {});
+}
 
 document.querySelectorAll("form").forEach((form) => {
   form.addEventListener("submit", () => {

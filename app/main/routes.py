@@ -2,6 +2,7 @@
 
 import re
 from collections import Counter
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from flask import (
     current_app,
@@ -21,6 +22,7 @@ from app.main import bp
 from app.models import ActiveTrip, Place, Trip
 from app.services import (
     TAXI_TARIFFS,
+    TIMEZONE_CHOICES,
     TRANSPORT_LABELS,
     calculate_route,
     get_or_create_place,
@@ -327,7 +329,51 @@ def profile():
         "places": place_count or 0,
         "favorite": TRANSPORT_LABELS.get(favorite, "—") if favorite else "—",
     }
-    return render_template("profile.html", stats=stats)
+    return render_template(
+        "profile.html", stats=stats, timezone_choices=TIMEZONE_CHOICES
+    )
+
+
+@bp.post("/profile/timezone")
+@login_required
+def update_timezone():
+    """Сохранить выбранный пользователем часовой пояс."""
+
+    timezone = request.form.get("timezone", "").strip()
+    if not _is_valid_timezone(timezone):
+        flash("Выберите корректный часовой пояс", "error")
+        return redirect(url_for("main.profile", _anchor="settings"))
+    g.user.timezone = timezone
+    db.session.commit()
+    flash("Часовой пояс сохранён", "success")
+    return redirect(url_for("main.profile", _anchor="settings"))
+
+
+@bp.post("/api/timezone")
+@login_required
+def detect_timezone():
+    """Сохранить автоматически определённый пояс, если ручного выбора ещё нет."""
+
+    payload = request.get_json(silent=True) or {}
+    timezone = str(payload.get("timezone", "")).strip()
+    if not _is_valid_timezone(timezone):
+        return jsonify({"error": "Некорректный часовой пояс"}), 400
+    if g.user.timezone is None:
+        g.user.timezone = timezone
+        db.session.commit()
+    return "", 204
+
+
+def _is_valid_timezone(value: str) -> bool:
+    """Проверить идентификатор часового пояса IANA."""
+
+    if not value or len(value) > 64:
+        return False
+    try:
+        ZoneInfo(value)
+    except (ValueError, ZoneInfoNotFoundError):
+        return False
+    return True
 
 
 def _update_place_fields(place: Place) -> bool:

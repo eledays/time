@@ -88,17 +88,17 @@ def test_trip_survives_reopen_and_finishes_with_bus_number(
 
 
 def test_departure_time_is_hidden_by_default(auth_client) -> None:
-    """Ручной выбор времени отправления раскрывается только по запросу."""
+    """Ручной выбор времени отправления открывается отдельной кнопкой."""
 
     page = auth_client.get("/")
-    assert "Отправился не сейчас" in page.text
-    assert 'data-time-panel="departed_at" hidden' in page.text
-    assert 'data-time-offset="5"' in page.text
-    assert 'data-time-custom="departed_at"' in page.text
+    assert 'id="departed_at" name="departed_at" type="hidden"' in page.text
+    assert 'data-time-dialog-open="departed_at"' in page.text
+    assert 'aria-label="Время отправления не сейчас"' in page.text
+    assert 'data-time-dialog="departed_at"' in page.text
 
 
 def test_arrival_time_is_hidden_by_default(auth_client) -> None:
-    """Ручной выбор времени прибытия раскрывается только по запросу."""
+    """Ручной выбор времени прибытия открывается отдельной кнопкой."""
 
     auth_client.post(
         "/trips/start",
@@ -109,9 +109,55 @@ def test_arrival_time_is_hidden_by_default(auth_client) -> None:
         },
     )
     page = auth_client.get("/")
-    assert "Приехал не сейчас" in page.text
-    assert 'data-time-panel="arrived_at" hidden' in page.text
-    assert 'data-time-custom="arrived_at"' in page.text
+    assert 'id="arrived_at" name="arrived_at" type="hidden"' in page.text
+    assert 'data-time-dialog-open="arrived_at"' in page.text
+    assert 'aria-label="Время прибытия не сейчас"' in page.text
+    assert 'data-time-dialog="arrived_at"' in page.text
+
+
+def test_timezone_can_be_saved_from_profile(app: Flask, auth_client, user) -> None:
+    """Пользователь может явно выбрать часовой пояс в профиле."""
+
+    response = auth_client.post(
+        "/profile/timezone",
+        data={"csrf_token": "test-csrf", "timezone": "Asia/Yekaterinburg"},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert "Часовой пояс сохранён" in response.text
+    assert 'value="Asia/Yekaterinburg" selected' in response.text
+    with app.app_context():
+        assert db.session.get(User, user.id).timezone == "Asia/Yekaterinburg"
+
+
+def test_invalid_timezone_is_rejected(app: Flask, auth_client, user) -> None:
+    """Неизвестный идентификатор часового пояса не сохраняется."""
+
+    response = auth_client.post(
+        "/profile/timezone",
+        data={"csrf_token": "test-csrf", "timezone": "Mars/Olympus"},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert "Выберите корректный часовой пояс" in response.text
+    with app.app_context():
+        assert db.session.get(User, user.id).timezone is None
+
+
+def test_timezone_is_detected_only_once(app: Flask, auth_client, user) -> None:
+    """Автоопределение не перезаписывает уже сохранённый пояс."""
+
+    headers = {"X-CSRF-Token": "test-csrf"}
+    first = auth_client.post(
+        "/api/timezone", json={"timezone": "Europe/Moscow"}, headers=headers
+    )
+    second = auth_client.post(
+        "/api/timezone", json={"timezone": "Asia/Tokyo"}, headers=headers
+    )
+    assert first.status_code == 204
+    assert second.status_code == 204
+    with app.app_context():
+        assert db.session.get(User, user.id).timezone == "Europe/Moscow"
 
 
 def test_transport_type_is_required(app: Flask, auth_client) -> None:
@@ -228,6 +274,16 @@ def test_existing_taxi_cost_is_migrated(tmp_path: Path) -> None:
     database_path = tmp_path / "legacy.sqlite3"
     with sqlite3.connect(database_path) as connection:
         connection.execute(
+            """CREATE TABLE user (
+                id INTEGER PRIMARY KEY,
+                yandex_id VARCHAR NOT NULL,
+                display_name VARCHAR NOT NULL,
+                email VARCHAR,
+                avatar_url VARCHAR,
+                created_at DATETIME NOT NULL
+            )"""
+        )
+        connection.execute(
             "CREATE TABLE trip (id INTEGER PRIMARY KEY, taxi_cost FLOAT)"
         )
         connection.execute("INSERT INTO trip (taxi_cost) VALUES (750)")
@@ -245,10 +301,15 @@ def test_existing_taxi_cost_is_migrated(tmp_path: Path) -> None:
             row[1]
             for row in db.session.execute(text("PRAGMA table_info(trip)")).all()
         }
+        user_columns = {
+            row[1]
+            for row in db.session.execute(text("PRAGMA table_info(user)")).all()
+        }
         migrated_cost = db.session.execute(
             text("SELECT cost FROM trip WHERE id = 1")
         ).scalar_one()
         assert "cost" in columns
+        assert "timezone" in user_columns
         assert migrated_cost == 750
 
 

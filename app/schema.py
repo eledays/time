@@ -8,6 +8,13 @@ from app.extensions import db
 def upgrade_sqlite_schema() -> None:
     """Добавить новые поля в ранее созданную базу без потери данных."""
 
+    user_columns = {
+        row[1]
+        for row in db.session.execute(text("PRAGMA table_info(user)")).all()
+    }
+    if "timezone" not in user_columns:
+        db.session.execute(text("ALTER TABLE user ADD COLUMN timezone VARCHAR"))
+
     columns = {
         row[1]
         for row in db.session.execute(text("PRAGMA table_info(place)")).all()

@@ -79,12 +79,12 @@ h1 { margin: 0; font-size: clamp(38px, 11vw, 56px); line-height: 1.02; letter-sp
 .start-origin-stage { border: 1px solid transparent; border-radius: 0; transition: padding .38s cubic-bezier(.2,.75,.25,1), border-color .38s ease, border-radius .38s ease, background .38s ease, transform .38s cubic-bezier(.2,.75,.25,1); }
 .start-origin-stage .field-group { margin-top: 44px; transition: margin .38s ease; }
 .start-origin-stage h1, .start-origin-stage input { transition: color .3s ease, font-size .38s cubic-bezier(.2,.75,.25,1), border-color .3s ease; }
-.start-form > .secondary-button, .start-form > .time-options, .start-form > .primary-button { transition: opacity .2s ease, transform .3s ease; }
+.start-form > .save-actions { transition: opacity .2s ease, transform .3s ease; }
 .start-form.is-transitioning .start-origin-stage { padding: 18px 20px 19px; border-color: var(--line); border-radius: 18px; background: var(--bg); transform: translateY(-56px); }
 .start-form.is-transitioning .start-origin-stage h1 { font-size: clamp(26px, 7.5vw, 38px); }
 .start-form.is-transitioning .start-origin-stage .field-group { margin: 30px 0 0; }
 .start-form.is-transitioning .start-origin-stage input { padding-bottom: 0; border-color: transparent; font-size: 14px; }
-.start-form.is-transitioning > .secondary-button, .start-form.is-transitioning > .time-options, .start-form.is-transitioning > .primary-button { opacity: 0; transform: translateY(-34px); pointer-events: none; }
+.start-form.is-transitioning > .save-actions { opacity: 0; transform: translateY(-34px); pointer-events: none; }
 .finish-form { margin-top: 30px; }
 .field-group { position: relative; margin-bottom: 30px; }
 .field-group label, .select-group label { display: block; margin-bottom: 9px; color: var(--muted); font-size: 12px; }
@@ -105,14 +105,19 @@ h1 { margin: 0; font-size: clamp(38px, 11vw, 56px); line-height: 1.02; letter-sp
 .field-group select { width: 100%; padding: 13px 14px; border: 1px solid var(--line); border-radius: 12px; outline: 0; background: var(--surface); color: var(--text); cursor: pointer; }
 .field-group select:focus { border-color: var(--text); }
 input::placeholder, textarea::placeholder { color: var(--faint); }
-.time-toggle { margin: 12px 0 12px; }
-.time-options { margin: -14px 0 28px; animation: reveal .18s ease both; }
-.time-chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-.time-chip { min-width: 0; min-height: 42px; padding: 0 7px; border: 1px solid var(--line); border-radius: 11px; background: transparent; color: var(--muted); font-size: 11px; cursor: pointer; transition: border-color .15s ease, background .15s ease, color .15s ease; }
-.time-chip.active { border-color: var(--text); background: var(--text); color: var(--bg); }
-.time-exact { margin-top: 14px; }
-.time-exact input { width: 100%; padding: 13px 14px; border: 1px solid var(--line); border-radius: 12px; outline: 0; background: var(--surface); color: var(--text); color-scheme: dark; font-size: 14px; }
-.time-exact input:focus { border-color: var(--text); }
+.save-actions { display: grid; grid-template-columns: minmax(0, 1fr) 54px; gap: 9px; }
+.clock-button { position: relative; display: grid; place-items: center; min-height: 54px; border: 1px solid var(--line); border-radius: 14px; background: transparent; color: var(--muted); font-size: 24px; cursor: pointer; transition: border-color .15s ease, color .15s ease, transform .15s ease; }
+.clock-button:hover, .clock-button.custom-time { border-color: var(--text); color: var(--text); }
+.clock-button:active { transform: scale(.96); }
+.clock-button.custom-time::after { position: absolute; top: 8px; right: 8px; width: 6px; height: 6px; border-radius: 50%; background: var(--text); content: ""; }
+.time-picker-dialog { width: min(calc(100% - 24px), 440px); padding: 20px; border: 1px solid var(--line); border-radius: 20px; background: var(--bg); color: var(--text); box-shadow: var(--shadow); }
+.time-picker-dialog::backdrop { background: rgba(0, 0, 0, .55); backdrop-filter: blur(4px); }
+.time-picker-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 22px 0 16px; }
+.time-picker-fields label { display: grid; gap: 8px; color: var(--muted); font-size: 11px; }
+.time-picker-fields input { width: 100%; min-width: 0; padding: 13px 12px; border: 1px solid var(--line); border-radius: 12px; outline: 0; background: var(--surface); color: var(--text); color-scheme: dark; font-size: 14px; }
+.time-picker-fields input:focus { border-color: var(--text); }
+.timezone-note { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 22px; color: var(--muted); font-size: 11px; }
+.timezone-note a { margin-left: auto; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
 .select-group { margin-bottom: 28px; }
 .select-group select { width: 100%; padding: 14px; border: 1px solid var(--line); border-radius: 12px; outline: 0; background: var(--surface); color: var(--text); cursor: pointer; }
 .select-group select:focus { border-color: var(--text); }
@@ -222,6 +227,13 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .stats-grid article { min-height: 106px; display: flex; flex-direction: column; justify-content: space-between; padding: 20px 0; border-top: 1px solid var(--line); }
 .stats-grid strong { font-size: 25px; font-weight: 560; letter-spacing: -.03em; }
 .stats-grid span { color: var(--muted); font-size: 10px; }
+.profile-settings { margin-top: 42px; padding-top: 24px; border-top: 1px solid var(--line); }
+.profile-settings h2 { margin: 0 0 22px; font-size: 19px; font-weight: 560; }
+.profile-settings form { display: grid; gap: 10px; }
+.profile-settings label { color: var(--muted); font-size: 11px; }
+.profile-settings select { width: 100%; padding: 14px; border: 1px solid var(--line); border-radius: 12px; outline: 0; background: var(--surface); color: var(--text); cursor: pointer; }
+.profile-settings select:focus { border-color: var(--text); }
+.profile-settings .secondary-button { margin-top: 6px; }
 .logout-form { display: flex; justify-content: center; margin-top: 26px; }
 
 .toast-stack { position: fixed; z-index: 1200; top: max(18px, env(safe-area-inset-top)); left: 16px; right: 16px; display: grid; gap: 8px; }
