@@ -95,6 +95,13 @@ def test_departure_time_is_hidden_by_default(auth_client) -> None:
     assert 'data-time-dialog-open="departed_at"' in page.text
     assert 'aria-label="Время отправления не сейчас"' in page.text
     assert 'data-time-dialog="departed_at"' in page.text
+    assert 'data-picker-date required disabled' in page.text
+    assert 'data-picker-clock step="60" required disabled' in page.text
+    assert 'class="material-symbols-rounded"' in page.text
+    assert ">schedule</span>" in page.text
+    for icon in ("add_circle", "route", "history", "location_on", "map", "person"):
+        assert f'>{icon}</span><small>' in page.text
+    assert "fonts.googleapis.com/css2?family=Material+Symbols+Rounded" in page.text
 
 
 def test_arrival_time_is_hidden_by_default(auth_client) -> None:

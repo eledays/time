@@ -1,7 +1,7 @@
 <input id="{{ time_id }}" name="{{ time_id }}" type="hidden" data-default-now required>
 <div class="save-actions">
   <button class="primary-button save-button" type="submit">{{ submit_label }}</button>
-  <button class="clock-button" type="button" data-time-dialog-open="{{ time_id }}" aria-label="{{ time_label }} не сейчас" aria-pressed="false" title="{{ time_label }} не сейчас">◷</button>
+  <button class="clock-button" type="button" data-time-dialog-open="{{ time_id }}" aria-label="{{ time_label }} не сейчас" aria-pressed="false" title="{{ time_label }} не сейчас"><span class="material-symbols-rounded" aria-hidden="true">schedule</span></button>
 </div>
 <dialog class="time-picker-dialog" data-time-dialog="{{ time_id }}">
   <div class="dialog-head">
@@ -9,8 +9,8 @@
     <button type="button" data-time-dialog-close aria-label="Закрыть">×</button>
   </div>
   <div class="time-picker-fields">
-    <label>Дата<input type="date" data-picker-date required></label>
-    <label>Время<input type="time" data-picker-clock step="60" required></label>
+    <label>Дата<input type="date" data-picker-date required disabled></label>
+    <label>Время<input type="time" data-picker-clock step="60" required disabled></label>
   </div>
   <p class="timezone-note">Часовой пояс · <span data-timezone-label></span><a href="{{ url_for('main.profile', _anchor='settings') }}">Изменить</a></p>
   <button class="primary-button" type="button" data-time-dialog-apply>Готово</button>

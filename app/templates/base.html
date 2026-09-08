@@ -6,6 +6,9 @@
     <meta name="theme-color" content="#090909">
     <meta name="description" content="Личный дневник времени в пути">
     <title>{% block title %}Дневник поездок{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&icon_names=add_circle,history,location_on,map,person,route,schedule&display=block">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block head %}{% endblock %}
     <script defer src="{{ url_for('static', filename='js/app.js') }}"></script>
@@ -24,16 +27,16 @@
     {% if g.user %}
       <nav class="bottom-nav" aria-label="Разделы приложения">
         {% set items = [
-          ('main.index', '＋', 'Запись'),
-          ('main.calculate', '↗', 'Расчёт'),
-          ('main.trips', '≡', 'Поездки'),
-          ('main.places', '●', 'Места'),
-          ('main.map_view', '⌖', 'Карта'),
-          ('main.profile', '○', 'Профиль')
+          ('main.index', 'add_circle', 'Запись'),
+          ('main.calculate', 'route', 'Расчёт'),
+          ('main.trips', 'history', 'Поездки'),
+          ('main.places', 'location_on', 'Места'),
+          ('main.map_view', 'map', 'Карта'),
+          ('main.profile', 'person', 'Профиль')
         ] %}
         {% for endpoint, icon, label in items %}
           <a class="bottom-nav-item {{ 'active' if request.endpoint == endpoint }}" href="{{ url_for(endpoint) }}" {% if request.endpoint == endpoint %}aria-current="page"{% endif %}>
-            <span aria-hidden="true">{{ icon }}</span><small>{{ label }}</small>
+            <span class="material-symbols-rounded" aria-hidden="true">{{ icon }}</span><small>{{ label }}</small>
           </a>
         {% endfor %}
       </nav>

@@ -48,7 +48,13 @@ document.querySelectorAll("[data-time-dialog-open]").forEach((button) => {
     const [date, time] = input.value.split("T");
     dateInput.value = date;
     clockInput.value = time;
+    dateInput.disabled = false;
+    clockInput.disabled = false;
     dialog.showModal();
+  });
+  dialog.addEventListener("close", () => {
+    dateInput.disabled = true;
+    clockInput.disabled = true;
   });
   dialog.querySelector("[data-time-dialog-close]").addEventListener("click", () => dialog.close());
   dialog.querySelector("[data-time-dialog-apply]").addEventListener("click", () => {
