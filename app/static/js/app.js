@@ -344,30 +344,36 @@ function escapeHtml(value) {
 
 const ESRI_IMAGERY_TILES = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 
-const addImageryLayer = (map) => L.tileLayer(ESRI_IMAGERY_TILES, {
-  attribution: "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community",
-  maxZoom: 19,
-}).addTo(map);
+const createImageryLayer = () => new ol.layer.Tile({
+  source: new ol.source.XYZ({
+    url: ESRI_IMAGERY_TILES,
+    attributions: "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community",
+    maxZoom: 19,
+  }),
+});
 
-const initializeLeafletMaps = () => {
+const createPointStyle = (color) => new ol.style.Style({
+  image: new ol.style.Circle({
+    radius: 7,
+    fill: new ol.style.Fill({ color }),
+    stroke: new ol.style.Stroke({ color: "#f7f7f2", width: 2 }),
+  }),
+});
+
+const initializeOpenLayersMaps = () => {
   const mapDialog = document.querySelector("[data-map-dialog]");
   if (mapDialog) {
     let activeForm = null;
     let pickerMap = null;
-    let pickerMarker = null;
+    let pickerCoordinates = null;
+    const pickerSource = new ol.source.Vector();
 
-    const placePickerMarker = (coordinates) => {
-      if (pickerMarker) {
-        pickerMarker.setLatLng(coordinates);
-        return;
-      }
-      pickerMarker = L.circleMarker(coordinates, {
-        radius: 7,
-        color: "#f7f7f2",
-        weight: 2,
-        fillColor: "#191919",
-        fillOpacity: 1,
-      }).addTo(pickerMap);
+    const placePickerMarker = (latitude, longitude) => {
+      pickerCoordinates = [latitude, longitude];
+      pickerSource.clear();
+      pickerSource.addFeature(new ol.Feature({
+        geometry: new ol.geom.Point(ol.proj.fromLonLat([longitude, latitude])),
+      }));
     };
 
     document.querySelectorAll("[data-map-pick]").forEach((button) => {
@@ -379,28 +385,45 @@ const initializeLeafletMaps = () => {
         mapDialog.showModal();
         window.setTimeout(() => {
           if (!pickerMap) {
-            pickerMap = L.map("coordinate-map").setView([55.7512, 37.6184], 11);
-            addImageryLayer(pickerMap);
-            pickerMap.on("click", (event) => placePickerMarker(event.latlng));
+            pickerMap = new ol.Map({
+              target: "coordinate-map",
+              layers: [
+                createImageryLayer(),
+                new ol.layer.Vector({
+                  source: pickerSource,
+                  style: createPointStyle("#191919"),
+                }),
+              ],
+              view: new ol.View({
+                center: ol.proj.fromLonLat([37.6184, 55.7512]),
+                zoom: 11,
+              }),
+            });
+            pickerMap.on("singleclick", (event) => {
+              const [longitude, latitude] = ol.proj.toLonLat(event.coordinate);
+              placePickerMarker(latitude, longitude);
+            });
           }
-          pickerMap.invalidateSize();
+          pickerMap.updateSize();
           if (hasCoordinates) {
-            pickerMap.setView([latitude, longitude], 15);
-            placePickerMarker([latitude, longitude]);
+            pickerMap.getView().setCenter(ol.proj.fromLonLat([longitude, latitude]));
+            pickerMap.getView().setZoom(15);
+            placePickerMarker(latitude, longitude);
           } else {
-            if (pickerMarker) pickerMap.removeLayer(pickerMarker);
-            pickerMarker = null;
-            pickerMap.setView([55.7512, 37.6184], 11);
+            pickerCoordinates = null;
+            pickerSource.clear();
+            pickerMap.getView().setCenter(ol.proj.fromLonLat([37.6184, 55.7512]));
+            pickerMap.getView().setZoom(11);
           }
         }, 50);
       });
     });
     mapDialog.querySelector("[data-map-close]").addEventListener("click", () => mapDialog.close());
     mapDialog.querySelector("[data-map-apply]").addEventListener("click", () => {
-      if (!activeForm || !pickerMarker) return;
-      const coordinates = pickerMarker.getLatLng();
-      activeForm.querySelector("[name=latitude]").value = coordinates.lat.toFixed(6);
-      activeForm.querySelector("[name=longitude]").value = coordinates.lng.toFixed(6);
+      if (!activeForm || !pickerCoordinates) return;
+      const [latitude, longitude] = pickerCoordinates;
+      activeForm.querySelector("[name=latitude]").value = latitude.toFixed(6);
+      activeForm.querySelector("[name=longitude]").value = longitude.toFixed(6);
       mapDialog.close();
     });
   }
@@ -409,39 +432,69 @@ const initializeLeafletMaps = () => {
   const mapDataElement = document.getElementById("map-data");
   if (journeyMapElement && mapDataElement) {
     const mapData = JSON.parse(mapDataElement.textContent);
-    const map = L.map(journeyMapElement, { zoomControl: false }).setView([55.7512, 37.6184], 10);
-    L.control.zoom({ position: "topright" }).addTo(map);
-    addImageryLayer(map);
+    const vectorSource = new ol.source.Vector();
+    const popupElement = document.createElement("div");
+    popupElement.className = "map-popup";
+    popupElement.hidden = true;
+    journeyMapElement.after(popupElement);
+    const popup = new ol.Overlay({
+      element: popupElement,
+      positioning: "bottom-center",
+      offset: [0, -10],
+      stopEvent: false,
+    });
+    const map = new ol.Map({
+      target: journeyMapElement,
+      layers: [createImageryLayer(), new ol.layer.Vector({ source: vectorSource })],
+      overlays: [popup],
+      view: new ol.View({
+        center: ol.proj.fromLonLat([37.6184, 55.7512]),
+        zoom: 10,
+      }),
+    });
 
     const pointsById = new Map();
     mapData.places.forEach((place) => {
-      const point = [place.lat, place.lng];
+      const point = ol.proj.fromLonLat([place.lng, place.lat]);
       pointsById.set(place.id, point);
-      L.circleMarker(point, {
-        radius: 7,
-        color: "#f7f7f2",
-        weight: 2,
-        fillColor: place.color,
-        fillOpacity: 1,
-      })
-        .addTo(map)
-        .bindPopup(`<strong>${escapeHtml(place.name)}</strong><br>${escapeHtml(place.address || "Адрес не указан")}`);
+      const marker = new ol.Feature({
+        geometry: new ol.geom.Point(point),
+        popupHtml: `<strong>${escapeHtml(place.name)}</strong><br>${escapeHtml(place.address || "Адрес не указан")}`,
+      });
+      marker.setStyle(createPointStyle(place.color));
+      vectorSource.addFeature(marker);
     });
     mapData.trips.forEach((trip) => {
       const origin = pointsById.get(trip.from);
       const destination = pointsById.get(trip.to);
       if (origin && destination) {
-        L.polyline([origin, destination], {
-          color: "#5f5f59",
-          weight: 3,
-          opacity: 0.65,
-        }).addTo(map).bindPopup(`${trip.minutes} мин`);
+        const line = new ol.Feature({
+          geometry: new ol.geom.LineString([origin, destination]),
+          popupHtml: `${trip.minutes} мин`,
+        });
+        line.setStyle(new ol.style.Style({
+          stroke: new ol.style.Stroke({ color: "rgba(247, 247, 242, .65)", width: 3 }),
+        }));
+        vectorSource.addFeature(line);
       }
     });
-    const bounds = L.latLngBounds([...pointsById.values()]);
-    if (mapData.places.length === 1) map.setView(pointsById.values().next().value, 14);
-    else if (bounds.isValid()) map.fitBounds(bounds, { padding: [48, 48] });
+    map.on("singleclick", (event) => {
+      const feature = map.forEachFeatureAtPixel(event.pixel, (item) => item);
+      const popupHtml = feature?.get("popupHtml");
+      popupElement.hidden = !popupHtml;
+      popupElement.innerHTML = popupHtml || "";
+      popup.setPosition(popupHtml ? event.coordinate : undefined);
+    });
+    if (mapData.places.length === 1) {
+      map.getView().setCenter(pointsById.values().next().value);
+      map.getView().setZoom(14);
+    } else if (mapData.places.length > 1) {
+      map.getView().fit(vectorSource.getExtent(), {
+        padding: [80, 48, 100, 48],
+        maxZoom: 15,
+      });
+    }
   }
 };
 
-if (window.L) initializeLeafletMaps();
+if (window.ol) initializeOpenLayersMaps();
