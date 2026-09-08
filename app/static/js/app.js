@@ -342,7 +342,14 @@ function escapeHtml(value) {
   return element.innerHTML;
 }
 
-const initializeYandexMaps = () => {
+const ESRI_IMAGERY_TILES = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+
+const addImageryLayer = (map) => L.tileLayer(ESRI_IMAGERY_TILES, {
+  attribution: "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community",
+  maxZoom: 19,
+}).addTo(map);
+
+const initializeLeafletMaps = () => {
   const mapDialog = document.querySelector("[data-map-dialog]");
   if (mapDialog) {
     let activeForm = null;
@@ -351,15 +358,16 @@ const initializeYandexMaps = () => {
 
     const placePickerMarker = (coordinates) => {
       if (pickerMarker) {
-        pickerMarker.geometry.setCoordinates(coordinates);
+        pickerMarker.setLatLng(coordinates);
         return;
       }
-      pickerMarker = new ymaps.Placemark(
-        coordinates,
-        {},
-        { preset: "islands#circleDotIcon", iconColor: "#191919" },
-      );
-      pickerMap.geoObjects.add(pickerMarker);
+      pickerMarker = L.circleMarker(coordinates, {
+        radius: 7,
+        color: "#f7f7f2",
+        weight: 2,
+        fillColor: "#191919",
+        fillOpacity: 1,
+      }).addTo(pickerMap);
     };
 
     document.querySelectorAll("[data-map-pick]").forEach((button) => {
@@ -371,21 +379,18 @@ const initializeYandexMaps = () => {
         mapDialog.showModal();
         window.setTimeout(() => {
           if (!pickerMap) {
-            pickerMap = new ymaps.Map("coordinate-map", {
-              center: [55.7512, 37.6184],
-              zoom: 11,
-              controls: ["zoomControl"],
-            });
-            pickerMap.events.add("click", (event) => placePickerMarker(event.get("coords")));
+            pickerMap = L.map("coordinate-map").setView([55.7512, 37.6184], 11);
+            addImageryLayer(pickerMap);
+            pickerMap.on("click", (event) => placePickerMarker(event.latlng));
           }
-          pickerMap.container.fitToViewport();
+          pickerMap.invalidateSize();
           if (hasCoordinates) {
-            pickerMap.setCenter([latitude, longitude], 15);
+            pickerMap.setView([latitude, longitude], 15);
             placePickerMarker([latitude, longitude]);
           } else {
-            if (pickerMarker) pickerMap.geoObjects.remove(pickerMarker);
+            if (pickerMarker) pickerMap.removeLayer(pickerMarker);
             pickerMarker = null;
-            pickerMap.setCenter([55.7512, 37.6184], 11);
+            pickerMap.setView([55.7512, 37.6184], 11);
           }
         }, 50);
       });
@@ -393,9 +398,9 @@ const initializeYandexMaps = () => {
     mapDialog.querySelector("[data-map-close]").addEventListener("click", () => mapDialog.close());
     mapDialog.querySelector("[data-map-apply]").addEventListener("click", () => {
       if (!activeForm || !pickerMarker) return;
-      const [latitude, longitude] = pickerMarker.geometry.getCoordinates();
-      activeForm.querySelector("[name=latitude]").value = latitude.toFixed(6);
-      activeForm.querySelector("[name=longitude]").value = longitude.toFixed(6);
+      const coordinates = pickerMarker.getLatLng();
+      activeForm.querySelector("[name=latitude]").value = coordinates.lat.toFixed(6);
+      activeForm.querySelector("[name=longitude]").value = coordinates.lng.toFixed(6);
       mapDialog.close();
     });
   }
@@ -404,40 +409,39 @@ const initializeYandexMaps = () => {
   const mapDataElement = document.getElementById("map-data");
   if (journeyMapElement && mapDataElement) {
     const mapData = JSON.parse(mapDataElement.textContent);
-    const map = new ymaps.Map(journeyMapElement, {
-      center: [55.7512, 37.6184],
-      zoom: 10,
-      controls: ["zoomControl"],
-    });
+    const map = L.map(journeyMapElement, { zoomControl: false }).setView([55.7512, 37.6184], 10);
+    L.control.zoom({ position: "topright" }).addTo(map);
+    addImageryLayer(map);
 
     const pointsById = new Map();
     mapData.places.forEach((place) => {
       const point = [place.lat, place.lng];
       pointsById.set(place.id, point);
-      map.geoObjects.add(new ymaps.Placemark(
-        point,
-        {
-          balloonContentHeader: escapeHtml(place.name),
-          balloonContentBody: escapeHtml(place.address || "Адрес не указан"),
-        },
-        { preset: "islands#circleDotIcon", iconColor: place.color },
-      ));
+      L.circleMarker(point, {
+        radius: 7,
+        color: "#f7f7f2",
+        weight: 2,
+        fillColor: place.color,
+        fillOpacity: 1,
+      })
+        .addTo(map)
+        .bindPopup(`<strong>${escapeHtml(place.name)}</strong><br>${escapeHtml(place.address || "Адрес не указан")}`);
     });
     mapData.trips.forEach((trip) => {
       const origin = pointsById.get(trip.from);
       const destination = pointsById.get(trip.to);
       if (origin && destination) {
-        map.geoObjects.add(new ymaps.Polyline(
-          [origin, destination],
-          { balloonContent: `${trip.minutes} мин` },
-          { strokeColor: "#5f5f59", strokeWidth: 3, strokeOpacity: 0.65 },
-        ));
+        L.polyline([origin, destination], {
+          color: "#5f5f59",
+          weight: 3,
+          opacity: 0.65,
+        }).addTo(map).bindPopup(`${trip.minutes} мин`);
       }
     });
-    const bounds = map.geoObjects.getBounds();
-    if (mapData.places.length === 1) map.setCenter(pointsById.values().next().value, 14);
-    else if (bounds) map.setBounds(bounds, { checkZoomRange: true, zoomMargin: 48 });
+    const bounds = L.latLngBounds([...pointsById.values()]);
+    if (mapData.places.length === 1) map.setView(pointsById.values().next().value, 14);
+    else if (bounds.isValid()) map.fitBounds(bounds, { padding: [48, 48] });
   }
 };
 
-if (window.ymaps) ymaps.ready(initializeYandexMaps);
+if (window.L) initializeLeafletMaps();

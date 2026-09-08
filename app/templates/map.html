@@ -3,9 +3,10 @@
 {% block page %}map{% endblock %}
 {% block content %}
 <main class="map-page">
-  <div class="map-heading"><h1>Карта</h1>{% if not maps_api_key %}<p>Добавьте ключ Яндекс Карт</p>{% elif not map_data.places %}<p>Добавьте координаты в «Местах»</p>{% endif %}</div>
+  <div class="map-heading"><h1>Карта</h1>{% if not map_data.places %}<p>Добавьте координаты в «Местах»</p>{% endif %}</div>
   <div id="journey-map" class="journey-map" aria-label="Карта сохранённых мест"></div>
   <script id="map-data" type="application/json">{{ map_data|tojson }}</script>
 </main>
 {% endblock %}
-{% block scripts %}{% if maps_api_key %}<script src="https://api-maps.yandex.ru/2.1/?apikey={{ maps_api_key|urlencode }}&lang=ru_RU"></script>{% endif %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">{% endblock %}
+{% block scripts %}<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>{% endblock %}

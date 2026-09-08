@@ -27,12 +27,11 @@
     {% endfor %}
   </div>
 </main>
-{% if maps_api_key %}
   <dialog class="map-dialog" data-map-dialog>
     <div class="dialog-head"><strong>Укажите точку</strong><button type="button" data-map-close aria-label="Закрыть">×</button></div>
     <div id="coordinate-map"></div>
     <button class="primary-button" type="button" data-map-apply>Готово</button>
   </dialog>
-{% endif %}
 {% endblock %}
-{% block scripts %}{% if maps_api_key %}<script src="https://api-maps.yandex.ru/2.1/?apikey={{ maps_api_key|urlencode }}&lang=ru_RU"></script>{% endif %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">{% endblock %}
+{% block scripts %}<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>{% endblock %}

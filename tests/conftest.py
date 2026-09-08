@@ -20,7 +20,6 @@ class TestConfig(Config):
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     YANDEX_CLIENT_ID = ""
     YANDEX_CLIENT_SECRET = ""
-    YANDEX_MAPS_API_KEY = "test-map-key"
 
 
 @pytest.fixture()

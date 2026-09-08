@@ -5,7 +5,6 @@ from collections import Counter
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from flask import (
-    current_app,
     flash,
     g,
     jsonify,
@@ -202,11 +201,7 @@ def places():
         .where(Place.user_id == g.user.id)
         .order_by(Place.name)
     ).all()
-    return render_template(
-        "places.html",
-        places=place_items,
-        maps_api_key=current_app.config["YANDEX_MAPS_API_KEY"],
-    )
+    return render_template("places.html", places=place_items)
 
 
 @bp.post("/places")
@@ -300,11 +295,7 @@ def map_view():
             if trip.origin_id in mapped_ids and trip.destination_id in mapped_ids
         ],
     }
-    return render_template(
-        "map.html",
-        map_data=map_data,
-        maps_api_key=current_app.config["YANDEX_MAPS_API_KEY"],
-    )
+    return render_template("map.html", map_data=map_data)
 
 
 @bp.get("/profile")

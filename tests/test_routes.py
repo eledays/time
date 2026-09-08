@@ -510,5 +510,9 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
         assert text in page.text
 
     map_page = auth_client.get("/map")
-    assert "api-maps.yandex.ru/2.1/" in map_page.text
+    assert "unpkg.com/leaflet@1.9.4" in map_page.text
     assert "OpenStreetMap" not in map_page.text
+    map_script = auth_client.get("/static/js/app.js")
+    assert "World_Imagery/MapServer/tile" in map_script.text
+    assert "World_Street_Map" not in map_script.text
+    assert "tile.openstreetmap.org" not in map_script.text
