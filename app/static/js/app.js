@@ -309,6 +309,24 @@ if (tripForm) {
     costLabel.textContent = isRental ? "Стоимость аренды, ₽" : "Стоимость, ₽";
   };
   transportControls.forEach((control) => control.addEventListener("change", updateDetails));
+  transportControls.forEach((control, index) => {
+    control.addEventListener("keydown", (event) => {
+      const direction = {
+        ArrowLeft: -1,
+        ArrowUp: -1,
+        ArrowRight: 1,
+        ArrowDown: 1,
+      }[event.key];
+      if (!direction) return;
+      event.preventDefault();
+      const nextIndex = (index + direction + transportControls.length) % transportControls.length;
+      const nextControl = transportControls[nextIndex];
+      nextControl.checked = true;
+      nextControl.dispatchEvent(new Event("change", { bubbles: true }));
+      nextControl.focus();
+      transportCards[nextIndex].scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    });
+  });
   updateDetails();
 }
 
