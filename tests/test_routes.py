@@ -459,9 +459,11 @@ def test_route_result_is_a_separate_page_with_geo_summary(
     response = auth_client.get("/calculate/result?points=Дом&points=Офис")
     assert response.status_code == 200
     assert 'data-route-canvas' in response.text
-    assert "Расчёт по вашей истории поездок" in response.text
+    assert "ХОД · МОЙ МАРШРУТ" not in response.text
+    assert "Изменить маршрут" not in response.text
     assert "Пешком" in response.text
     assert "км/ч" in response.text
+    assert "Путь рассчитан как сумма расстояний" in response.text
     assert "Схема построена по порядку точек" not in response.text
 
 
@@ -470,7 +472,7 @@ def test_route_result_falls_back_to_schematic_track(auth_client) -> None:
 
     response = auth_client.get("/calculate/result?points=А&points=Б")
     assert response.status_code == 200
-    assert "Схема построена по порядку точек" in response.text
+    assert "Сейчас схема передаёт порядок остановок" in response.text
     assert "Пока нет записанных поездок" in response.text
 
 
@@ -522,14 +524,13 @@ def test_yandex_callback_saves_avatar(app: Flask, client, monkeypatch) -> None:
 
 
 def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
-    """Новые разделы открываются, а координаты места сохраняются."""
+    """Новые разделы открываются, а данные места сохраняются."""
 
     response = auth_client.post(
         "/places",
         data={
             "csrf_token": "test-csrf",
             "name": "Парк",
-            "address": "Большой проспект, 1",
             "latitude": "55.7512",
             "longitude": "37.6184",
             "description": "У фонтана",
@@ -540,9 +541,15 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     with app.app_context():
         place = db.session.scalar(db.select(Place))
         assert place is not None
-        assert place.address == "Большой проспект, 1"
+        assert place.address is None
         assert place.latitude == 55.7512
+        assert place.description == "У фонтана"
         assert place.marker_color == "#22aa66"
+
+    places_page = auth_client.get("/places")
+    assert 'name="address"' not in places_page.text
+    assert 'name="latitude" type="hidden"' in places_page.text
+    assert "Указать точку на карте" in places_page.text
 
     for path, text in [
         ("/trips", "Все поездки"),

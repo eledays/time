@@ -4,34 +4,19 @@
 {% block content %}
 <main class="route-result-page">
   <section class="route-portrait" aria-labelledby="route-title">
-    <header class="route-portrait-head">
-      <span>ХОД · МОЙ МАРШРУТ</span>
-      <span>ТОЧЕК · {{ result.points | length }}</span>
-    </header>
     <h1 id="route-title">{{ result.points[0].name }}<br><span>→ {{ result.points[-1].name }}</span></h1>
     <div class="track-stage">
       <canvas data-route-canvas aria-label="Схема маршрута по заданным точкам"></canvas>
       <script type="application/json" data-route-track>{{ result.points | tojson }}</script>
     </div>
-    {% if not result.has_full_track %}
-      <p class="track-note">Схема построена по порядку точек. Добавьте координаты мест, чтобы форма трека повторяла географию.</p>
-    {% endif %}
   </section>
 
   <section class="route-details">
-    <div class="route-details-heading">
-      <p>Расчёт по вашей истории поездок</p>
-      <a href="{{ url_for('main.calculate') }}">Изменить маршрут</a>
-    </div>
     <div class="route-stats">
       <article><span>Время</span><strong>{{ result.total_minutes if result.complete else '—' }}</strong><small>мин</small></article>
       <article><span>Путь</span><strong>{{ result.total_distance_km if result.total_distance_km is not none else '—' }}</strong><small>км</small></article>
       <article><span>Скорость</span><strong>{{ result.average_speed_kmh if result.average_speed_kmh is not none else '—' }}</strong><small>км/ч</small></article>
     </div>
-    <p class="route-calculation-note">
-      {% if result.has_full_track %}Путь — сумма расстояний между геоточками по прямой.{% else %}Путь и скорость появятся, когда у всех мест будут координаты.{% endif %}
-      {% if not result.complete %} Общее время появится после записи всех отрезков.{% endif %}
-    </p>
 
     <div class="route-segments">
       <div class="route-section-label"><span>По отрезкам</span><span>{{ result.segments | length }}</span></div>
@@ -56,6 +41,10 @@
         </article>
       {% endfor %}
     </div>
+    <footer class="route-method-note">
+      <p>{% if result.has_full_track %}Путь рассчитан как сумма расстояний по прямой между географическими точками маршрута.{% else %}Сейчас схема передаёт порядок остановок. Путь, географическая форма трека и скорость появятся, когда у всех мест будут указаны точки на карте.{% endif %}</p>
+      {% if not result.complete %}<p>Общее время появится после записи поездок по всем отрезкам.</p>{% endif %}
+    </footer>
   </section>
 </main>
 {% endblock %}

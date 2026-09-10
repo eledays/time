@@ -122,11 +122,50 @@ const normalizePlaceName = (value) => value
   .toLocaleLowerCase("ru-RU")
   .replace(/\s+/g, " ");
 
+let autocompleteIndex = 0;
 const initializeAutocomplete = (input) => {
   if (input.dataset.autocompleteReady) return;
   input.dataset.autocompleteReady = "true";
   const menu = input.parentElement.querySelector(".suggestions");
   if (!menu) return;
+  autocompleteIndex += 1;
+  menu.id ||= `suggestions-${autocompleteIndex}`;
+  input.setAttribute("role", "combobox");
+  input.setAttribute("aria-autocomplete", "list");
+  input.setAttribute("aria-controls", menu.id);
+  input.setAttribute("aria-expanded", "false");
+  let activeIndex = -1;
+
+  const options = () => [...menu.querySelectorAll(".suggestion")];
+  const setOpen = (open) => {
+    menu.classList.toggle("open", open);
+    input.setAttribute("aria-expanded", String(open));
+    if (!open) input.removeAttribute("aria-activedescendant");
+  };
+  const setActive = (index) => {
+    const items = options();
+    if (!items.length) return;
+    activeIndex = (index + items.length) % items.length;
+    items.forEach((item, itemIndex) => {
+      const active = itemIndex === activeIndex;
+      item.classList.toggle("is-active", active);
+      item.setAttribute("aria-selected", String(active));
+    });
+    input.setAttribute("aria-activedescendant", items[activeIndex].id);
+    items[activeIndex].scrollIntoView({ block: "nearest" });
+  };
+  const choose = (option, moveForward = false) => {
+    input.value = option.textContent;
+    setOpen(false);
+    if (input.dataset.timeTarget) setCurrentTime(input.dataset.timeTarget);
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    if (moveForward) {
+      const formInputs = [...(input.closest("form") || document).querySelectorAll("[data-place-input]")]
+        .filter((item) => !item.disabled && item.offsetParent !== null);
+      const nextInput = formInputs[formInputs.indexOf(input) + 1];
+      nextInput?.focus();
+    }
+  };
 
   const load = debounce(async () => {
     const query = input.value.trim();
@@ -138,18 +177,15 @@ const initializeAutocomplete = (input) => {
       const places = await response.json();
       if (input.value.trim() !== query) return;
       menu.replaceChildren();
-      places.forEach((place) => {
+      places.forEach((place, index) => {
         const option = document.createElement("button");
         option.type = "button";
         option.className = "suggestion";
+        option.id = `${menu.id}-option-${index}`;
         option.setAttribute("role", "option");
         option.textContent = place.name;
-        option.addEventListener("click", () => {
-          input.value = place.name;
-          menu.classList.remove("open");
-          if (input.dataset.timeTarget) setCurrentTime(input.dataset.timeTarget);
-          input.dispatchEvent(new Event("change", { bubbles: true }));
-        });
+        option.addEventListener("mouseenter", () => setActive(index));
+        option.addEventListener("click", () => choose(option));
         menu.append(option);
       });
       const isExistingPlace = places.some(
@@ -163,9 +199,11 @@ const initializeAutocomplete = (input) => {
         notice.textContent = `${message} · ${query}`;
         menu.append(notice);
       }
-      menu.classList.toggle("open", places.length > 0 || Boolean(query));
+      activeIndex = places.length ? 0 : -1;
+      setOpen(places.length > 0 || Boolean(query));
+      if (places.length) setActive(0);
     } catch (_) {
-      menu.classList.remove("open");
+      setOpen(false);
     }
   });
 
@@ -184,10 +222,20 @@ const initializeAutocomplete = (input) => {
     if (input.value.trim() && timeInput && !timeInput.value) setCurrentTime(input.dataset.timeTarget);
   });
   input.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") menu.classList.remove("open");
+    const items = options();
+    if ((event.key === "ArrowDown" || event.key === "ArrowUp") && items.length) {
+      event.preventDefault();
+      setOpen(true);
+      setActive(activeIndex + (event.key === "ArrowDown" ? 1 : -1));
+    } else if (event.key === "Enter" && menu.classList.contains("open") && items.length) {
+      event.preventDefault();
+      choose(items[Math.max(activeIndex, 0)], true);
+    } else if (event.key === "Escape") {
+      setOpen(false);
+    }
   });
   document.addEventListener("click", (event) => {
-    if (!input.parentElement.contains(event.target)) menu.classList.remove("open");
+    if (!input.parentElement.contains(event.target)) setOpen(false);
   });
 };
 
@@ -453,6 +501,7 @@ const initializeOpenLayersMaps = () => {
       const [latitude, longitude] = pickerCoordinates;
       activeForm.querySelector("[name=latitude]").value = latitude.toFixed(6);
       activeForm.querySelector("[name=longitude]").value = longitude.toFixed(6);
+      activeForm.querySelector("[data-map-pick]").textContent = "Изменить точку на карте";
       mapDialog.close();
     });
   }
@@ -488,7 +537,7 @@ const initializeOpenLayersMaps = () => {
       pointsById.set(place.id, point);
       const marker = new ol.Feature({
         geometry: new ol.geom.Point(point),
-        popupHtml: `<strong>${escapeHtml(place.name)}</strong><br>${escapeHtml(place.address || "Адрес не указан")}`,
+        popupHtml: `<strong>${escapeHtml(place.name)}</strong>${place.description ? `<br>${escapeHtml(place.description)}` : ""}`,
       });
       marker.setStyle(createPointStyle(place.color));
       vectorSource.addFeature(marker);

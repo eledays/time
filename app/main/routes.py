@@ -293,7 +293,7 @@ def map_view():
             {
                 "id": place.id,
                 "name": place.name,
-                "address": place.address,
+                "description": place.description,
                 "lat": place.latitude,
                 "lng": place.longitude,
                 "color": place.marker_color,
@@ -385,7 +385,6 @@ def _is_valid_timezone(value: str) -> bool:
 def _update_place_fields(place: Place) -> bool:
     """Проверить форму и записать метаданные места."""
 
-    place.address = request.form.get("address", "").strip() or None
     place.description = request.form.get("description", "").strip() or None
     color = request.form.get("marker_color", "#111111")
     place.marker_color = color if COLOR_PATTERN.fullmatch(color) else "#111111"
