@@ -35,7 +35,8 @@
           ('main.profile', 'person', 'Профиль')
         ] %}
         {% for endpoint, icon, label in items %}
-          <a class="bottom-nav-item {{ 'active' if request.endpoint == endpoint }}" href="{{ url_for(endpoint) }}" {% if request.endpoint == endpoint %}aria-current="page"{% endif %}>
+          {% set item_active = request.endpoint == endpoint or (endpoint == 'main.calculate' and request.endpoint == 'main.calculate_result') %}
+          <a class="bottom-nav-item {{ 'active' if item_active }}" href="{{ url_for(endpoint) }}" {% if item_active %}aria-current="page"{% endif %}>
             <span class="material-symbols-rounded" aria-hidden="true">{{ icon }}</span><small>{{ label }}</small>
           </a>
         {% endfor %}

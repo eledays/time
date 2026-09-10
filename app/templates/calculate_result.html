@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Ваш маршрут · Ход{% endblock %}
+{% block page %}calculate-result{% endblock %}
+{% block content %}
+<main class="route-result-page">
+  <section class="route-portrait" aria-labelledby="route-title">
+    <header class="route-portrait-head">
+      <span>ХОД · МОЙ МАРШРУТ</span>
+      <span>ТОЧЕК · {{ result.points | length }}</span>
+    </header>
+    <h1 id="route-title">{{ result.points[0].name }}<br><span>→ {{ result.points[-1].name }}</span></h1>
+    <div class="track-stage">
+      <canvas data-route-canvas aria-label="Схема маршрута по заданным точкам"></canvas>
+      <script type="application/json" data-route-track>{{ result.points | tojson }}</script>
+    </div>
+    {% if not result.has_full_track %}
+      <p class="track-note">Схема построена по порядку точек. Добавьте координаты мест, чтобы форма трека повторяла географию.</p>
+    {% endif %}
+  </section>
+
+  <section class="route-details">
+    <div class="route-details-heading">
+      <p>Расчёт по вашей истории поездок</p>
+      <a href="{{ url_for('main.calculate') }}">Изменить маршрут</a>
+    </div>
+    <div class="route-stats">
+      <article><span>Время</span><strong>{{ result.total_minutes if result.complete else '—' }}</strong><small>мин</small></article>
+      <article><span>Путь</span><strong>{{ result.total_distance_km if result.total_distance_km is not none else '—' }}</strong><small>км</small></article>
+      <article><span>Скорость</span><strong>{{ result.average_speed_kmh if result.average_speed_kmh is not none else '—' }}</strong><small>км/ч</small></article>
+    </div>
+    <p class="route-calculation-note">
+      {% if result.has_full_track %}Путь — сумма расстояний между геоточками по прямой.{% else %}Путь и скорость появятся, когда у всех мест будут координаты.{% endif %}
+      {% if not result.complete %} Общее время появится после записи всех отрезков.{% endif %}
+    </p>
+
+    <div class="route-segments">
+      <div class="route-section-label"><span>По отрезкам</span><span>{{ result.segments | length }}</span></div>
+      {% for segment in result.segments %}
+        <article class="route-segment {{ 'is-unknown' if not segment.known }}">
+          <div class="segment-marker"><i></i><span>{{ '%02d' | format(loop.index) }}</span></div>
+          <div class="segment-copy">
+            <h2>{{ segment.from }} <span>→</span> {{ segment.to }}</h2>
+            {% if segment.known %}
+              <p>{{ segment.transport }}{% if segment.transport_detail %} · {{ segment.transport_detail }}{% endif %} · {{ segment.samples }} наблюд.</p>
+              <div class="segment-metrics">
+                <span><b>{{ segment.minutes }}</b> мин</span>
+                <span><b>{{ segment.distance_km if segment.distance_km is not none else '—' }}</b> км</span>
+                <span><b>{{ segment.speed_kmh if segment.speed_kmh is not none else '—' }}</b> км/ч</span>
+              </div>
+              {% if segment.min_minutes != segment.max_minutes %}<small>Обычно от {{ segment.min_minutes }} до {{ segment.max_minutes }} минут</small>{% endif %}
+            {% else %}
+              <p>Пока нет записанных поездок по этому отрезку</p>
+              <div class="segment-metrics"><span><b>—</b> мин</span><span><b>—</b> км</span><span><b>—</b> км/ч</span></div>
+            {% endif %}
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+</main>
+{% endblock %}

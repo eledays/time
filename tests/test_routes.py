@@ -429,6 +429,51 @@ def test_route_uses_average_duration(app: Flask, auth_client, user) -> None:
     assert response.json["segments"][0]["samples"] == 2
 
 
+def test_route_result_is_a_separate_page_with_geo_summary(
+    app: Flask, auth_client, user
+) -> None:
+    """Форма ведёт на отдельную страницу с треком, расстоянием и скоростью."""
+
+    with app.app_context():
+        origin = get_or_create_place(user.id, "Дом")
+        origin.latitude, origin.longitude = 55.751244, 37.618423
+        destination = get_or_create_place(user.id, "Офис")
+        destination.latitude, destination.longitude = 55.760186, 37.618711
+        db.session.flush()
+        db.session.add(
+            Trip(
+                user_id=user.id,
+                origin_id=origin.id,
+                destination_id=destination.id,
+                departed_at=datetime.fromisoformat("2026-09-03T08:00"),
+                arrived_at=datetime.fromisoformat("2026-09-03T08:12"),
+                transport_type="walk",
+            )
+        )
+        db.session.commit()
+
+    form_page = auth_client.get("/calculate")
+    assert 'action="/calculate/result"' in form_page.text
+    assert 'name="points"' in form_page.text
+
+    response = auth_client.get("/calculate/result?points=Дом&points=Офис")
+    assert response.status_code == 200
+    assert 'data-route-canvas' in response.text
+    assert "Расчёт по вашей истории поездок" in response.text
+    assert "Пешком" in response.text
+    assert "км/ч" in response.text
+    assert "Схема построена по порядку точек" not in response.text
+
+
+def test_route_result_falls_back_to_schematic_track(auth_client) -> None:
+    """Маршрут без координат всё равно получает подписанную схему."""
+
+    response = auth_client.get("/calculate/result?points=А&points=Б")
+    assert response.status_code == 200
+    assert "Схема построена по порядку точек" in response.text
+    assert "Пока нет записанных поездок" in response.text
+
+
 def test_csrf_is_required(auth_client) -> None:
     """Изменяющий запрос без CSRF-токена отклоняется."""
 

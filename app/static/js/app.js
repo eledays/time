@@ -267,7 +267,6 @@ if (tripForm) {
 const calculator = document.querySelector("[data-calculator]");
 if (calculator) {
   const points = calculator.querySelector("[data-points]");
-  const result = document.querySelector("[data-result]");
 
   const renumber = () => {
     points.querySelectorAll(".point-row").forEach((row, index) => {
@@ -291,7 +290,7 @@ if (calculator) {
   calculator.querySelector("[data-add-point]").addEventListener("click", () => {
     const row = document.createElement("div");
     row.className = "point-row autocomplete";
-    row.innerHTML = '<span class="point-index"></span><input type="text" placeholder="Следующая точка" autocomplete="off" required data-place-input><div class="suggestions" role="listbox"></div><button type="button" class="remove-point" aria-label="Удалить точку">×</button>';
+    row.innerHTML = '<span class="point-index"></span><input name="points" type="text" placeholder="Следующая точка" autocomplete="off" required data-place-input><div class="suggestions" role="listbox"></div><button type="button" class="remove-point" aria-label="Удалить точку">×</button>';
     points.append(row);
     initializeAutocomplete(row.querySelector("input"));
     bindRemove(row);
@@ -299,41 +298,71 @@ if (calculator) {
     row.querySelector("input").focus();
   });
 
-  calculator.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const pointNames = [...points.querySelectorAll("input")].map((input) => input.value.trim()).filter(Boolean);
-    if (pointNames.length < 2) return;
-    const button = calculator.querySelector("[type=submit]");
-    button.disabled = true;
-    button.firstChild.textContent = "Считаем ";
-    try {
-      const response = await fetch("/api/calculate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-CSRF-Token": calculator.querySelector("[data-csrf]").value },
-        body: JSON.stringify({ points: pointNames }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Ошибка расчёта");
-      const known = data.segments.filter((segment) => segment.known).length;
-      result.innerHTML = `
-        <div class="result-summary">
-          <div><p>Оценка пути</p><strong>${data.total_minutes}</strong> <small>мин</small></div>
-          <span class="confidence ${data.complete ? "" : "partial"}">${data.complete ? "Все отрезки известны" : `${known} из ${data.segments.length} отрезков`}</span>
-        </div>
-        <div class="segment-list">
-          ${data.segments.map((segment, index) => `
-            <article class="segment ${segment.known ? "" : "unknown"}" style="animation-delay:${index * 70}ms">
-              <div><h3>${escapeHtml(segment.from)} <span>→</span> ${escapeHtml(segment.to)}</h3><p>${segment.known ? `${escapeHtml(segment.transport)} · ${segment.samples} наблюд.` : "Сначала запишите такую поездку"}</p></div>
-              <strong>${segment.known ? `${segment.minutes} мин` : "Нет данных"}</strong>
-            </article>`).join("")}
-        </div>`;
-    } catch (error) {
-      result.innerHTML = `<div class="result-placeholder"><span>!</span><h2>Не получилось посчитать</h2><p>${escapeHtml(error.message)}</p></div>`;
-    } finally {
-      button.disabled = false;
-      button.firstChild.textContent = "Посчитать ";
+}
+
+const routeCanvas = document.querySelector("[data-route-canvas]");
+if (routeCanvas) {
+  const trackData = JSON.parse(document.querySelector("[data-route-track]").textContent);
+  const drawRouteTrack = () => {
+    const scale = window.devicePixelRatio || 1;
+    const width = routeCanvas.clientWidth;
+    const height = routeCanvas.clientHeight;
+    routeCanvas.width = width * scale;
+    routeCanvas.height = height * scale;
+    const context = routeCanvas.getContext("2d");
+    context.scale(scale, scale);
+    const allGeographic = trackData.every((point) => point.latitude != null && point.longitude != null);
+    let points;
+    if (allGeographic) {
+      const longitudes = trackData.map((point) => point.longitude);
+      const latitudes = trackData.map((point) => point.latitude);
+      const longitudeSpan = Math.max(Math.max(...longitudes) - Math.min(...longitudes), .0001);
+      const latitudeSpan = Math.max(Math.max(...latitudes) - Math.min(...latitudes), .0001);
+      points = trackData.map((point) => ({
+        x: 54 + ((point.longitude - Math.min(...longitudes)) / longitudeSpan) * (width - 108),
+        y: 70 + ((Math.max(...latitudes) - point.latitude) / latitudeSpan) * (height - 140),
+        name: point.name,
+      }));
+    } else {
+      points = trackData.map((point, index) => ({
+        x: 48 + (index / Math.max(trackData.length - 1, 1)) * (width - 96),
+        y: height * (.58 + Math.sin(index * 1.7) * .2),
+        name: point.name,
+      }));
     }
-  });
+    context.clearRect(0, 0, width, height);
+    context.strokeStyle = "#f7f7f2";
+    context.lineWidth = 3;
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.beginPath();
+    context.moveTo(points[0].x, points[0].y);
+    for (let index = 1; index < points.length - 1; index += 1) {
+      const middleX = (points[index].x + points[index + 1].x) / 2;
+      const middleY = (points[index].y + points[index + 1].y) / 2;
+      context.quadraticCurveTo(points[index].x, points[index].y, middleX, middleY);
+    }
+    const lastPoint = points.at(-1);
+    context.lineTo(lastPoint.x, lastPoint.y);
+    context.stroke();
+    points.forEach((point, index) => {
+      context.fillStyle = "#090909";
+      context.strokeStyle = "#f7f7f2";
+      context.lineWidth = 3;
+      context.beginPath();
+      context.arc(point.x, point.y, index === 0 || index === points.length - 1 ? 7 : 5, 0, Math.PI * 2);
+      context.fill();
+      context.stroke();
+      context.fillStyle = "#f7f7f2";
+      context.font = "600 11px Inter, sans-serif";
+      context.textAlign = index === 0 ? "left" : index === points.length - 1 ? "right" : "center";
+      const labelX = index === 0 ? point.x - 1 : index === points.length - 1 ? point.x + 1 : point.x;
+      const labelY = point.y > height / 2 ? point.y - 17 : point.y + 25;
+      context.fillText(point.name, labelX, labelY, Math.min(130, width / points.length + 30));
+    });
+  };
+  drawRouteTrack();
+  window.addEventListener("resize", debounce(drawRouteTrack, 100));
 }
 
 function escapeHtml(value) {

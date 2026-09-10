@@ -176,6 +176,21 @@ def calculate():
     return render_template("calculate.html")
 
 
+@bp.get("/calculate/result")
+@login_required
+def calculate_result():
+    """Показать отдельный экран рассчитанного составного маршрута."""
+
+    points = [point.strip() for point in request.args.getlist("points") if point.strip()]
+    if len(points) < 2:
+        flash("Добавьте минимум две точки", "error")
+        return redirect(url_for("main.calculate"))
+    return render_template(
+        "calculate_result.html",
+        result=calculate_route(g.user.id, points),
+    )
+
+
 @bp.get("/trips")
 @login_required
 def trips():

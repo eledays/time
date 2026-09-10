@@ -2,6 +2,7 @@
 
 from collections import Counter
 from datetime import datetime
+from math import asin, cos, radians, sin, sqrt
 from typing import Any
 
 from sqlalchemy import select
@@ -68,7 +69,29 @@ def calculate_route(user_id: int, point_names: list[str]) -> dict[str, Any]:
 
     segments: list[dict[str, Any]] = []
     total_minutes = 0
+    total_distance_km = 0.0
     complete = True
+
+    normalized_names = [normalize_place(name) for name in point_names]
+    saved_places = db.session.scalars(
+        select(Place).where(
+            Place.user_id == user_id,
+            Place.normalized_name.in_(normalized_names),
+        )
+    ).all()
+    places_by_name = {place.normalized_name: place for place in saved_places}
+    route_points = [
+        {
+            "name": name,
+            "latitude": places_by_name.get(normalized).latitude
+            if places_by_name.get(normalized)
+            else None,
+            "longitude": places_by_name.get(normalized).longitude
+            if places_by_name.get(normalized)
+            else None,
+        }
+        for name, normalized in zip(point_names, normalized_names)
+    ]
 
     for origin_name, destination_name in zip(point_names, point_names[1:]):
         origin = normalize_place(origin_name)
@@ -90,6 +113,14 @@ def calculate_route(user_id: int, point_names: list[str]) -> dict[str, Any]:
         durations = [trip.duration_minutes for trip in trips]
         average = round(sum(durations) / len(durations))
         common_transport = Counter(trip.transport_type for trip in trips).most_common(1)[0][0]
+        common_detail = Counter(
+            trip.transport_detail for trip in trips if trip.transport_detail
+        ).most_common(1)
+        origin_place = places_by_name.get(origin)
+        destination_place = places_by_name.get(destination)
+        distance_km = _distance_between(origin_place, destination_place)
+        if distance_km is not None:
+            total_distance_km += distance_km
         total_minutes += average
         segments.append(
             {
@@ -101,14 +132,52 @@ def calculate_route(user_id: int, point_names: list[str]) -> dict[str, Any]:
                 "max_minutes": max(durations),
                 "samples": len(trips),
                 "transport": TRANSPORT_LABELS.get(common_transport, "Другое"),
+                "transport_detail": common_detail[0][0] if common_detail else None,
+                "distance_km": round(distance_km, 1) if distance_km is not None else None,
+                "speed_kmh": round(distance_km / (average / 60), 1)
+                if distance_km is not None and average > 0
+                else None,
             }
         )
 
+    has_full_distance = all(
+        point["latitude"] is not None and point["longitude"] is not None
+        for point in route_points
+    )
     return {
+        "points": route_points,
         "segments": segments,
         "total_minutes": total_minutes,
+        "total_distance_km": round(total_distance_km, 1) if has_full_distance else None,
+        "average_speed_kmh": round(total_distance_km / (total_minutes / 60), 1)
+        if has_full_distance and total_minutes > 0
+        else None,
         "complete": complete,
+        "has_full_track": has_full_distance,
     }
+
+
+def _distance_between(origin: Place | None, destination: Place | None) -> float | None:
+    """Вернуть расстояние по дуге Земли между двумя сохранёнными местами."""
+
+    if (
+        origin is None
+        or destination is None
+        or origin.latitude is None
+        or origin.longitude is None
+        or destination.latitude is None
+        or destination.longitude is None
+    ):
+        return None
+    latitude_delta = radians(destination.latitude - origin.latitude)
+    longitude_delta = radians(destination.longitude - origin.longitude)
+    start_latitude = radians(origin.latitude)
+    end_latitude = radians(destination.latitude)
+    haversine = (
+        sin(latitude_delta / 2) ** 2
+        + cos(start_latitude) * cos(end_latitude) * sin(longitude_delta / 2) ** 2
+    )
+    return 6371.0088 * 2 * asin(sqrt(haversine))
 
 
 def parse_local_datetime(value: str) -> datetime:
