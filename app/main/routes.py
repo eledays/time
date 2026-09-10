@@ -2,9 +2,11 @@
 
 import re
 from collections import Counter
+from math import isfinite
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from flask import (
+    current_app,
     flash,
     g,
     jsonify,
@@ -14,9 +16,10 @@ from flask import (
     url_for,
 )
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.auth.helpers import login_required
-from app.extensions import db
+from app.extensions import db, limiter
 from app.main import bp
 from app.models import ActiveTrip, Place, Trip
 from app.services import (
@@ -55,6 +58,9 @@ def start_trip():
     """Сохранить начальную точку и время активной поездки."""
 
     origin_name = request.form.get("origin", "").strip()
+    if len(origin_name) > current_app.config["MAX_TEXT_LENGTH"]:
+        flash("Название места слишком длинное", "error")
+        return redirect(url_for("main.index"))
     try:
         departed_at = parse_local_datetime(request.form.get("departed_at", ""))
     except ValueError:
@@ -75,7 +81,11 @@ def start_trip():
     db.session.add(
         ActiveTrip(user_id=g.user.id, origin_id=origin.id, departed_at=departed_at)
     )
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash("Поездка уже была начата в другом окне", "warning")
     return redirect(url_for("main.index"))
 
 
@@ -98,8 +108,11 @@ def finish_trip():
     except ValueError:
         flash("Проверьте время прибытия", "error")
         return redirect(url_for("main.index"))
-    if not destination_name or active_trip.origin.normalized_name == normalize_place(destination_name):
-        flash("Укажите конечную точку, отличную от начальной", "error")
+    if not destination_name:
+        flash("Укажите конечную точку", "error")
+        return redirect(url_for("main.index"))
+    if len(destination_name) > current_app.config["MAX_TEXT_LENGTH"]:
+        flash("Название места слишком длинное", "error")
         return redirect(url_for("main.index"))
     if transport_type not in TRANSPORT_LABELS:
         flash("Выберите тип перемещения", "error")
@@ -110,6 +123,9 @@ def finish_trip():
 
     destination = get_or_create_place(g.user.id, destination_name)
     detail = request.form.get("transport_detail", "").strip() or None
+    if detail and len(detail) > current_app.config["MAX_TEXT_LENGTH"]:
+        flash("Описание транспорта слишком длинное", "error")
+        return redirect(url_for("main.index"))
     if transport_type == "other" and detail is None:
         flash("Укажите вид перемещения", "error")
         return redirect(url_for("main.index"))
@@ -124,8 +140,8 @@ def finish_trip():
         except ValueError:
             flash("Стоимость должна быть числом", "error")
             return redirect(url_for("main.index"))
-        if cost is not None and cost < 0:
-            flash("Стоимость не может быть отрицательной", "error")
+        if cost is not None and (not isfinite(cost) or cost < 0):
+            flash("Стоимость должна быть конечным неотрицательным числом", "error")
             return redirect(url_for("main.index"))
     if transport_type == "taxi":
         taxi_tariff = request.form.get("taxi_tariff", "").strip() or None
@@ -149,7 +165,12 @@ def finish_trip():
     )
     db.session.add(trip)
     db.session.delete(active_trip)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash("Не удалось сохранить поездку. Обновите страницу и попробуйте ещё раз.", "error")
+        return redirect(url_for("main.index"))
     flash(f"Поездка сохранена · {trip.duration_minutes} мин", "success")
     return redirect(url_for("main.index"))
 
@@ -177,6 +198,7 @@ def calculate():
 
 
 @bp.get("/calculate/result")
+@limiter.limit("30 per minute")
 @login_required
 def calculate_result():
     """Показать отдельный экран рассчитанного составного маршрута."""
@@ -184,6 +206,12 @@ def calculate_result():
     points = [point.strip() for point in request.args.getlist("points") if point.strip()]
     if len(points) < 2:
         flash("Добавьте минимум две точки", "error")
+        return redirect(url_for("main.calculate"))
+    if len(points) > current_app.config["MAX_ROUTE_POINTS"]:
+        flash("В маршруте слишком много точек", "error")
+        return redirect(url_for("main.calculate"))
+    if any(len(point) > current_app.config["MAX_TEXT_LENGTH"] for point in points):
+        flash("Название точки слишком длинное", "error")
         return redirect(url_for("main.calculate"))
     return render_template(
         "calculate_result.html",
@@ -228,11 +256,19 @@ def create_place():
     if not name:
         flash("Введите название места", "error")
         return redirect(url_for("main.places"))
+    if len(name) > current_app.config["MAX_TEXT_LENGTH"]:
+        flash("Название места слишком длинное", "error")
+        return redirect(url_for("main.places"))
     place = get_or_create_place(g.user.id, name)
     if not _update_place_fields(place):
         db.session.rollback()
         return redirect(url_for("main.places"))
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash("Место с таким названием уже существует", "warning")
+        return redirect(url_for("main.places"))
     flash("Место сохранено", "success")
     return redirect(url_for("main.places"))
 
@@ -251,6 +287,9 @@ def update_place(place_id: int):
     if not name:
         flash("Название не может быть пустым", "error")
         return redirect(url_for("main.places"))
+    if len(name) > current_app.config["MAX_TEXT_LENGTH"]:
+        flash("Название места слишком длинное", "error")
+        return redirect(url_for("main.places"))
     normalized = normalize_place(name)
     duplicate = db.session.scalar(
         select(Place).where(
@@ -267,7 +306,12 @@ def update_place(place_id: int):
     if not _update_place_fields(place):
         db.session.rollback()
         return redirect(url_for("main.places"))
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash("Место с таким названием уже существует", "warning")
+        return redirect(url_for("main.places"))
     flash("Изменения сохранены", "success")
     return redirect(url_for("main.places"))
 
@@ -361,6 +405,8 @@ def detect_timezone():
     """Сохранить автоматически определённый пояс, если ручного выбора ещё нет."""
 
     payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        return jsonify({"error": "Ожидается JSON-объект"}), 400
     timezone = str(payload.get("timezone", "")).strip()
     if not _is_valid_timezone(timezone):
         return jsonify({"error": "Некорректный часовой пояс"}), 400
@@ -385,7 +431,11 @@ def _is_valid_timezone(value: str) -> bool:
 def _update_place_fields(place: Place) -> bool:
     """Проверить форму и записать метаданные места."""
 
-    place.description = request.form.get("description", "").strip() or None
+    description = request.form.get("description", "").strip() or None
+    if description and len(description) > current_app.config["MAX_TEXT_LENGTH"]:
+        flash("Описание места слишком длинное", "error")
+        return False
+    place.description = description
     color = request.form.get("marker_color", "#111111")
     place.marker_color = color if COLOR_PATTERN.fullmatch(color) else "#111111"
     latitude = request.form.get("latitude", "").strip()
@@ -396,10 +446,14 @@ def _update_place_fields(place: Place) -> bool:
     except ValueError:
         flash("Координаты должны быть числами", "error")
         return False
-    if parsed_latitude is not None and not -90 <= parsed_latitude <= 90:
+    if parsed_latitude is not None and (
+        not isfinite(parsed_latitude) or not -90 <= parsed_latitude <= 90
+    ):
         flash("Широта должна быть от −90 до 90", "error")
         return False
-    if parsed_longitude is not None and not -180 <= parsed_longitude <= 180:
+    if parsed_longitude is not None and (
+        not isfinite(parsed_longitude) or not -180 <= parsed_longitude <= 180
+    ):
         flash("Долгота должна быть от −180 до 180", "error")
         return False
     place.latitude = parsed_latitude
@@ -413,6 +467,8 @@ def places_api():
     """Вернуть до восьми мест для автодополнения."""
 
     query = request.args.get("q", "").strip()
+    if len(query) > current_app.config["MAX_TEXT_LENGTH"]:
+        return jsonify({"error": "Запрос слишком длинный"}), 400
     statement = select(Place).where(Place.user_id == g.user.id)
     if query:
         statement = statement.where(
@@ -427,7 +483,10 @@ def places_api():
 def metro_lines_api():
     """Вернуть сохранённые пользователем названия веток метро."""
 
-    query = normalize_place(request.args.get("q", ""))
+    raw_query = request.args.get("q", "")
+    if len(raw_query) > current_app.config["MAX_TEXT_LENGTH"]:
+        return jsonify({"error": "Запрос слишком длинный"}), 400
+    query = normalize_place(raw_query)
     values = db.session.scalars(
         select(Trip.transport_detail).where(
             Trip.user_id == g.user.id,
@@ -449,12 +508,22 @@ def metro_lines_api():
 
 
 @bp.post("/api/calculate")
+@limiter.limit("30 per minute")
 @login_required
 def calculate_api():
     """Вернуть оценку времени для последовательности точек."""
 
     payload = request.get_json(silent=True) or {}
-    points = [str(point).strip() for point in payload.get("points", []) if str(point).strip()]
+    raw_points = payload.get("points", []) if isinstance(payload, dict) else []
+    if not isinstance(raw_points, list) or any(
+        not isinstance(point, str) for point in raw_points
+    ):
+        return jsonify({"error": "Точки должны быть списком строк"}), 400
+    points = [point.strip() for point in raw_points if point.strip()]
     if len(points) < 2:
         return jsonify({"error": "Добавьте минимум две точки"}), 400
+    if len(points) > current_app.config["MAX_ROUTE_POINTS"]:
+        return jsonify({"error": "В маршруте слишком много точек"}), 400
+    if any(len(point) > current_app.config["MAX_TEXT_LENGTH"] for point in points):
+        return jsonify({"error": "Название точки слишком длинное"}), 400
     return jsonify(calculate_route(g.user.id, points))

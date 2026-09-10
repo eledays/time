@@ -36,7 +36,7 @@
             <div class="conditional-fields active-transport-details" data-detail-fields hidden>
               <div class="field-group autocomplete" data-detail-wrap>
                 <label for="transport_detail" data-detail-label>Номер</label>
-                <input id="transport_detail" name="transport_detail" type="text" autocomplete="off" placeholder="Например, 39">
+                <input id="transport_detail" name="transport_detail" type="text" autocomplete="off" maxlength="{{ config.MAX_TEXT_LENGTH }}" placeholder="Например, 39">
                 <div class="suggestions" role="listbox"></div>
               </div>
               <div class="field-group" data-cost-field hidden>
@@ -52,7 +52,7 @@
             </div>
             <h1 class="destination-title">Куда приехали?</h1>
             <div class="field-group autocomplete">
-              <input id="destination" name="destination" type="text" autocomplete="off" placeholder="Название места" required data-place-input data-time-target="arrived_at">
+              <input id="destination" name="destination" type="text" autocomplete="off" maxlength="{{ config.MAX_TEXT_LENGTH }}" placeholder="Название места" required data-place-input data-time-target="arrived_at">
               <div class="suggestions" role="listbox"></div>
             </div>
             {% with time_id='arrived_at', time_label='Время прибытия', submit_label='Сохранить поездку' %}{% include 'partials/time_picker.html' %}{% endwith %}
@@ -67,7 +67,7 @@
             <div class="start-origin-stage">
               <h1>Откуда едем?</h1>
               <div class="field-group autocomplete">
-                <input id="origin" name="origin" type="text" autocomplete="off" placeholder="Название места" required data-place-input data-time-target="departed_at">
+                <input id="origin" name="origin" type="text" autocomplete="off" maxlength="{{ config.MAX_TEXT_LENGTH }}" placeholder="Название места" required data-place-input data-time-target="departed_at">
                 <div class="suggestions" role="listbox"></div>
               </div>
             </div>

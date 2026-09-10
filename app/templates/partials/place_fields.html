@@ -1,7 +1,7 @@
 {% set item = current if current is defined else none %}
-<div class="field-group"><label>Название</label><input name="name" value="{{ item.name if item else '' }}" placeholder="Дом" required></div>
+<div class="field-group"><label>Название</label><input name="name" maxlength="{{ config.MAX_TEXT_LENGTH }}" value="{{ item.name if item else '' }}" placeholder="Дом" required></div>
 <input name="latitude" type="hidden" value="{{ item.latitude if item and item.latitude is not none else '' }}">
 <input name="longitude" type="hidden" value="{{ item.longitude if item and item.longitude is not none else '' }}">
 <button class="map-pick-button" type="button" data-map-pick>{{ 'Изменить точку на карте' if item and item.latitude is not none and item.longitude is not none else 'Указать точку на карте' }}</button>
-<div class="field-group"><label>Описание</label><textarea name="description" rows="3" placeholder="Ориентир или заметка">{{ item.description or '' if item else '' }}</textarea></div>
+<div class="field-group"><label>Описание</label><textarea name="description" rows="3" maxlength="{{ config.MAX_TEXT_LENGTH }}" placeholder="Ориентир или заметка">{{ item.description or '' if item else '' }}</textarea></div>
 <label class="color-field">Цвет метки <input name="marker_color" type="color" value="{{ item.marker_color if item else '#111111' }}"></label>

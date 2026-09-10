@@ -9,10 +9,10 @@
   <section class="calculator-grid">
     <form class="route-builder" data-calculator method="get" action="{{ url_for('main.calculate_result') }}">
       <div class="points" data-points>
-        <div class="point-row autocomplete"><span class="point-index">01</span><input name="points" type="text" placeholder="Откуда" autocomplete="off" required data-place-input><div class="suggestions" role="listbox"></div><button type="button" class="remove-point" aria-label="Удалить точку">×</button></div>
-        <div class="point-row autocomplete"><span class="point-index">02</span><input name="points" type="text" placeholder="Куда" autocomplete="off" required data-place-input><div class="suggestions" role="listbox"></div><button type="button" class="remove-point" aria-label="Удалить точку">×</button></div>
+        <div class="point-row autocomplete"><span class="point-index">01</span><input name="points" type="text" maxlength="{{ config.MAX_TEXT_LENGTH }}" placeholder="Откуда" autocomplete="off" required data-place-input><div class="suggestions" role="listbox"></div><button type="button" class="remove-point" aria-label="Удалить точку">×</button></div>
+        <div class="point-row autocomplete"><span class="point-index">02</span><input name="points" type="text" maxlength="{{ config.MAX_TEXT_LENGTH }}" placeholder="Куда" autocomplete="off" required data-place-input><div class="suggestions" role="listbox"></div><button type="button" class="remove-point" aria-label="Удалить точку">×</button></div>
       </div>
-      <button type="button" class="add-point" data-add-point><span>+</span> Добавить точку</button>
+      <button type="button" class="add-point" data-add-point data-max-points="{{ config.MAX_ROUTE_POINTS }}"><span>+</span> Добавить точку</button>
       <button type="submit" class="primary-button calculate-button">Посчитать</button>
     </form>
   </section>

@@ -1,9 +1,11 @@
 """Вход и выход через OAuth Яндекс ID."""
 
+from authlib.integrations.base_client.errors import OAuthError
 from flask import current_app, flash, redirect, session, url_for
+from requests import RequestException
 
 from app.auth import bp
-from app.extensions import db, oauth
+from app.extensions import db, limiter, oauth
 from app.models import User
 
 
@@ -15,27 +17,39 @@ def yandex_avatar_url(profile: dict[str, object]) -> str:
 
 
 @bp.get("/login")
+@limiter.limit("20 per minute")
 def login():
     """Начать вход через Яндекс."""
 
     if not current_app.config["YANDEX_CLIENT_ID"]:
         flash("Добавьте ключи Яндекс OAuth в .env", "warning")
         return redirect(url_for("main.index"))
-    redirect_uri = url_for("auth.callback", _external=True)
+    public_url = current_app.config.get("PUBLIC_URL")
+    redirect_uri = (
+        f"{public_url}/auth/callback"
+        if public_url
+        else url_for("auth.callback", _external=True)
+    )
     return oauth.yandex.authorize_redirect(redirect_uri)
 
 
 @bp.get("/callback")
+@limiter.limit("20 per minute")
 def callback():
     """Обменять OAuth-код на токен и сохранить профиль в сессии."""
 
-    token = oauth.yandex.authorize_access_token()
-    response = oauth.yandex.get(
-        "https://login.yandex.ru/info?format=json", token=token
-    )
-    response.raise_for_status()
-    profile = response.json()
-    yandex_id = str(profile["id"])
+    try:
+        token = oauth.yandex.authorize_access_token()
+        response = oauth.yandex.get(
+            "https://login.yandex.ru/info?format=json", token=token
+        )
+        response.raise_for_status()
+        profile = response.json()
+        yandex_id = str(profile["id"])
+    except (OAuthError, RequestException, KeyError, TypeError, ValueError):
+        current_app.logger.warning("Не удалось завершить OAuth-вход", exc_info=True)
+        flash("Не удалось войти через Яндекс. Попробуйте ещё раз.", "error")
+        return redirect(url_for("main.index"))
     user = db.session.scalar(db.select(User).where(User.yandex_id == yandex_id))
     avatar_url = yandex_avatar_url(profile)
     if user is None:

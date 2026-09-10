@@ -1,10 +1,13 @@
 """Общие фикстуры тестов приложения."""
 
 from collections.abc import Iterator
+from typing import Literal
 
 import pytest
 from flask import Flask
 from flask.testing import FlaskClient
+from pydantic import SecretStr
+from pydantic_settings import SettingsConfigDict
 
 from app import create_app
 from app.config import Config
@@ -15,11 +18,12 @@ from app.models import User
 class TestConfig(Config):
     """Изолированная конфигурация для тестов."""
 
-    TESTING = True
-    SECRET_KEY = "test-secret"
-    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
-    YANDEX_CLIENT_ID = ""
-    YANDEX_CLIENT_SECRET = ""
+    model_config = SettingsConfigDict(env_file=None, populate_by_name=True)
+    environment: Literal["testing"] = "testing"
+    secret_key: SecretStr = SecretStr("test-secret")
+    database_url: str = "sqlite:///:memory:"
+    yandex_client_id: str = ""
+    yandex_client_secret: SecretStr = SecretStr("")
 
 
 @pytest.fixture()

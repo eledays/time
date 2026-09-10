@@ -333,12 +333,14 @@ if (tripForm) {
 const calculator = document.querySelector("[data-calculator]");
 if (calculator) {
   const points = calculator.querySelector("[data-points]");
+  const addPointButton = calculator.querySelector("[data-add-point]");
 
   const renumber = () => {
     points.querySelectorAll(".point-row").forEach((row, index) => {
       row.querySelector(".point-index").textContent = String(index + 1).padStart(2, "0");
       row.querySelector(".remove-point").hidden = points.children.length <= 2;
     });
+    addPointButton.hidden = points.children.length >= Number(addPointButton.dataset.maxPoints);
   };
 
   const bindRemove = (row) => {
@@ -353,10 +355,12 @@ if (calculator) {
   points.querySelectorAll(".point-row").forEach(bindRemove);
   renumber();
 
-  calculator.querySelector("[data-add-point]").addEventListener("click", () => {
+  addPointButton.addEventListener("click", () => {
+    if (points.children.length >= Number(addPointButton.dataset.maxPoints)) return;
     const row = document.createElement("div");
     row.className = "point-row autocomplete";
-    row.innerHTML = '<span class="point-index"></span><input name="points" type="text" placeholder="Следующая точка" autocomplete="off" required data-place-input><div class="suggestions" role="listbox"></div><button type="button" class="remove-point" aria-label="Удалить точку">×</button>';
+    const maxLength = points.querySelector("input").maxLength;
+    row.innerHTML = `<span class="point-index"></span><input name="points" type="text" maxlength="${maxLength}" placeholder="Следующая точка" autocomplete="off" required data-place-input><div class="suggestions" role="listbox"></div><button type="button" class="remove-point" aria-label="Удалить точку">×</button>`;
     points.append(row);
     initializeAutocomplete(row.querySelector("input"));
     bindRemove(row);

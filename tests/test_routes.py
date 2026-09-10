@@ -3,8 +3,11 @@
 import sqlite3
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
 from flask import Flask
+from pydantic import SecretStr
+from pydantic_settings import SettingsConfigDict
 from sqlalchemy import text
 
 from app import create_app
@@ -23,6 +26,9 @@ def test_home_is_available_without_login(client) -> None:
     assert "Войти через Яндекс" in response.text
     assert "data-theme-toggle" not in response.text
     assert '<meta name="theme-color" content="#090909">' in response.text
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["Content-Security-Policy"].startswith("default-src 'self'")
+    assert response.headers["Cross-Origin-Opener-Policy"] == "same-origin"
 
 
 def test_calculator_requires_login(client) -> None:
@@ -85,6 +91,42 @@ def test_trip_survives_reopen_and_finishes_with_bus_number(
         assert trip.origin.name == "Дом"
         assert db.session.query(Place).count() == 2
         assert db.session.scalar(db.select(ActiveTrip)) is None
+
+
+def test_trip_can_return_to_the_same_place(app: Flask, auth_client) -> None:
+    """Поездка A → A сохраняется как полноценный замкнутый маршрут."""
+
+    auth_client.post(
+        "/trips/start",
+        data={
+            "csrf_token": "test-csrf",
+            "origin": "Дом",
+            "departed_at": "2026-09-03T09:00",
+        },
+    )
+    response = auth_client.post(
+        "/trips/finish",
+        data={
+            "csrf_token": "test-csrf",
+            "destination": "Дом",
+            "arrived_at": "2026-09-03T09:40",
+            "transport_type": "walk",
+        },
+    )
+    assert response.status_code == 302
+    with app.app_context():
+        trip = db.session.scalar(db.select(Trip))
+        assert trip is not None
+        assert trip.origin_id == trip.destination_id
+        assert trip.duration_minutes == 40
+    calculation = auth_client.post(
+        "/api/calculate",
+        json={"points": ["Дом", "Дом"]},
+        headers={"X-CSRF-Token": "test-csrf"},
+    )
+    assert calculation.status_code == 200
+    assert calculation.json["complete"] is True
+    assert calculation.json["total_minutes"] == 40
 
 
 def test_departure_time_is_hidden_by_default(auth_client) -> None:
@@ -165,6 +207,17 @@ def test_timezone_is_detected_only_once(app: Flask, auth_client, user) -> None:
     assert second.status_code == 204
     with app.app_context():
         assert db.session.get(User, user.id).timezone == "Europe/Moscow"
+
+
+def test_timezone_api_rejects_non_object_json(auth_client) -> None:
+    """Неожиданный JSON не вызывает внутреннюю ошибку."""
+
+    response = auth_client.post(
+        "/api/timezone",
+        json=["Europe/Moscow"],
+        headers={"X-CSRF-Token": "test-csrf"},
+    )
+    assert response.status_code == 400
 
 
 def test_transport_type_is_required(app: Flask, auth_client) -> None:
@@ -298,9 +351,10 @@ def test_existing_taxi_cost_is_migrated(tmp_path: Path) -> None:
     class LegacyConfig(Config):
         """Конфигурация приложения с имитацией старой SQLite-базы."""
 
-        TESTING = True
-        SECRET_KEY = "migration-test"
-        SQLALCHEMY_DATABASE_URI = f"sqlite:///{database_path}"
+        model_config = SettingsConfigDict(env_file=None, populate_by_name=True)
+        environment: Literal["testing"] = "testing"
+        secret_key: SecretStr = SecretStr("migration-test")
+        database_url: str = f"sqlite:///{database_path}"
 
     application = create_app(LegacyConfig)
     with application.app_context():
@@ -429,6 +483,59 @@ def test_route_uses_average_duration(app: Flask, auth_client, user) -> None:
     assert response.json["segments"][0]["samples"] == 2
 
 
+def test_route_rejects_malformed_and_excessive_points(auth_client) -> None:
+    """API возвращает 400 вместо 500 и ограничивает сложность расчёта."""
+
+    headers = {"X-CSRF-Token": "test-csrf"}
+    for points in (None, 123, {}, ["A", 42]):
+        response = auth_client.post(
+            "/api/calculate", json={"points": points}, headers=headers
+        )
+        assert response.status_code == 400
+    response = auth_client.post(
+        "/api/calculate",
+        json={"points": [f"P{index}" for index in range(21)]},
+        headers=headers,
+    )
+    assert response.status_code == 400
+
+
+def test_incomplete_route_does_not_report_average_speed(
+    app: Flask, auth_client, user
+) -> None:
+    """Скорость не выглядит итоговой, пока известно не всё время маршрута."""
+
+    with app.app_context():
+        first = get_or_create_place(user.id, "A")
+        second = get_or_create_place(user.id, "B")
+        third = get_or_create_place(user.id, "C")
+        first.latitude, first.longitude = 55.0, 37.0
+        second.latitude, second.longitude = 55.1, 37.1
+        third.latitude, third.longitude = 55.2, 37.2
+        db.session.flush()
+        db.session.add(
+            Trip(
+                user_id=user.id,
+                origin_id=first.id,
+                destination_id=second.id,
+                departed_at=datetime.fromisoformat("2026-09-03T08:00"),
+                arrived_at=datetime.fromisoformat("2026-09-03T08:30"),
+                transport_type="car",
+            )
+        )
+        db.session.commit()
+
+    response = auth_client.post(
+        "/api/calculate",
+        json={"points": ["A", "B", "C"]},
+        headers={"X-CSRF-Token": "test-csrf"},
+    )
+    assert response.status_code == 200
+    assert response.json["complete"] is False
+    assert response.json["total_distance_km"] > response.json["segments"][0]["distance_km"]
+    assert response.json["average_speed_kmh"] is None
+
+
 def test_route_result_is_a_separate_page_with_geo_summary(
     app: Flask, auth_client, user
 ) -> None:
@@ -523,6 +630,24 @@ def test_yandex_callback_saves_avatar(app: Flask, client, monkeypatch) -> None:
         assert account.avatar_url.endswith("/avatar-99/islands-200")
 
 
+def test_yandex_callback_failure_returns_to_home(app: Flask, client, monkeypatch) -> None:
+    """Ошибка или отмена OAuth не превращается в страницу 500."""
+
+    from authlib.integrations.base_client.errors import OAuthError
+
+    with app.app_context():
+        yandex = oauth.create_client("yandex")
+
+        def fail_login():
+            raise OAuthError(error="access_denied")
+
+        monkeypatch.setattr(yandex, "authorize_access_token", fail_login)
+
+    response = client.get("/auth/callback", follow_redirects=True)
+    assert response.status_code == 200
+    assert "Не удалось войти через Яндекс" in response.text
+
+
 def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     """Новые разделы открываются, а данные места сохраняются."""
 
@@ -570,3 +695,44 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     assert "new ol.Map" in map_script.text
     assert "World_Street_Map" not in map_script.text
     assert "tile.openstreetmap.org" not in map_script.text
+
+
+def test_user_cannot_read_or_update_another_users_places(
+    app: Flask, auth_client
+) -> None:
+    """Выборки и изменение мест всегда ограничены владельцем."""
+
+    with app.app_context():
+        other = User(yandex_id="other", display_name="Другой")
+        db.session.add(other)
+        db.session.flush()
+        secret_place = get_or_create_place(other.id, "Секретное место")
+        db.session.commit()
+        place_id = secret_place.id
+
+    suggestions = auth_client.get("/api/places?q=Секретное")
+    assert suggestions.status_code == 200
+    assert suggestions.json == []
+    update = auth_client.post(
+        f"/places/{place_id}",
+        data={"csrf_token": "test-csrf", "name": "Украденное место"},
+    )
+    assert update.status_code == 404
+
+
+def test_place_rejects_non_finite_coordinates(auth_client) -> None:
+    """NaN и Infinity не попадают в геоданные и расчёты маршрутов."""
+
+    for latitude, longitude in (("nan", "37"), ("55", "inf")):
+        response = auth_client.post(
+            "/places",
+            data={
+                "csrf_token": "test-csrf",
+                "name": f"Точка {latitude} {longitude}",
+                "latitude": latitude,
+                "longitude": longitude,
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+        assert "должна быть от" in response.text

@@ -80,6 +80,7 @@ def calculate_route(user_id: int, point_names: list[str]) -> dict[str, Any]:
         )
     ).all()
     places_by_name = {place.normalized_name: place for place in saved_places}
+    places_by_id = {place.id: place for place in saved_places}
     route_points = [
         {
             "name": name,
@@ -93,34 +94,62 @@ def calculate_route(user_id: int, point_names: list[str]) -> dict[str, Any]:
         for name, normalized in zip(point_names, normalized_names)
     ]
 
+    place_ids = list(places_by_id)
+    relevant_trips = (
+        db.session.scalars(
+            select(Trip)
+            .where(
+                Trip.user_id == user_id,
+                Trip.origin_id.in_(place_ids),
+                Trip.destination_id.in_(place_ids),
+            )
+            .order_by(Trip.id)
+        ).all()
+        if place_ids
+        else []
+    )
+    trips_by_route: dict[tuple[str, str], list[Trip]] = {}
+    for trip in relevant_trips:
+        route_key = (
+            places_by_id[trip.origin_id].normalized_name,
+            places_by_id[trip.destination_id].normalized_name,
+        )
+        trips_by_route.setdefault(route_key, []).append(trip)
+
     for origin_name, destination_name in zip(point_names, point_names[1:]):
         origin = normalize_place(origin_name)
         destination = normalize_place(destination_name)
-        trips = db.session.scalars(
-            select(Trip).where(
-                Trip.user_id == user_id,
-                Trip.origin.has(Place.normalized_name == origin),
-                Trip.destination.has(Place.normalized_name == destination),
-            )
-        ).all()
-        if not trips:
-            complete = False
-            segments.append(
-                {"from": origin_name, "to": destination_name, "known": False}
-            )
-            continue
-
-        durations = [trip.duration_minutes for trip in trips]
-        average = round(sum(durations) / len(durations))
-        common_transport = Counter(trip.transport_type for trip in trips).most_common(1)[0][0]
-        common_detail = Counter(
-            trip.transport_detail for trip in trips if trip.transport_detail
-        ).most_common(1)
         origin_place = places_by_name.get(origin)
         destination_place = places_by_name.get(destination)
         distance_km = _distance_between(origin_place, destination_place)
         if distance_km is not None:
             total_distance_km += distance_km
+        trips = trips_by_route.get((origin, destination), [])
+        if not trips:
+            complete = False
+            segments.append(
+                {
+                    "from": origin_name,
+                    "to": destination_name,
+                    "known": False,
+                    "distance_km": round(distance_km, 1)
+                    if distance_km is not None
+                    else None,
+                }
+            )
+            continue
+
+        common_transport = Counter(trip.transport_type for trip in trips).most_common(1)[
+            0
+        ][0]
+        representative_trips = [
+            trip for trip in trips if trip.transport_type == common_transport
+        ]
+        durations = [trip.duration_minutes for trip in representative_trips]
+        average = round(sum(durations) / len(durations))
+        common_detail = Counter(
+            trip.transport_detail for trip in representative_trips if trip.transport_detail
+        ).most_common(1)
         total_minutes += average
         segments.append(
             {
@@ -130,7 +159,7 @@ def calculate_route(user_id: int, point_names: list[str]) -> dict[str, Any]:
                 "minutes": average,
                 "min_minutes": min(durations),
                 "max_minutes": max(durations),
-                "samples": len(trips),
+                "samples": len(representative_trips),
                 "transport": TRANSPORT_LABELS.get(common_transport, "Другое"),
                 "transport_detail": common_detail[0][0] if common_detail else None,
                 "distance_km": round(distance_km, 1) if distance_km is not None else None,
@@ -150,7 +179,7 @@ def calculate_route(user_id: int, point_names: list[str]) -> dict[str, Any]:
         "total_minutes": total_minutes,
         "total_distance_km": round(total_distance_km, 1) if has_full_distance else None,
         "average_speed_kmh": round(total_distance_km / (total_minutes / 60), 1)
-        if has_full_distance and total_minutes > 0
+        if complete and has_full_distance and total_minutes > 0
         else None,
         "complete": complete,
         "has_full_track": has_full_distance,
@@ -183,4 +212,7 @@ def _distance_between(origin: Place | None, destination: Place | None) -> float 
 def parse_local_datetime(value: str) -> datetime:
     """Преобразовать значение HTML datetime-local в дату и время."""
 
-    return datetime.fromisoformat(value)
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is not None:
+        raise ValueError("Ожидается локальное время без часового пояса")
+    return parsed
