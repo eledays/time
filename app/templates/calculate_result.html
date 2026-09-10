@@ -9,14 +9,14 @@
       <canvas data-route-canvas aria-label="Схема маршрута по заданным точкам"></canvas>
       <script type="application/json" data-route-track>{{ result.points | tojson }}</script>
     </div>
-  </section>
-
-  <section class="route-details">
     <div class="route-stats">
       <article><span>Время</span><strong>{{ result.total_minutes if result.complete else '—' }}</strong><small>мин</small></article>
       <article><span>Путь</span><strong>{{ result.total_distance_km if result.total_distance_km is not none else '—' }}</strong><small>км</small></article>
       <article><span>Скорость</span><strong>{{ result.average_speed_kmh if result.average_speed_kmh is not none else '—' }}</strong><small>км/ч</small></article>
     </div>
+  </section>
+
+  <section class="route-details">
 
     <div class="route-segments">
       <div class="route-section-label"><span>По отрезкам</span><span>{{ result.segments | length }}</span></div>

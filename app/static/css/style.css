@@ -153,7 +153,8 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .suggestions { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); box-shadow: var(--shadow); opacity: 0; transform: translateY(-4px); pointer-events: none; transition: opacity .12s ease, transform .12s ease; }
 .suggestions.open { opacity: 1; transform: none; pointer-events: auto; }
 .suggestion { width: 100%; padding: 14px; border: 0; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
-.suggestion:hover, .suggestion:focus, .suggestion.is-active { background: var(--surface); outline: none; }
+.suggestion:hover, .suggestion:focus { background: var(--surface); outline: none; }
+.suggestion.is-active { background: var(--text); color: var(--bg); outline: none; }
 .new-place-notice { padding: 13px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.4; }
 
 .calculator-grid { display: grid; gap: 46px; margin-top: 48px; }
@@ -181,19 +182,19 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .segment.unknown strong { color: var(--danger); font-size: 11px; }
 
 .route-result-page { width: min(100%, 760px); margin: auto; }
-.route-portrait { position: relative; min-height: 560px; overflow: hidden; padding: max(28px, env(safe-area-inset-top)) 20px 24px; background: #090909; }
+.route-portrait { position: relative; overflow: hidden; padding: max(28px, env(safe-area-inset-top)) 20px 34px; background: #090909; }
 .route-portrait::before { position: absolute; inset: 0; opacity: .18; pointer-events: none; content: ""; background-image: radial-gradient(circle at 1px 1px, #777 1px, transparent 0); background-size: 28px 28px; mask-image: linear-gradient(to bottom, #000, transparent 75%); }
 .route-portrait h1 { position: relative; z-index: 1; max-width: 620px; margin-top: 24px; overflow-wrap: anywhere; font-size: clamp(40px, 11vw, 72px); }
 .route-portrait h1 span { color: var(--muted); }
-.track-stage { position: relative; height: 280px; margin: 20px -20px 0; }
+.track-stage { position: relative; height: 250px; margin: 10px -20px 0; }
 .track-stage canvas { width: 100%; height: 100%; display: block; }
-.route-details { padding: 38px 20px 64px; border-top: 1px solid var(--line); }
+.route-details { padding: 26px 20px 64px; }
 .route-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
-.route-stats article { min-width: 0; min-height: 128px; padding: 17px 14px; border-radius: 18px; background: var(--text); color: var(--bg); }
-.route-stats span { display: block; margin-bottom: 23px; color: #686862; font-size: 10px; }
+.route-stats article { min-width: 0; min-height: 128px; padding: 17px 14px; border-radius: 18px; background: #1b1b19; color: var(--text); }
+.route-stats span { display: block; margin-bottom: 23px; color: var(--muted); font-size: 10px; }
 .route-stats strong { font-size: clamp(28px, 8vw, 46px); font-weight: 560; letter-spacing: -.06em; }
-.route-stats small { display: block; margin-top: 6px; color: #686862; font-size: 9px; }
-.route-segments { margin-top: 52px; }
+.route-stats small { display: block; margin-top: 6px; color: var(--muted); font-size: 9px; }
+.route-segments { margin-top: 0; }
 .route-section-label { display: flex; justify-content: space-between; margin-bottom: 12px; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .12em; }
 .route-segment { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; margin-bottom: 12px; padding: 24px 20px 26px; border: 1px solid var(--line); border-radius: 20px; animation: appear .3s ease both; }
 .segment-marker { display: flex; flex-direction: column; align-items: center; gap: 7px; padding-top: 3px; color: var(--muted); font-size: 9px; }
@@ -232,11 +233,12 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .place-editor > summary b { margin-left: auto; color: var(--muted); font-size: 10px; font-weight: 400; }
 .new-place { margin-bottom: 32px; }
 .new-place > summary { font-weight: 600; }
-.place-form { padding: 12px 20px 22px; border-top: 1px solid var(--line); }
-.map-pick-button { width: 100%; min-height: 52px; margin: 0 0 30px; padding: 0 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text); font-size: 12px; cursor: pointer; }
-.map-pick-button:hover { border-color: var(--faint); }
+.place-form { padding: 2px 20px 22px; }
+.place-form .field-group input, .place-form .field-group textarea { padding: 13px 14px; border: 0; border-radius: 14px; background: var(--surface); }
+.map-pick-button { width: 100%; min-height: 52px; margin: 0 0 30px; padding: 0 14px; border: 0; border-radius: 14px; background: var(--surface); color: var(--text); font-size: 12px; cursor: pointer; }
+.map-pick-button:hover { background: #1d1d1a; }
 .color-field { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; color: var(--muted); font-size: 12px; }
-.color-field input { width: 44px; height: 32px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.color-field input { width: 44px; height: 32px; padding: 2px; border: 0; border-radius: 8px; background: var(--surface); }
 
 .map-dialog { width: min(calc(100% - 24px), 620px); padding: 18px; border: 1px solid var(--line); border-radius: 20px; background: var(--bg); color: var(--text); box-shadow: var(--shadow); }
 .map-dialog::backdrop { background: rgba(0, 0, 0, .42); backdrop-filter: blur(4px); }
@@ -289,8 +291,8 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
   .calculator-grid { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: repeat(3, 1fr); }
   .map-heading { left: max(24px, calc(50% - 330px)); }
-  .route-portrait { min-height: 620px; padding-inline: 38px; }
-  .track-stage { height: 310px; margin-inline: -38px; }
+  .route-portrait { padding-inline: 38px; }
+  .track-stage { height: 280px; margin-inline: -38px; }
   .route-details { padding-inline: 38px; }
 }
 
