@@ -154,7 +154,7 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .suggestions.open { opacity: 1; transform: none; pointer-events: auto; }
 .suggestion { width: 100%; padding: 14px; border: 0; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
 .suggestion:hover, .suggestion:focus { background: var(--surface); outline: none; }
-.suggestion.is-active { background: var(--text); color: var(--bg); outline: none; }
+.suggestion.is-active { background: #292926; color: var(--text); outline: none; }
 .new-place-notice { padding: 13px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.4; }
 
 .calculator-grid { display: grid; gap: 46px; margin-top: 48px; }
