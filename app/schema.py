@@ -14,6 +14,10 @@ def upgrade_sqlite_schema() -> None:
     }
     if "timezone" not in user_columns:
         db.session.execute(text("ALTER TABLE user ADD COLUMN timezone VARCHAR"))
+    if "terms_version" not in user_columns:
+        db.session.execute(text("ALTER TABLE user ADD COLUMN terms_version VARCHAR"))
+    if "terms_accepted_at" not in user_columns:
+        db.session.execute(text("ALTER TABLE user ADD COLUMN terms_accepted_at DATETIME"))
 
     columns = {
         row[1]

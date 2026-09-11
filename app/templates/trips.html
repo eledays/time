@@ -17,9 +17,17 @@
             {% if recorded_cost is not none %}<span>{{ '%.0f'|format(recorded_cost) }} ₽{% if trip.taxi_tariff %} · {{ trip.taxi_tariff }}{% endif %}</span>{% endif %}
           </div>
           <b>{{ trip.duration_minutes }} <small>мин</small></b>
+          <form class="trip-delete-form" action="{{ url_for('main.delete_trip', trip_id=trip.id) }}" method="post" data-confirm="Удалить эту поездку без возможности восстановления?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" aria-label="Удалить поездку">Удалить</button>
+          </form>
         </article>
       {% endfor %}
     </div>
+    <form class="delete-history-form" action="{{ url_for('main.delete_all_trips') }}" method="post" data-confirm="Удалить всю историю поездок без возможности восстановления?">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" name="confirm_delete" value="1">Удалить всю историю</button>
+    </form>
   {% else %}
     <div class="quiet-empty"><p>Поездок пока нет.</p><a href="{{ url_for('main.index') }}">Записать первую</a></div>
   {% endif %}

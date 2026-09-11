@@ -23,7 +23,11 @@ def test_home_is_available_without_login(client) -> None:
 
     response = client.get("/")
     assert response.status_code == 200
-    assert "Войти через Яндекс" in response.text
+    assert "Войти с Яндекс ID" in response.text
+    assert 'src="/static/img/logo.png"' in response.text
+    assert 'src="/static/img/yandex-id.svg"' in response.text
+    assert "Пользовательское соглашение" in response.text
+    assert "Политикой конфиденциальности" in response.text
     assert "data-theme-toggle" not in response.text
     assert '<meta name="theme-color" content="#090909">' in response.text
     assert 'rel="apple-touch-icon"' in response.text
@@ -41,6 +45,40 @@ def test_calculator_requires_login(client) -> None:
     response = client.get("/calculate")
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/auth/login")
+
+
+def test_yandex_login_is_started_by_confirmed_post(app: Flask, client, monkeypatch) -> None:
+    """Обычный GET не означает акцепт, а нажатие кнопки фиксирует его версию."""
+
+    with app.app_context():
+        yandex = oauth.create_client("yandex")
+        monkeypatch.setattr(
+            yandex,
+            "authorize_redirect",
+            lambda _redirect_uri: ("provider redirect", 302),
+        )
+    app.config["YANDEX_CLIENT_ID"] = "client"
+    assert client.get("/auth/login").headers["Location"] == "/"
+    with client.session_transaction() as session:
+        session["csrf_token"] = "test-csrf"
+    response = client.post("/auth/login", data={"csrf_token": "test-csrf"})
+    assert response.status_code == 302
+    with client.session_transaction() as session:
+        assert session["pending_terms_version"] == "1.0"
+        assert session["pending_terms_accepted_at"]
+
+
+def test_legal_documents_are_public(client) -> None:
+    """Условия и политика доступны до входа в аккаунт."""
+
+    terms = client.get("/terms")
+    privacy = client.get("/privacy")
+    assert terms.status_code == 200
+    assert "Пользовательское соглашение" in terms.text
+    assert "Расчёты времени, расстояния и скорости являются ориентировочными" in terms.text
+    assert privacy.status_code == 200
+    assert "Какие данные обрабатываются" in privacy.text
+    assert "удалить самостоятельно" in privacy.text
 
 
 def test_trip_survives_reopen_and_finishes_with_bus_number(
@@ -375,6 +413,8 @@ def test_existing_taxi_cost_is_migrated(tmp_path: Path) -> None:
         ).scalar_one()
         assert "cost" in columns
         assert "timezone" in user_columns
+        assert "terms_version" in user_columns
+        assert "terms_accepted_at" in user_columns
         assert migrated_cost == 750
 
 
@@ -625,6 +665,9 @@ def test_yandex_callback_saves_avatar(app: Flask, client, monkeypatch) -> None:
         yandex = oauth.create_client("yandex")
         monkeypatch.setattr(yandex, "authorize_access_token", lambda: {"access_token": "token"})
         monkeypatch.setattr(yandex, "get", lambda *_args, **_kwargs: ProfileResponse())
+    with client.session_transaction() as session:
+        session["pending_terms_version"] = "1.0"
+        session["pending_terms_accepted_at"] = "2026-09-11T10:00:00+00:00"
 
     response = client.get("/auth/callback")
     assert response.status_code == 302
@@ -632,6 +675,8 @@ def test_yandex_callback_saves_avatar(app: Flask, client, monkeypatch) -> None:
         account = db.session.scalar(db.select(User).where(User.yandex_id == "99"))
         assert account is not None
         assert account.avatar_url.endswith("/avatar-99/islands-200")
+        assert account.terms_version == "1.0"
+        assert account.terms_accepted_at is not None
 
 
 def test_yandex_callback_failure_returns_to_home(app: Flask, client, monkeypatch) -> None:
@@ -646,6 +691,9 @@ def test_yandex_callback_failure_returns_to_home(app: Flask, client, monkeypatch
             raise OAuthError(error="access_denied")
 
         monkeypatch.setattr(yandex, "authorize_access_token", fail_login)
+    with client.session_transaction() as session:
+        session["pending_terms_version"] = "1.0"
+        session["pending_terms_accepted_at"] = "2026-09-11T10:00:00+00:00"
 
     response = client.get("/auth/callback", follow_redirects=True)
     assert response.status_code == 200
@@ -740,3 +788,76 @@ def test_place_rejects_non_finite_coordinates(auth_client) -> None:
         )
         assert response.status_code == 200
         assert "должна быть от" in response.text
+
+
+def test_user_can_delete_one_or_all_trips(app: Flask, auth_client, user) -> None:
+    """Удаление истории затрагивает только выбранные пользователем записи."""
+
+    with app.app_context():
+        origin = get_or_create_place(user.id, "A")
+        destination = get_or_create_place(user.id, "B")
+        db.session.flush()
+        trips = [
+            Trip(
+                user_id=user.id,
+                origin_id=origin.id,
+                destination_id=destination.id,
+                departed_at=datetime.fromisoformat(f"2026-09-0{day}T08:00"),
+                arrived_at=datetime.fromisoformat(f"2026-09-0{day}T08:30"),
+                transport_type="walk",
+            )
+            for day in (1, 2)
+        ]
+        db.session.add_all(trips)
+        db.session.commit()
+        first_id = trips[0].id
+
+    response = auth_client.post(
+        f"/trips/{first_id}/delete", data={"csrf_token": "test-csrf"}
+    )
+    assert response.status_code == 302
+    with app.app_context():
+        assert db.session.scalar(db.select(db.func.count(Trip.id))) == 1
+
+    response = auth_client.post(
+        "/trips/delete-all",
+        data={"csrf_token": "test-csrf", "confirm_delete": "1"},
+    )
+    assert response.status_code == 302
+    with app.app_context():
+        assert db.session.scalar(db.select(db.func.count(Trip.id))) == 0
+        assert db.session.scalar(db.select(db.func.count(Place.id))) == 2
+
+
+def test_user_can_delete_account_and_all_personal_data(
+    app: Flask, auth_client, user
+) -> None:
+    """Самообслуживание удаляет профиль, поездки, места и активный маршрут."""
+
+    auth_client.post(
+        "/trips/start",
+        data={
+            "csrf_token": "test-csrf",
+            "origin": "Дом",
+            "departed_at": "2026-09-03T09:00",
+        },
+    )
+    rejected = auth_client.post(
+        "/auth/account/delete",
+        data={"csrf_token": "test-csrf", "confirmation": "удалить"},
+    )
+    assert rejected.status_code == 302
+    with app.app_context():
+        assert db.session.get(User, user.id) is not None
+
+    deleted = auth_client.post(
+        "/auth/account/delete",
+        data={"csrf_token": "test-csrf", "confirmation": "УДАЛИТЬ"},
+        follow_redirects=True,
+    )
+    assert deleted.status_code == 200
+    assert "Аккаунт и все связанные данные удалены" in deleted.text
+    with app.app_context():
+        assert db.session.scalar(db.select(db.func.count(User.id))) == 0
+        assert db.session.scalar(db.select(db.func.count(ActiveTrip.id))) == 0
+        assert db.session.scalar(db.select(db.func.count(Place.id))) == 0

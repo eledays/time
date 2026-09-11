@@ -15,7 +15,7 @@ from flask import (
     request,
     url_for,
 )
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 
 from app.auth.helpers import login_required
@@ -50,6 +50,20 @@ def index():
         transport_labels=TRANSPORT_LABELS,
         taxi_tariffs=TAXI_TARIFFS,
     )
+
+
+@bp.get("/terms")
+def terms():
+    """Показать действующее пользовательское соглашение."""
+
+    return render_template("terms.html")
+
+
+@bp.get("/privacy")
+def privacy():
+    """Показать политику обработки персональных данных."""
+
+    return render_template("privacy.html")
 
 
 @bp.post("/trips/start")
@@ -232,6 +246,39 @@ def trips():
     return render_template(
         "trips.html", trips=trip_items, transport_labels=TRANSPORT_LABELS
     )
+
+
+@bp.post("/trips/<int:trip_id>/delete")
+@login_required
+def delete_trip(trip_id: int):
+    """Безвозвратно удалить одну принадлежащую пользователю поездку."""
+
+    trip = db.session.scalar(
+        select(Trip).where(Trip.id == trip_id, Trip.user_id == g.user.id)
+    )
+    if trip is None:
+        return render_template("error.html", code=404, message="Поездка не найдена"), 404
+    db.session.delete(trip)
+    db.session.commit()
+    flash("Поездка удалена", "success")
+    return redirect(url_for("main.trips"))
+
+
+@bp.post("/trips/delete-all")
+@login_required
+def delete_all_trips():
+    """Безвозвратно удалить всю завершённую историю пользователя."""
+
+    if request.form.get("confirm_delete") != "1":
+        flash("Подтвердите удаление поездок", "warning")
+        return redirect(url_for("main.trips"))
+    deleted_count = db.session.scalar(
+        select(db.func.count(Trip.id)).where(Trip.user_id == g.user.id)
+    )
+    db.session.execute(delete(Trip).where(Trip.user_id == g.user.id))
+    db.session.commit()
+    flash(f"История удалена · {deleted_count or 0} поездок", "success")
+    return redirect(url_for("main.trips"))
 
 
 @bp.get("/places")

@@ -1,14 +1,21 @@
 {% extends "base.html" %}
-{% block title %}Записать поездку · Ход{% endblock %}
+{% block title %}Дневник поездок{% endblock %}
 {% block page %}record{% endblock %}
 {% block content %}
 <main class="page-shell{% if g.user and active_trip %} active-record-page{% endif %}">
   {% if not g.user %}
     <section class="welcome" aria-labelledby="welcome-title">
-      <h1 id="welcome-title">Время в пути,<br>которому можно верить</h1>
+      <img class="welcome-logo" src="{{ url_for('static', filename='img/logo.png') }}" alt="" width="180" height="180">
+      <h1 id="welcome-title" class="visually-hidden">Дневник поездок</h1>
       <p class="lede">Записывайте реальные поездки и планируйте маршруты по собственному опыту.</p>
-      <a class="primary-button yandex-button" href="{{ url_for('auth.login') }}"><span class="ya-mark">Я</span> Войти через Яндекс</a>
-      <p class="privacy-note">Ваши поездки видны только вам.</p>
+      <form class="login-form" action="{{ url_for('auth.login') }}" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="yandex-button" type="submit">
+          <img src="{{ url_for('static', filename='img/yandex-id.svg') }}" alt="" width="28" height="28">
+          <span>Войти с Яндекс ID</span>
+        </button>
+      </form>
+      <p class="legal-consent">Нажимая кнопку, вы принимаете <a href="{{ url_for('main.terms') }}">Пользовательское соглашение</a> и подтверждаете, что ознакомились с <a href="{{ url_for('main.privacy') }}">Политикой конфиденциальности</a>.</p>
     </section>
   {% else %}
     <section class="record-layout">

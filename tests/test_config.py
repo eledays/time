@@ -5,6 +5,14 @@ from pydantic import ValidationError
 
 from app.config import Config
 
+LEGAL_SETTINGS = {
+    "legal_operator_name": "Иван Иванов",
+    "legal_operator_email": "privacy@example.ru",
+    "legal_operator_address": "Москва, Россия",
+    "legal_data_storage_location": "Москва, Россия",
+    "legal_effective_date": "2026-09-11",
+}
+
 
 def test_production_rejects_default_secret() -> None:
     """Production не запускается с известным резервным ключом."""
@@ -61,11 +69,28 @@ def test_production_mapping_enables_secure_cookie() -> None:
         yandex_client_secret="secret",
         public_url="https://time.example",
         trusted_hosts="time.example",
+        **LEGAL_SETTINGS,
     )
     mapping = settings.flask_mapping()
     assert mapping["SESSION_COOKIE_SECURE"] is True
     assert mapping["SESSION_COOKIE_NAME"] == "__Host-time_session"
     assert mapping["TRUSTED_HOSTS"] == ["time.example"]
+    assert mapping["LEGAL_OPERATOR_NAME"] == "Иван Иванов"
+
+
+def test_production_requires_legal_operator_details() -> None:
+    """Публичная версия не запускается с пустыми реквизитами документов."""
+
+    with pytest.raises(ValidationError, match="юридические реквизиты"):
+        Config(
+            _env_file=None,
+            environment="production",
+            secret_key="a" * 32,
+            yandex_client_id="client",
+            yandex_client_secret="secret",
+            public_url="https://time.example",
+            trusted_hosts="time.example",
+        )
 
 
 def test_database_url_is_validated() -> None:

@@ -36,5 +36,21 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit">Выйти из аккаунта</button>
   </form>
+  <section class="profile-legal-links" aria-label="Юридическая информация">
+    <a href="{{ url_for('main.terms') }}">Пользовательское соглашение</a>
+    <a href="{{ url_for('main.privacy') }}">Политика конфиденциальности</a>
+  </section>
+  <details class="delete-account" id="delete-account">
+    <summary>Удалить аккаунт</summary>
+    <div>
+      <p>Будут безвозвратно удалены профиль, активная поездка, вся история и сохранённые места.</p>
+      <form action="{{ url_for('auth.delete_account') }}" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="delete-confirmation">Для подтверждения введите УДАЛИТЬ</label>
+        <input id="delete-confirmation" name="confirmation" type="text" autocomplete="off" required pattern="УДАЛИТЬ">
+        <button type="submit">Удалить аккаунт и данные</button>
+      </form>
+    </div>
+  </details>
 </main>
 {% endblock %}

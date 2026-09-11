@@ -2,6 +2,7 @@
 
 import re
 import secrets
+from datetime import date
 from pathlib import Path
 from typing import Literal
 
@@ -15,6 +16,7 @@ INSECURE_SECRET_KEYS = {
     "dev-change-me",
     "replace-with-a-random-string-at-least-32-characters",
 }
+EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
 class Config(BaseSettings):
@@ -23,6 +25,7 @@ class Config(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
         env_file_encoding="utf-8",
+        env_ignore_empty=True,
         extra="ignore",
         case_sensitive=False,
         populate_by_name=True,
@@ -61,6 +64,33 @@ class Config(BaseSettings):
     rate_limit_storage_uri: str = Field(
         default="memory://", validation_alias="RATE_LIMIT_STORAGE_URI"
     )
+    legal_operator_name: str = Field(
+        default="", max_length=300, validation_alias="LEGAL_OPERATOR_NAME"
+    )
+    legal_operator_email: str = Field(
+        default="", max_length=254, validation_alias="LEGAL_OPERATOR_EMAIL"
+    )
+    legal_operator_address: str = Field(
+        default="", max_length=500, validation_alias="LEGAL_OPERATOR_ADDRESS"
+    )
+    legal_operator_id: str = Field(
+        default="", max_length=100, validation_alias="LEGAL_OPERATOR_ID"
+    )
+    legal_data_storage_location: str = Field(
+        default="", max_length=300, validation_alias="LEGAL_DATA_STORAGE_LOCATION"
+    )
+    legal_document_version: str = Field(
+        default="1.0", min_length=1, max_length=30, validation_alias="LEGAL_DOCUMENT_VERSION"
+    )
+    legal_effective_date: date | None = Field(
+        default=None, validation_alias="LEGAL_EFFECTIVE_DATE"
+    )
+    legal_backup_retention_days: int = Field(
+        default=30,
+        ge=0,
+        le=365,
+        validation_alias="LEGAL_BACKUP_RETENTION_DAYS",
+    )
 
     @field_validator("database_url")
     @classmethod
@@ -96,6 +126,29 @@ class Config(BaseSettings):
             raise ValueError("RATE_LIMIT_STORAGE_URI должен быть корректным URI")
         return value
 
+    @field_validator(
+        "legal_operator_name",
+        "legal_operator_email",
+        "legal_operator_address",
+        "legal_operator_id",
+        "legal_data_storage_location",
+        "legal_document_version",
+    )
+    @classmethod
+    def normalize_legal_text(cls, value: str) -> str:
+        """Убрать случайные пробелы из реквизитов юридических документов."""
+
+        return " ".join(value.split())
+
+    @field_validator("legal_operator_email")
+    @classmethod
+    def validate_legal_email(cls, value: str) -> str:
+        """Проверить контактный адрес оператора, если он задан."""
+
+        if value and not EMAIL_PATTERN.fullmatch(value):
+            raise ValueError("LEGAL_OPERATOR_EMAIL должен быть корректным email")
+        return value
+
     @model_validator(mode="after")
     def validate_security(self) -> "Config":
         """Запретить запуск production с небезопасными или неполными секретами."""
@@ -126,6 +179,19 @@ class Config(BaseSettings):
                 for host in allowed_hosts
             ):
                 raise ValueError("хост PUBLIC_URL должен присутствовать в TRUSTED_HOSTS")
+            required_legal_fields = {
+                "LEGAL_OPERATOR_NAME": self.legal_operator_name,
+                "LEGAL_OPERATOR_EMAIL": self.legal_operator_email,
+                "LEGAL_OPERATOR_ADDRESS": self.legal_operator_address,
+                "LEGAL_DATA_STORAGE_LOCATION": self.legal_data_storage_location,
+            }
+            missing = [name for name, value in required_legal_fields.items() if not value]
+            if self.legal_effective_date is None:
+                missing.append("LEGAL_EFFECTIVE_DATE")
+            if missing:
+                raise ValueError(
+                    "production требует юридические реквизиты: " + ", ".join(missing)
+                )
         return self
 
     def flask_mapping(self) -> dict[str, object]:
@@ -157,4 +223,12 @@ class Config(BaseSettings):
             "RATELIMIT_STORAGE_URI": self.rate_limit_storage_uri,
             "RATELIMIT_ENABLED": self.environment != "testing",
             "RATELIMIT_HEADERS_ENABLED": True,
+            "LEGAL_OPERATOR_NAME": self.legal_operator_name,
+            "LEGAL_OPERATOR_EMAIL": self.legal_operator_email,
+            "LEGAL_OPERATOR_ADDRESS": self.legal_operator_address,
+            "LEGAL_OPERATOR_ID": self.legal_operator_id,
+            "LEGAL_DATA_STORAGE_LOCATION": self.legal_data_storage_location,
+            "LEGAL_DOCUMENT_VERSION": self.legal_document_version,
+            "LEGAL_EFFECTIVE_DATE": self.legal_effective_date,
+            "LEGAL_BACKUP_RETENTION_DAYS": self.legal_backup_retention_days,
         }
