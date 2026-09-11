@@ -70,9 +70,6 @@ class Config(BaseSettings):
     legal_operator_email: str = Field(
         default="", max_length=254, validation_alias="LEGAL_OPERATOR_EMAIL"
     )
-    legal_operator_address: str = Field(
-        default="", max_length=500, validation_alias="LEGAL_OPERATOR_ADDRESS"
-    )
     legal_operator_id: str = Field(
         default="", max_length=100, validation_alias="LEGAL_OPERATOR_ID"
     )
@@ -129,7 +126,6 @@ class Config(BaseSettings):
     @field_validator(
         "legal_operator_name",
         "legal_operator_email",
-        "legal_operator_address",
         "legal_operator_id",
         "legal_data_storage_location",
         "legal_document_version",
@@ -143,7 +139,7 @@ class Config(BaseSettings):
     @field_validator("legal_operator_email")
     @classmethod
     def validate_legal_email(cls, value: str) -> str:
-        """Проверить контактный адрес оператора, если он задан."""
+        """Проверить контактный email оператора, если он задан."""
 
         if value and not EMAIL_PATTERN.fullmatch(value):
             raise ValueError("LEGAL_OPERATOR_EMAIL должен быть корректным email")
@@ -182,7 +178,6 @@ class Config(BaseSettings):
             required_legal_fields = {
                 "LEGAL_OPERATOR_NAME": self.legal_operator_name,
                 "LEGAL_OPERATOR_EMAIL": self.legal_operator_email,
-                "LEGAL_OPERATOR_ADDRESS": self.legal_operator_address,
                 "LEGAL_DATA_STORAGE_LOCATION": self.legal_data_storage_location,
             }
             missing = [name for name, value in required_legal_fields.items() if not value]
@@ -225,7 +220,6 @@ class Config(BaseSettings):
             "RATELIMIT_HEADERS_ENABLED": True,
             "LEGAL_OPERATOR_NAME": self.legal_operator_name,
             "LEGAL_OPERATOR_EMAIL": self.legal_operator_email,
-            "LEGAL_OPERATOR_ADDRESS": self.legal_operator_address,
             "LEGAL_OPERATOR_ID": self.legal_operator_id,
             "LEGAL_DATA_STORAGE_LOCATION": self.legal_data_storage_location,
             "LEGAL_DOCUMENT_VERSION": self.legal_document_version,

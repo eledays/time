@@ -69,7 +69,6 @@ DATABASE_URL=sqlite:///time.sqlite3
 ```dotenv
 LEGAL_OPERATOR_NAME=ФИО, ИП или наименование организации
 LEGAL_OPERATOR_EMAIL=privacy@example.ru
-LEGAL_OPERATOR_ADDRESS=адрес оператора
 LEGAL_OPERATOR_ID=ИНН / ОГРН / ОГРНИП при наличии
 LEGAL_DATA_STORAGE_LOCATION=город и страна размещения основной базы
 LEGAL_DOCUMENT_VERSION=1.0

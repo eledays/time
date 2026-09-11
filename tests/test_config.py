@@ -8,7 +8,6 @@ from app.config import Config
 LEGAL_SETTINGS = {
     "legal_operator_name": "Иван Иванов",
     "legal_operator_email": "privacy@example.ru",
-    "legal_operator_address": "Москва, Россия",
     "legal_data_storage_location": "Москва, Россия",
     "legal_effective_date": "2026-09-11",
 }
