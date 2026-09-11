@@ -11,7 +11,7 @@
       <form class="login-form" action="{{ url_for('auth.login') }}" method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="yandex-button" type="submit">
-          <img src="{{ url_for('static', filename='img/yandex-id.svg') }}" alt="" width="28" height="28">
+          <img src="{{ url_for('static', filename='img/yandex-id.svg') }}" alt="" width="22" height="30">
           <span>Войти с Яндекс ID</span>
         </button>
       </form>

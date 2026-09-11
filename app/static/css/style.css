@@ -26,6 +26,7 @@ body {
 }
 body[data-page="legal"] { padding-bottom: 0; }
 body[data-page="legal"] .bottom-nav { display: none; }
+body.login-page { background: #242423; }
 button, input, select, textarea { font: inherit; }
 button, a, summary { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; text-decoration: none; }
@@ -69,7 +70,7 @@ h1 { margin: 0; font-size: clamp(38px, 11vw, 56px); line-height: 1.02; letter-sp
 .secondary-button:active { transform: scale(.985); }
 
 .welcome { min-height: calc(100vh - 160px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-.welcome-logo { width: clamp(132px, 36vw, 180px); height: auto; display: block; }
+.welcome-logo { width: clamp(132px, 36vw, 180px); height: auto; display: block; border-radius: 50%; }
 .welcome .lede { max-width: 460px; margin: 28px 0 36px; color: var(--muted); font-size: 17px; line-height: 1.55; }
 .login-form { width: min(100%, 380px); }
 .yandex-button { width: min(100%, 380px); min-height: 56px; display: grid; grid-template-columns: 28px 1fr 28px; align-items: center; gap: 12px; padding: 0 16px; border: 1px solid #fff; border-radius: 14px; background: #fff; color: #111; font-size: 15px; font-weight: 600; transition: opacity .15s ease, transform .15s ease; }

@@ -23,6 +23,7 @@ def test_home_is_available_without_login(client) -> None:
 
     response = client.get("/")
     assert response.status_code == 200
+    assert '<body class="login-page"' in response.text
     assert "Войти с Яндекс ID" in response.text
     assert 'src="/static/img/logo.png"' in response.text
     assert 'src="/static/img/yandex-id.svg"' in response.text

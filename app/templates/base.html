@@ -18,7 +18,7 @@
     {% block head %}{% endblock %}
     <script defer src="{{ url_for('static', filename='js/app.js') }}"></script>
   </head>
-  <body data-page="{% block page %}base{% endblock %}"{% if g.user %} data-timezone="{{ g.user.timezone or '' }}" data-timezone-auto="{{ 'false' if g.user.timezone else 'true' }}" data-csrf-token="{{ csrf_token() }}"{% endif %}>
+  <body{% if not g.user and request.endpoint == 'main.index' %} class="login-page"{% endif %} data-page="{% block page %}base{% endblock %}"{% if g.user %} data-timezone="{{ g.user.timezone or '' }}" data-timezone-auto="{{ 'false' if g.user.timezone else 'true' }}" data-csrf-token="{{ csrf_token() }}"{% endif %}>
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         <div class="toast-stack" aria-live="polite">
