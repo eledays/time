@@ -26,6 +26,10 @@ def test_home_is_available_without_login(client) -> None:
     assert "Войти через Яндекс" in response.text
     assert "data-theme-toggle" not in response.text
     assert '<meta name="theme-color" content="#090909">' in response.text
+    assert 'rel="apple-touch-icon"' in response.text
+    assert '/static/img/favicon/favicon-32x32.png' in response.text
+    assert '/static/img/favicon/favicon-16x16.png' in response.text
+    assert '/static/img/favicon/site.webmanifest' in response.text
     assert response.headers["X-Content-Type-Options"] == "nosniff"
     assert response.headers["Content-Security-Policy"].startswith("default-src 'self'")
     assert response.headers["Cross-Origin-Opener-Policy"] == "same-origin"
