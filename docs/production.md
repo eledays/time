@@ -58,11 +58,19 @@ GUNICORN_TIMEOUT=30
 
 LEGAL_OPERATOR_NAME=ФИО или наименование организации
 LEGAL_OPERATOR_EMAIL=privacy@example.ru
+LEGAL_OPERATOR_ADDRESS=почтовый адрес оператора
 LEGAL_OPERATOR_ID=ИНН / ОГРН / ОГРНИП при наличии
 LEGAL_DATA_STORAGE_LOCATION=город и страна фактического размещения базы
-LEGAL_DOCUMENT_VERSION=1.0
+LEGAL_HOSTING_PROVIDER_NAME=наименование провайдера или собственный сервер
+LEGAL_HOSTING_PROVIDER_LOCATION=город и страна провайдера
+LEGAL_RKN_NOTICE_DATE=2026-09-14
+LEGAL_CROSS_BORDER_TRANSFER=true
+LEGAL_CROSS_BORDER_NOTICE_DATE=2026-09-14
+LEGAL_CROSS_BORDER_COUNTRIES=фактический перечень стран
+LEGAL_DOCUMENT_VERSION=1.1
 LEGAL_EFFECTIVE_DATE=2026-09-14
 LEGAL_BACKUP_RETENTION_DAYS=30
+LEGAL_LOG_RETENTION_DAYS=30
 ```
 
 Сгенерировать секрет можно командой `python3 -c 'import secrets;
@@ -74,9 +82,17 @@ sudo chmod 600 /opt/time/.env
 sudo -u timeapp mkdir -p /var/lib/time/instance
 ```
 
-В приложении Яндекс OAuth разрешите только нужные права (`login:email`,
-`login:info`, `login:avatar`) и добавьте точный callback:
+В приложении Яндекс OAuth разрешите только право `login:info` и добавьте точный callback:
 `https://time.example.ru/auth/callback`.
+
+До первого запуска направьте основное уведомление об обработке персональных данных
+в Роскомнадзор. Поскольку браузер обращается к Esri, jsDelivr и Google Fonts,
+определите фактические страны и получателей и до начала такой передачи направьте
+отдельное уведомление о трансграничной передаче. Даты и страны в `.env` должны
+совпадать с поданными уведомлениями. Заключите с провайдером инфраструктуры договор,
+содержащий условия поручения обработки и требования к защите данных.
+При существенном изменении документов увеличьте `LEGAL_DOCUMENT_VERSION`, иначе
+ранее вошедшие пользователи не увидят экран принятия новой редакции.
 
 ## 3. Миграции и первый запуск
 
@@ -94,10 +110,12 @@ sudo -u timeapp .venv/bin/flask --app run.py db current
 
 ## 4. systemd и nginx
 
-Проверьте пути в `deploy/time.service`, затем установите unit и конфигурацию nginx:
+Проверьте пути в `deploy/time.service`, затем установите unit, отдельную политику
+хранения journald и конфигурацию nginx:
 
 ```bash
 sudo cp deploy/time.service /etc/systemd/system/time.service
+sudo cp deploy/journald@time.conf /etc/systemd/journald@time.conf
 sudo cp deploy/nginx.conf /etc/nginx/sites-available/time.conf
 sudo ln -s /etc/nginx/sites-available/time.conf /etc/nginx/sites-enabled/time.conf
 sudo nginx -t
@@ -112,6 +130,9 @@ Gunicorn с SQLite обязан работать с `GUNICORN_WORKERS=1`; нес
 Неверное значение позволяет подделывать адрес клиента или ломает rate limiting.
 Nginx access log отключён, а формат Gunicorn намеренно не записывает query string:
 там могут находиться OAuth-коды и введённые пользователем названия мест.
+`LogNamespace=time` изолирует журнал приложения, а `journald@time.conf` удаляет
+его записи через 30 дней. При изменении `LEGAL_LOG_RETENTION_DAYS` задайте тот же
+срок в `MaxRetentionSec` и перезапустите `systemd-journald@time.service`.
 
 ## 5. Проверка релиза
 
@@ -119,7 +140,7 @@ Nginx access log отключён, а формат Gunicorn намеренно �
 curl --fail https://time.example.ru/healthz
 curl --fail https://time.example.ru/readyz
 sudo systemctl --no-pager --full status time.service
-sudo journalctl -u time.service --since "10 minutes ago"
+sudo journalctl --namespace=time -u time.service --since "10 minutes ago"
 ```
 
 `/healthz` проверяет процесс, `/readyz` — соединение с базой. Затем вручную
@@ -172,7 +193,9 @@ curl --fail https://time.example.ru/readyz
 - `.env`, база и резервные копии имеют права `600` и принадлежат `timeapp`.
 - Доступ к `/var/lib/time` и журналам ограничен администраторами.
 - Ошибки и рестарты из journald отправляются в систему мониторинга с алертами.
+- Journald или внешний сборщик удаляет журналы не позднее срока из
+  `LEGAL_LOG_RETENTION_DAYS`; query string в access log не записывается.
 - Внешний монитор вызывает `/healthz`, внутренний — `/readyz`.
-- Проверены заполненность юридических документов, фактические подрядчики,
-  локализация данных, трансграничная передача и процедура обращений пользователей.
+- Поданы основное и трансграничное уведомления Роскомнадзору, а их сведения
+  совпадают с политикой, подрядчиками, странами, целями и составом данных.
 - Периодически выполняются `pytest`, `ruff`, `pip-audit` и тест восстановления.
