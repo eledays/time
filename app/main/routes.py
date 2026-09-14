@@ -2,6 +2,7 @@
 
 import re
 from collections import Counter
+from datetime import date, datetime, time, timedelta
 from math import isfinite
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -294,13 +295,27 @@ def calculate_result():
 @bp.get("/trips")
 @login_required
 def trips():
-    """Показать полную историю поездок пользователя."""
+    """Показать историю пользователя с поиском по дате."""
 
-    trip_items = db.session.scalars(
-        select(Trip).where(Trip.user_id == g.user.id).order_by(Trip.departed_at.desc())
-    ).all()
+    selected_date = request.args.get("date", "").strip()
+    statement = select(Trip).where(Trip.user_id == g.user.id)
+    if selected_date:
+        try:
+            requested_date = date.fromisoformat(selected_date)
+        except ValueError:
+            flash("Укажите корректную дату", "error")
+            return redirect(url_for("main.trips"))
+        day_start = datetime.combine(requested_date, time.min)
+        statement = statement.where(
+            Trip.departed_at >= day_start,
+            Trip.departed_at < day_start + timedelta(days=1),
+        )
+    trip_items = db.session.scalars(statement.order_by(Trip.departed_at.desc())).all()
     return render_template(
-        "trips.html", trips=trip_items, transport_labels=TRANSPORT_LABELS
+        "trips.html",
+        trips=trip_items,
+        transport_labels=TRANSPORT_LABELS,
+        selected_date=selected_date,
     )
 
 
@@ -342,12 +357,19 @@ def delete_all_trips():
 @bp.get("/places")
 @login_required
 def places():
-    """Показать сохранённые места пользователя."""
+    """Показать сохранённые места пользователя с поиском."""
 
-    place_items = db.session.scalars(
-        select(Place).where(Place.user_id == g.user.id).order_by(Place.name)
-    ).all()
-    return render_template("places.html", places=place_items)
+    query = request.args.get("q", "").strip()
+    if len(query) > current_app.config["MAX_TEXT_LENGTH"]:
+        flash("Запрос слишком длинный", "error")
+        return redirect(url_for("main.places"))
+    statement = select(Place).where(Place.user_id == g.user.id)
+    if query:
+        statement = statement.where(
+            Place.normalized_name.contains(normalize_place(query), autoescape=True)
+        )
+    place_items = db.session.scalars(statement.order_by(Place.name)).all()
+    return render_template("places.html", places=place_items, query=query)
 
 
 @bp.post("/places")
@@ -463,13 +485,21 @@ def map_view():
 def profile():
     """Показать профиль Яндекса и личную статистику поездок."""
 
-    trip_items = db.session.scalars(select(Trip).where(Trip.user_id == g.user.id)).all()
+    trip_items = db.session.scalars(
+        select(Trip).where(Trip.user_id == g.user.id).order_by(Trip.departed_at.desc())
+    ).all()
     durations = [trip.duration_minutes for trip in trip_items]
     transport_counts = Counter(trip.transport_type for trip in trip_items)
     favorite = transport_counts.most_common(1)[0][0] if transport_counts else None
     place_count = db.session.scalar(
         select(db.func.count(Place.id)).where(Place.user_id == g.user.id)
     )
+    place_items = db.session.scalars(
+        select(Place)
+        .where(Place.user_id == g.user.id)
+        .order_by(Place.name)
+        .limit(6)
+    ).all()
     stats = {
         "trips": len(trip_items),
         "minutes": sum(durations),
@@ -479,7 +509,12 @@ def profile():
         "favorite": TRANSPORT_LABELS.get(favorite, "—") if favorite else "—",
     }
     return render_template(
-        "profile.html", stats=stats, timezone_choices=TIMEZONE_CHOICES
+        "profile.html",
+        stats=stats,
+        timezone_choices=TIMEZONE_CHOICES,
+        recent_trips=trip_items[:4],
+        places=place_items,
+        transport_labels=TRANSPORT_LABELS,
     )
 
 

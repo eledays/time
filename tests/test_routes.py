@@ -262,8 +262,9 @@ def test_departure_time_is_hidden_by_default(auth_client) -> None:
     assert 'data-picker-clock step="60" required disabled' in page.text
     assert 'class="material-symbols-rounded"' in page.text
     assert ">schedule</span>" in page.text
-    for icon in ("add_circle", "route", "history", "location_on", "map", "person"):
+    for icon in ("add_circle", "route", "map", "person"):
         assert f">{icon}</span><small>" in page.text
+    assert page.text.count('class="bottom-nav-item') == 4
     assert "fonts.googleapis.com/css2?family=Material+Symbols+Rounded" in page.text
 
 
@@ -958,7 +959,7 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     assert "Указать точку на карте" in places_page.text
 
     for path, expected_text in [
-        ("/trips", "Все поездки"),
+        ("/trips", "История"),
         ("/places", "Места"),
         ("/map", "journey-map"),
         ("/profile", "Статистика поездок"),
@@ -976,6 +977,51 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     assert "new ol.Map" in map_script.text
     assert "World_Street_Map" not in map_script.text
     assert "tile.openstreetmap.org" not in map_script.text
+
+
+def test_profile_previews_history_and_searches_trips_and_places(
+    app: Flask, auth_client, user
+) -> None:
+    """Профиль объединяет недавние поездки и переходы к двум видам поиска."""
+
+    with app.app_context():
+        home = get_or_create_place(user.id, "Дом")
+        work = get_or_create_place(user.id, "Работа")
+        park = get_or_create_place(user.id, "Парк")
+        db.session.flush()
+        for day, destination in (("03", work), ("04", park)):
+            db.session.add(
+                Trip(
+                    user_id=user.id,
+                    origin_id=home.id,
+                    destination_id=destination.id,
+                    departed_at=datetime.fromisoformat(f"2026-09-{day}T08:00"),
+                    arrived_at=datetime.fromisoformat(f"2026-09-{day}T08:30"),
+                    transport_type="walk",
+                )
+            )
+        db.session.commit()
+
+    profile = auth_client.get("/profile")
+    assert profile.status_code == 200
+    assert "История поездок" in profile.text
+    assert "Все и поиск по дате" in profile.text
+    assert "Дом" in profile.text
+    assert "Работа" in profile.text
+    assert 'action="/places"' in profile.text
+    assert 'name="q"' in profile.text
+
+    dated = auth_client.get("/trips?date=2026-09-03")
+    assert dated.status_code == 200
+    assert "Работа" in dated.text
+    assert "Парк" not in dated.text
+    assert "1 найдено" in dated.text
+
+    places = auth_client.get("/places?q=пАрК")
+    assert places.status_code == 200
+    assert "Парк" in places.text
+    assert "Работа" not in places.text
+    assert "1 найдено" in places.text
 
 
 def test_user_cannot_read_or_update_another_users_places(

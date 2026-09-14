@@ -1,35 +1,31 @@
 {% extends "base.html" %}
-{% block title %}Все поездки{% endblock %}
+{% block title %}История поездок{% endblock %}
 {% block page %}trips{% endblock %}
 {% block content %}
 <main class="page-shell app-page">
-  <header class="page-heading"><h1>Поездки</h1></header>
+  <header class="page-heading search-page-heading">
+    <p>Профиль · поездки</p>
+    <h1>История</h1>
+  </header>
+  <form class="search-bar" method="get" action="{{ url_for('main.trips') }}">
+    <label for="trip-date">Найти поездки по дате</label>
+    <div><input id="trip-date" type="date" name="date" value="{{ selected_date }}"><button type="submit">Найти</button></div>
+  </form>
+  {% if selected_date %}
+    <div class="search-summary"><span>{{ trips|length }} найдено · {{ selected_date }}</span><a href="{{ url_for('main.trips') }}">Сбросить</a></div>
+  {% endif %}
   {% if trips %}
     <div class="journey-list">
-      {% for trip in trips %}
-        <article class="journey-card">
-          <time>{{ trip.departed_at.strftime('%d.%m.%Y') }}</time>
-          <div class="journey-route"><strong>{{ trip.origin.name }}</strong><span>→</span><strong>{{ trip.destination.name }}</strong></div>
-          <div class="journey-meta">
-            <span>{{ trip.departed_at.strftime('%H:%M') }}–{{ trip.arrived_at.strftime('%H:%M') }}</span>
-            <span>{{ transport_labels.get(trip.transport_type, 'Другое') }}{% if trip.transport_detail %} · {{ trip.transport_detail }}{% endif %}</span>
-            {% set recorded_cost = trip.cost if trip.cost is not none else trip.taxi_cost %}
-            {% if recorded_cost is not none %}<span>{{ '%.0f'|format(recorded_cost) }} ₽{% if trip.taxi_tariff %} · {{ trip.taxi_tariff }}{% endif %}</span>{% endif %}
-          </div>
-          <b>{{ trip.duration_minutes }} <small>мин</small></b>
-          <form class="trip-delete-form" action="{{ url_for('main.delete_trip', trip_id=trip.id) }}" method="post" data-confirm="Удалить эту поездку из активной базы? Срок очистки резервных копий указан в политике обработки данных.">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" aria-label="Удалить поездку">Удалить</button>
-          </form>
-        </article>
-      {% endfor %}
+      {% for trip in trips %}{% with allow_delete=true %}{% include "partials/trip_card.html" %}{% endwith %}{% endfor %}
     </div>
-    <form class="delete-history-form" action="{{ url_for('main.delete_all_trips') }}" method="post" data-confirm="Удалить всю историю из активной базы? Срок очистки резервных копий указан в политике обработки данных.">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" name="confirm_delete" value="1">Удалить всю историю</button>
-    </form>
+    {% if not selected_date %}
+      <form class="delete-history-form" action="{{ url_for('main.delete_all_trips') }}" method="post" data-confirm="Удалить всю историю из активной базы? Срок очистки резервных копий указан в политике обработки данных.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" name="confirm_delete" value="1">Удалить всю историю</button>
+      </form>
+    {% endif %}
   {% else %}
-    <div class="quiet-empty"><p>Поездок пока нет.</p><a href="{{ url_for('main.index') }}">Записать первую</a></div>
+    <div class="quiet-empty"><p>{{ 'В эту дату поездок нет.' if selected_date else 'Поездок пока нет.' }}</p>{% if selected_date %}<a href="{{ url_for('main.trips') }}">Показать всю историю</a>{% else %}<a href="{{ url_for('main.index') }}">Записать первую</a>{% endif %}</div>
   {% endif %}
 </main>
 {% endblock %}

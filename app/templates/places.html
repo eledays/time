@@ -3,9 +3,15 @@
 {% block page %}places{% endblock %}
 {% block content %}
 <main class="page-shell app-page">
-  <header class="page-heading"><h1>Места</h1></header>
+  <header class="page-heading search-page-heading"><p>Профиль · места</p><h1>Места</h1></header>
 
-  <details class="place-editor new-place">
+  <form class="search-bar place-search" method="get" action="{{ url_for('main.places') }}">
+    <label for="place-query">Найти место</label>
+    <div><input id="place-query" type="search" name="q" value="{{ query }}" maxlength="{{ config.MAX_TEXT_LENGTH }}" placeholder="Название"><button type="submit">Найти</button></div>
+  </form>
+  {% if query %}<div class="search-summary"><span>{{ places|length }} найдено</span><a href="{{ url_for('main.places') }}">Сбросить</a></div>{% endif %}
+
+  <details class="place-editor new-place" {% if not places and not query %}open{% endif %}>
     <summary>＋ Добавить</summary>
     <form action="{{ url_for('main.create_place') }}" method="post" class="place-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -16,7 +22,7 @@
 
   <div class="places-list">
     {% for place in places %}
-      <details class="place-editor">
+      <details class="place-editor" id="place-{{ place.id }}">
         <summary><i style="--marker: {{ place.marker_color }}"></i><span>{{ place.name }}{% if place.description %}<small>{{ place.description }}</small>{% endif %}</span><b>›</b></summary>
         <form action="{{ url_for('main.update_place', place_id=place.id) }}" method="post" class="place-form">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -25,6 +31,7 @@
         </form>
       </details>
     {% endfor %}
+    {% if not places and query %}<div class="quiet-empty"><p>Мест с таким названием нет.</p><a href="{{ url_for('main.places') }}">Показать все места</a></div>{% endif %}
   </div>
 </main>
   <dialog class="map-dialog" data-map-dialog>

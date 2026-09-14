@@ -38,13 +38,11 @@
         {% set items = [
           ('main.index', 'add_circle', 'Запись'),
           ('main.calculate', 'route', 'Расчёт'),
-          ('main.trips', 'history', 'Поездки'),
-          ('main.places', 'location_on', 'Места'),
           ('main.map_view', 'map', 'Карта'),
           ('main.profile', 'person', 'Профиль')
         ] %}
         {% for endpoint, icon, label in items %}
-          {% set item_active = request.endpoint == endpoint or (endpoint == 'main.calculate' and request.endpoint == 'main.calculate_result') %}
+          {% set item_active = request.endpoint == endpoint or (endpoint == 'main.calculate' and request.endpoint == 'main.calculate_result') or (endpoint == 'main.profile' and request.endpoint in ['main.trips', 'main.places']) %}
           <a class="bottom-nav-item {{ 'active' if item_active }}" href="{{ url_for(endpoint) }}" {% if item_active %}aria-current="page"{% endif %}>
             <span class="material-symbols-rounded" aria-hidden="true">{{ icon }}</span><small>{{ label }}</small>
           </a>
