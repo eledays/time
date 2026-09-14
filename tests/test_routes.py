@@ -833,26 +833,27 @@ def test_route_result_is_a_separate_page_with_geo_summary(
 
     form_page = auth_client.get("/calculate")
     assert 'action="/calculate/result"' in form_page.text
-    assert 'name="points"' in form_page.text
+    assert 'name="origin"' in form_page.text
+    assert 'name="destination"' in form_page.text
+    assert "Добавить точку" not in form_page.text
 
-    response = auth_client.get("/calculate/result?points=Дом&points=Офис")
+    response = auth_client.get("/calculate/result?origin=Дом&destination=Офис")
     assert response.status_code == 200
     assert "data-route-canvas" in response.text
-    assert "ХОД · МОЙ МАРШРУТ" not in response.text
-    assert "Изменить маршрут" not in response.text
+    assert "data-route-carousel" in response.text
+    assert "Вариант 1" in response.text
     assert "Пешком" in response.text
     assert "км/ч" in response.text
     assert "Путь рассчитан как сумма расстояний" in response.text
-    assert "Схема построена по порядку точек" not in response.text
 
 
-def test_route_result_falls_back_to_schematic_track(auth_client) -> None:
-    """Маршрут без координат всё равно получает подписанную схему."""
+def test_route_result_explains_when_history_has_no_path(auth_client) -> None:
+    """Расчёт без записанного пути предлагает пополнить историю."""
 
-    response = auth_client.get("/calculate/result?points=А&points=Б")
+    response = auth_client.get("/calculate/result?origin=А&destination=Б")
     assert response.status_code == 200
-    assert "Сейчас схема передаёт порядок остановок" in response.text
-    assert "Пока нет записанных поездок" in response.text
+    assert "Знакомых путей пока нет" in response.text
+    assert "Записать поездку" in response.text
 
 
 def test_csrf_is_required(auth_client) -> None:

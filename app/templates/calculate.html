@@ -1,19 +1,36 @@
 {% extends "base.html" %}
-{% block title %}Посчитать маршрут{% endblock %}
+{% block title %}Рассчитать маршрут{% endblock %}
 {% block page %}calculate{% endblock %}
 {% block content %}
 <main class="page-shell calculate-page">
   <section class="calculator-head">
-    <h1>Сколько ехать?</h1>
+    <p class="eyebrow">По вашей истории</p>
+    <h1>Как добраться?</h1>
+    <p class="calculator-lede">Выберите только начало и конец. Мы найдём знакомые прямые и составные пути.</p>
   </section>
   <section class="calculator-grid">
-    <form class="route-builder" data-calculator method="get" action="{{ url_for('main.calculate_result') }}">
-      <div class="points" data-points>
-        <div class="point-row autocomplete"><span class="point-index">01</span><input name="points" type="text" maxlength="{{ config.MAX_TEXT_LENGTH }}" placeholder="Откуда" autocomplete="off" required data-place-input><div class="suggestions" role="listbox"></div><button type="button" class="remove-point" aria-label="Удалить точку">×</button></div>
-        <div class="point-row autocomplete"><span class="point-index">02</span><input name="points" type="text" maxlength="{{ config.MAX_TEXT_LENGTH }}" placeholder="Куда" autocomplete="off" required data-place-input><div class="suggestions" role="listbox"></div><button type="button" class="remove-point" aria-label="Удалить точку">×</button></div>
+    <form class="route-builder" method="get" action="{{ url_for('main.calculate_result') }}">
+      <div class="route-endpoints">
+        <div class="point-row autocomplete">
+          <span class="endpoint-dot" aria-hidden="true"></span>
+          <div class="endpoint-field">
+            <label for="route-origin">Откуда</label>
+            <input id="route-origin" name="origin" type="text" maxlength="{{ config.MAX_TEXT_LENGTH }}" placeholder="Дом" autocomplete="off" required data-place-input>
+            <div class="suggestions" role="listbox"></div>
+          </div>
+        </div>
+        <div class="endpoint-connector" aria-hidden="true"></div>
+        <div class="point-row autocomplete">
+          <span class="endpoint-dot endpoint-dot-finish" aria-hidden="true"></span>
+          <div class="endpoint-field">
+            <label for="route-destination">Куда</label>
+            <input id="route-destination" name="destination" type="text" maxlength="{{ config.MAX_TEXT_LENGTH }}" placeholder="Работа" autocomplete="off" required data-place-input>
+            <div class="suggestions" role="listbox"></div>
+          </div>
+        </div>
       </div>
-      <button type="button" class="add-point" data-add-point data-max-points="{{ config.MAX_ROUTE_POINTS }}"><span>+</span> Добавить точку</button>
-      <button type="submit" class="primary-button calculate-button">Посчитать</button>
+      <p class="route-limit-note">До {{ config.MAX_ROUTE_INTERMEDIATE_POINTS }} промежуточных мест · до {{ config.MAX_ROUTE_VARIANTS }} вариантов</p>
+      <button type="submit" class="primary-button calculate-button">Найти варианты</button>
     </form>
   </section>
 </main>

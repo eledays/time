@@ -330,49 +330,9 @@ if (tripForm) {
   updateDetails();
 }
 
-const calculator = document.querySelector("[data-calculator]");
-if (calculator) {
-  const points = calculator.querySelector("[data-points]");
-  const addPointButton = calculator.querySelector("[data-add-point]");
-
-  const renumber = () => {
-    points.querySelectorAll(".point-row").forEach((row, index) => {
-      row.querySelector(".point-index").textContent = String(index + 1).padStart(2, "0");
-      row.querySelector(".remove-point").hidden = points.children.length <= 2;
-    });
-    addPointButton.hidden = points.children.length >= Number(addPointButton.dataset.maxPoints);
-  };
-
-  const bindRemove = (row) => {
-    row.querySelector(".remove-point").addEventListener("click", () => {
-      if (points.children.length > 2) {
-        row.remove();
-        renumber();
-      }
-    });
-  };
-
-  points.querySelectorAll(".point-row").forEach(bindRemove);
-  renumber();
-
-  addPointButton.addEventListener("click", () => {
-    if (points.children.length >= Number(addPointButton.dataset.maxPoints)) return;
-    const row = document.createElement("div");
-    row.className = "point-row autocomplete";
-    const maxLength = points.querySelector("input").maxLength;
-    row.innerHTML = `<span class="point-index"></span><input name="points" type="text" maxlength="${maxLength}" placeholder="Следующая точка" autocomplete="off" required data-place-input><div class="suggestions" role="listbox"></div><button type="button" class="remove-point" aria-label="Удалить точку">×</button>`;
-    points.append(row);
-    initializeAutocomplete(row.querySelector("input"));
-    bindRemove(row);
-    renumber();
-    row.querySelector("input").focus();
-  });
-
-}
-
-const routeCanvas = document.querySelector("[data-route-canvas]");
-if (routeCanvas) {
-  const trackData = JSON.parse(document.querySelector("[data-route-track]").textContent);
+document.querySelectorAll("[data-route-canvas]").forEach((routeCanvas) => {
+  const trackWrap = routeCanvas.closest("[data-route-track-wrap]");
+  const trackData = JSON.parse(trackWrap.querySelector("[data-route-track]").textContent);
   const drawRouteTrack = () => {
     const scale = window.devicePixelRatio || 1;
     const width = routeCanvas.clientWidth;
@@ -433,6 +393,38 @@ if (routeCanvas) {
   };
   drawRouteTrack();
   window.addEventListener("resize", debounce(drawRouteTrack, 100));
+});
+
+const routeCarousel = document.querySelector("[data-route-carousel]");
+if (routeCarousel) {
+  const slides = [...routeCarousel.querySelectorAll("[data-route-slide]")];
+  const viewport = routeCarousel.querySelector("[data-route-slides]");
+  const position = routeCarousel.querySelector("[data-route-position]");
+  const previous = routeCarousel.querySelector("[data-route-previous]");
+  const next = routeCarousel.querySelector("[data-route-next]");
+  let activeIndex = 0;
+
+  const updatePosition = () => {
+    position.textContent = `${activeIndex + 1} / ${slides.length}`;
+    previous.disabled = activeIndex === 0;
+    next.disabled = activeIndex === slides.length - 1;
+  };
+  const showSlide = (index) => {
+    activeIndex = Math.max(0, Math.min(index, slides.length - 1));
+    slides[activeIndex].scrollIntoView({ behavior: "smooth", block: "nearest", inline: "start" });
+    updatePosition();
+  };
+  previous.addEventListener("click", () => showSlide(activeIndex - 1));
+  next.addEventListener("click", () => showSlide(activeIndex + 1));
+  const carouselObserver = new IntersectionObserver((entries) => {
+    const visible = entries.filter((entry) => entry.isIntersecting)
+      .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
+    if (!visible) return;
+    activeIndex = slides.indexOf(visible.target);
+    updatePosition();
+  }, { root: viewport, threshold: [.55, .8] });
+  slides.forEach((slide) => carouselObserver.observe(slide));
+  updatePosition();
 }
 
 function escapeHtml(value) {

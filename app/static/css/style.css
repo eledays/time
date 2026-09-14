@@ -166,35 +166,40 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .suggestion.is-active { background: #292926; color: var(--text); outline: none; }
 .new-place-notice { padding: 13px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.4; }
 
+.eyebrow { margin: 0 0 10px; color: var(--muted); font-size: 10px; letter-spacing: .13em; text-transform: uppercase; }
+.calculator-lede { max-width: 510px; margin: 18px 0 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
 .calculator-grid { display: grid; gap: 46px; margin-top: 48px; }
-.point-row { position: relative; display: grid; grid-template-columns: 28px 1fr 28px; align-items: center; gap: 10px; margin-bottom: 22px; }
-.point-index { color: var(--muted); font-size: 10px; }
-.point-row input { width: 100%; padding: 12px 0; border: 0; border-bottom: 1px solid var(--line); outline: 0; background: transparent; color: var(--text); font-size: 17px; }
-.point-row .suggestions { left: 38px; right: 38px; }
-.remove-point, .add-point { border: 0; background: transparent; color: var(--muted); cursor: pointer; }
-.remove-point { width: 28px; height: 40px; font-size: 20px; }
-.remove-point:hover { color: var(--danger); }
-.add-point { margin: 0 0 30px 36px; padding: 8px 0; }
-.add-point span { margin-right: 8px; color: var(--text); }
-.result-panel { min-height: 220px; padding-top: 32px; border-top: 1px solid var(--line); }
-.result-placeholder { min-height: 160px; display: grid; place-content: center; text-align: center; color: var(--muted); }
-.result-placeholder p { margin: 0; font-size: 12px; }
-.result-summary { display: flex; align-items: flex-start; justify-content: space-between; padding-bottom: 26px; border-bottom: 1px solid var(--line); }
-.result-summary p { margin: 0 0 6px; color: var(--muted); font-size: 11px; }
-.result-summary strong { font-size: 42px; letter-spacing: -.04em; }
-.result-summary small, .confidence { color: var(--muted); font-size: 11px; }
-.segment { display: grid; grid-template-columns: 1fr auto; gap: 16px; padding: 19px 0; border-bottom: 1px solid var(--line); }
-.segment h3 { margin: 0 0 6px; font-size: 14px; font-weight: 560; }
-.segment h3 span { color: var(--muted); }
-.segment p { margin: 0; color: var(--muted); font-size: 11px; }
-.segment strong { font-size: 15px; }
-.segment.unknown strong { color: var(--danger); font-size: 11px; }
+.route-endpoints { position: relative; padding: 8px 18px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
+.point-row { position: relative; display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: 13px; }
+.endpoint-dot { z-index: 1; width: 11px; height: 11px; border: 2px solid var(--text); border-radius: 50%; background: var(--surface); }
+.endpoint-dot-finish { background: var(--text); }
+.endpoint-connector { width: 1px; height: 22px; margin: -7px 0 -7px 5px; background: var(--faint); }
+.endpoint-field { position: relative; min-width: 0; padding: 13px 0 14px; }
+.endpoint-field label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 10px; }
+.point-row input { width: 100%; padding: 0; border: 0; outline: 0; background: transparent; color: var(--text); font-size: 18px; }
+.point-row .suggestions { top: calc(100% - 5px); left: 0; right: 0; }
+.route-limit-note { margin: 14px 2px 28px; color: var(--faint); font-size: 10px; }
 
-.route-result-page { width: min(100%, 760px); margin: auto; }
+.route-search-page { width: min(100%, 760px); margin: auto; padding: max(32px, env(safe-area-inset-top)) 0 44px; }
+.route-search-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; padding: 0 20px 24px; }
+.route-search-head h1 { font-size: clamp(35px, 9vw, 50px); }
+.compact-action { flex: none; padding: 10px 0; color: var(--muted); font-size: 11px; }
+.compact-action:hover { color: var(--text); }
+.route-carousel-shell { position: relative; }
+.route-carousel-toolbar { display: flex; align-items: center; justify-content: center; gap: 16px; margin: 0 20px 12px; }
+.route-carousel-toolbar button { width: 42px; height: 36px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text); cursor: pointer; }
+.route-carousel-toolbar button:disabled { color: var(--faint); opacity: .45; cursor: default; }
+.route-carousel-toolbar span { min-width: 58px; color: var(--muted); font-size: 11px; text-align: center; }
+.route-carousel { display: flex; overflow-x: auto; overscroll-behavior-inline: contain; scroll-behavior: smooth; scrollbar-width: none; scroll-snap-type: x mandatory; }
+.route-carousel::-webkit-scrollbar { display: none; }
+.route-variant { min-width: 100%; scroll-snap-align: start; scroll-snap-stop: always; }
+.variant-kicker { position: relative; z-index: 1; display: flex; justify-content: space-between; color: var(--muted); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; }
 .route-portrait { position: relative; overflow: hidden; padding: max(28px, env(safe-area-inset-top)) 20px 34px; background: #090909; }
 .route-portrait::before { position: absolute; inset: 0; opacity: .18; pointer-events: none; content: ""; background-image: radial-gradient(circle at 1px 1px, #777 1px, transparent 0); background-size: 28px 28px; mask-image: linear-gradient(to bottom, #000, transparent 75%); }
-.route-portrait h1 { position: relative; z-index: 1; max-width: 620px; margin-top: 24px; overflow-wrap: anywhere; font-size: clamp(40px, 11vw, 72px); }
-.route-portrait h1 span { color: var(--muted); }
+.route-portrait h2 { position: relative; z-index: 1; max-width: 620px; margin: 22px 0 0; overflow-wrap: anywhere; font-size: clamp(38px, 10vw, 66px); line-height: 1.02; letter-spacing: -.055em; font-weight: 560; }
+.route-portrait h2 span { color: var(--muted); }
+.route-chain { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 5px 7px; margin-top: 18px; color: var(--muted); font-size: 10px; }
+.route-chain i { color: var(--faint); font-style: normal; }
 .track-stage { position: relative; height: 250px; margin: 10px -20px 0; }
 .track-stage canvas { width: 100%; height: 100%; display: block; }
 .route-details { padding: 26px 20px 64px; }
@@ -209,8 +214,8 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .segment-marker { display: flex; flex-direction: column; align-items: center; gap: 7px; padding-top: 3px; color: var(--muted); font-size: 9px; }
 .segment-marker i { width: 11px; height: 11px; border: 2px solid var(--text); border-radius: 50%; }
 .route-segment.is-unknown .segment-marker i { border-color: var(--faint); }
-.segment-copy h2 { margin: 0; font-size: 17px; font-weight: 560; letter-spacing: -.025em; }
-.segment-copy h2 span { color: var(--muted); }
+.segment-copy h3 { margin: 0; font-size: 17px; font-weight: 560; letter-spacing: -.025em; }
+.segment-copy h3 span { color: var(--muted); }
 .segment-copy > p { margin: 7px 0 19px; color: var(--muted); font-size: 11px; }
 .segment-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .segment-metrics span { color: var(--muted); font-size: 9px; }
@@ -219,6 +224,11 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .route-segment.is-unknown .segment-copy > p, .route-segment.is-unknown .segment-metrics b { color: var(--faint); }
 .route-method-note { margin-top: 42px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--faint); font-size: 10px; line-height: 1.55; }
 .route-method-note p { margin: 0 0 7px; }
+.route-empty { display: grid; justify-items: start; margin: 24px 20px; padding: 34px 28px; border: 1px solid var(--line); border-radius: 22px; background: var(--surface); }
+.route-empty > .material-symbols-rounded { margin-bottom: 34px; color: var(--muted); font-size: 34px; }
+.route-empty h2 { margin: 0; font-size: 27px; letter-spacing: -.04em; }
+.route-empty p { max-width: 500px; margin: 14px 0 28px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.search-limit-warning { margin: 18px 20px 0; color: var(--faint); font-size: 10px; text-align: center; }
 
 .journey-list { display: grid; gap: 12px; }
 .journey-card { position: relative; min-height: 132px; padding: 24px 66px 24px 22px; border: 1px solid var(--line); border-radius: 20px; }
