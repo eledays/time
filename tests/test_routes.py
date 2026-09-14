@@ -37,6 +37,10 @@ def test_home_is_available_without_login(client) -> None:
     assert '<meta name="apple-mobile-web-app-capable" content="yes">' in response.text
     assert response.headers["X-Content-Type-Options"] == "nosniff"
     assert response.headers["Content-Security-Policy"].startswith("default-src 'self'")
+    assert (
+        "form-action 'self' https://oauth.yandex.ru"
+        in response.headers["Content-Security-Policy"]
+    )
     assert response.headers["Cross-Origin-Opener-Policy"] == "same-origin"
 
 

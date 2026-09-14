@@ -107,7 +107,7 @@ def create_app(config_object: Config | type[Config] = Config) -> Flask:
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: https://server.arcgisonline.com; "
             "connect-src 'self'; object-src 'none'; base-uri 'self'; "
-            "form-action 'self'; frame-ancestors 'none'",
+            "form-action 'self' https://oauth.yandex.ru; frame-ancestors 'none'",
         )
         if app.config["SESSION_COOKIE_SECURE"]:
             response.headers.setdefault(
