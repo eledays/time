@@ -859,12 +859,25 @@ def test_route_result_is_a_separate_page_with_geo_summary(
     assert 'name="origin"' in form_page.text
     assert 'name="destination"' in form_page.text
     assert "Добавить точку" not in form_page.text
+    assert "По вашей истории" not in form_page.text
+    assert "Выберите только начало и конец" not in form_page.text
+    assert "промежуточных мест" not in form_page.text
+    assert 'id="route-origin" name="origin" type="text"' in form_page.text
+    assert (
+        'id="route-origin" name="origin" type="text" maxlength="200" placeholder='
+        not in form_page.text
+    )
+    assert ">Рассчитать</button>" in form_page.text
+    assert "Найти варианты" not in form_page.text
 
     response = auth_client.get("/calculate/result?origin=Дом&destination=Офис")
     assert response.status_code == 200
     assert "data-route-canvas" in response.text
     assert "data-route-carousel" in response.text
     assert "Вариант 1" in response.text
+    assert "chevron_left" in response.text
+    assert "chevron_right" in response.text
+    assert "→" not in response.text
     assert "Пешком" in response.text
     assert "км/ч" in response.text
     assert "Путь рассчитан как сумма расстояний" in response.text
@@ -1086,6 +1099,14 @@ def test_profile_links_to_history_and_place_searches(
     assert "avatar-fallback" not in profile.text
     assert "08:00–08:30" not in profile.text
     assert profile.text.count('class="profile-action-row"') == 4
+    assert "›" not in profile.text
+    assert profile.text.count(">chevron_right</span>") >= 6
+    styles = auth_client.get("/static/css/style.css").text
+    assert ".profile-account { overflow: hidden; padding-bottom: 0; }" in styles
+    assert (
+        ".profile-delete-account:not([open]) > summary { border-bottom: 0; }" in styles
+    )
+    assert ".endpoint-field input:focus + label" in styles
 
     dated = auth_client.get("/trips?date=2026-09-03")
     assert dated.status_code == 200

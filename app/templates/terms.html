@@ -3,7 +3,7 @@
 {% block page %}legal{% endblock %}
 {% block content %}
 <main class="legal-page">
-  <nav class="legal-back"><a href="{{ url_for('main.index') }}">← На главную</a></nav>
+  <nav class="legal-back"><a href="{{ url_for('main.index') }}"><span class="material-symbols-rounded ui-chevron" aria-hidden="true">chevron_left</span>На главную</a></nav>
   <article class="legal-document">
     <header>
       <p>Версия {{ config.LEGAL_DOCUMENT_VERSION }}{% if config.LEGAL_EFFECTIVE_DATE %} · действует с {{ config.LEGAL_EFFECTIVE_DATE.strftime('%d.%m.%Y') }}{% endif %}</p>

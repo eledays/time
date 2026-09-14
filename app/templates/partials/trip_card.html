@@ -1,6 +1,6 @@
 <article class="journey-card">
   <time>{{ trip.departed_at.strftime('%d.%m.%Y') }}</time>
-  <div class="journey-route"><strong>{{ trip.origin.name }}</strong><span>→</span><strong>{{ trip.destination.name }}</strong></div>
+  <div class="journey-route"><strong>{{ trip.origin.name }}</strong><span class="material-symbols-rounded route-arrow" aria-hidden="true">chevron_right</span><strong>{{ trip.destination.name }}</strong></div>
   <div class="journey-meta">
     <span>{{ trip.departed_at.strftime('%H:%M') }}–{{ trip.arrived_at.strftime('%H:%M') }}</span>
     <span>{{ transport_labels.get(trip.transport_type, 'Другое') }}{% if trip.transport_detail %} · {{ trip.transport_detail }}{% endif %}</span>

@@ -5,7 +5,7 @@
 <main class="route-search-page">
   <header class="route-search-head">
     <div>
-      <p class="eyebrow">{{ route_search.origin }} → {{ route_search.destination }}</p>
+      <p class="eyebrow route-heading-path">{{ route_search.origin }} <span class="material-symbols-rounded route-arrow" aria-hidden="true">chevron_right</span> {{ route_search.destination }}</p>
       <h1>Варианты</h1>
     </div>
     <a href="{{ url_for('main.calculate') }}" class="compact-action">Новый расчёт</a>
@@ -14,18 +14,18 @@
   {% if route_search.variants %}
     <section class="route-carousel-shell" data-route-carousel aria-label="Найденные варианты маршрута">
       <div class="route-carousel-toolbar">
-        <button type="button" data-route-previous aria-label="Предыдущий вариант">←</button>
+        <button type="button" data-route-previous aria-label="Предыдущий вариант"><span class="material-symbols-rounded" aria-hidden="true">chevron_left</span></button>
         <span data-route-position>1 / {{ route_search.variants|length }}</span>
-        <button type="button" data-route-next aria-label="Следующий вариант">→</button>
+        <button type="button" data-route-next aria-label="Следующий вариант"><span class="material-symbols-rounded" aria-hidden="true">chevron_right</span></button>
       </div>
       <div class="route-carousel" data-route-slides>
         {% for result in route_search.variants %}
           <article class="route-variant" data-route-slide aria-label="Вариант {{ loop.index }} из {{ route_search.variants|length }}">
             <section class="route-portrait" aria-labelledby="route-title-{{ loop.index }}">
               <div class="variant-kicker"><span>Вариант {{ loop.index }}</span><span>{{ result.segments|length }} {{ 'отрезок' if result.segments|length == 1 else 'отрезка' if result.segments|length < 5 else 'отрезков' }}</span></div>
-              <h2 id="route-title-{{ loop.index }}">{{ result.points[0].name }}<br><span>→ {{ result.points[-1].name }}</span></h2>
+              <h2 id="route-title-{{ loop.index }}">{{ result.points[0].name }}<br><span><span class="material-symbols-rounded route-arrow" aria-hidden="true">chevron_right</span> {{ result.points[-1].name }}</span></h2>
               <div class="route-chain" aria-label="Порядок мест">
-                {% for point in result.points %}<span>{{ point.name }}</span>{% if not loop.last %}<i>→</i>{% endif %}{% endfor %}
+                {% for point in result.points %}<span>{{ point.name }}</span>{% if not loop.last %}<span class="material-symbols-rounded route-arrow" aria-hidden="true">chevron_right</span>{% endif %}{% endfor %}
               </div>
               <div class="track-stage" data-route-track-wrap>
                 <canvas data-route-canvas aria-label="Схема варианта маршрута"></canvas>
@@ -45,7 +45,7 @@
                   <article class="route-segment">
                     <div class="segment-marker"><i></i><span>{{ '%02d' | format(loop.index) }}</span></div>
                     <div class="segment-copy">
-                      <h3>{{ segment.from }} <span>→</span> {{ segment.to }}</h3>
+                      <h3>{{ segment.from }} <span class="material-symbols-rounded route-arrow" aria-hidden="true">chevron_right</span> {{ segment.to }}</h3>
                       <p>{{ segment.transport }}{% if segment.transport_detail %} · {{ segment.transport_detail }}{% endif %} · {{ segment.samples }} наблюд.</p>
                       <div class="segment-metrics">
                         <span><b>{{ segment.minutes }}</b> мин</span>

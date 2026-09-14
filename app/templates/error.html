@@ -1,3 +1,3 @@
 {% extends "base.html" %}
 {% block title %}Ошибка {{ code }}{% endblock %}
-{% block content %}<main class="error-page"><p>{{ code }}</p><h1>{{ message }}</h1><a href="{{ url_for('main.index') }}">Вернуться на главную →</a></main>{% endblock %}
+{% block content %}<main class="error-page"><p>{{ code }}</p><h1>{{ message }}</h1><a href="{{ url_for('main.index') }}">Вернуться на главную<span class="material-symbols-rounded ui-chevron" aria-hidden="true">chevron_right</span></a></main>{% endblock %}

@@ -23,7 +23,7 @@
   <div class="places-list">
     {% for place in places %}
       <details class="place-editor" id="place-{{ place.id }}">
-        <summary><i style="--marker: {{ place.marker_color }}"></i><span>{{ place.name }}{% if place.description %}<small>{{ place.description }}</small>{% endif %}</span><b>›</b></summary>
+        <summary><i style="--marker: {{ place.marker_color }}"></i><span>{{ place.name }}{% if place.description %}<small>{{ place.description }}</small>{% endif %}</span><span class="material-symbols-rounded ui-chevron" aria-hidden="true">chevron_right</span></summary>
         <form action="{{ url_for('main.update_place', place_id=place.id) }}" method="post" class="place-form">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           {% with current=place %}{% include "partials/place_fields.html" %}{% endwith %}
