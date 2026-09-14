@@ -993,6 +993,15 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     assert "new ol.Map" in map_script.text
     assert "tile.openstreetmap.org" not in map_script.text
     assert 'feature?.get("placeId")' in map_script.text
+    map_styles = auth_client.get("/static/css/style.css").text
+    assert (
+        'body[data-page="map"] { overflow: hidden; padding-bottom: 0; }' in map_styles
+    )
+    assert (
+        ".map-page { position: fixed; inset: 0; width: 100%; height: 100dvh"
+        in map_styles
+    )
+    assert ".map-page .ol-attribution" in map_styles
 
 
 def test_map_separates_places_without_coordinates_and_updates_in_place(
