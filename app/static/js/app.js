@@ -112,7 +112,7 @@ if (startForm) {
     window.setTimeout(() => {
       transitionStarted = true;
       startForm.requestSubmit();
-    }, 420);
+    }, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 540);
   });
 }
 
@@ -335,6 +335,20 @@ if (tripForm) {
     });
   });
   updateDetails();
+
+  let completionStarted = false;
+  tripForm.addEventListener("submit", (event) => {
+    if (completionStarted || !tripForm.checkValidity()) return;
+    event.preventDefault();
+    completionStarted = true;
+    const layout = tripForm.closest(".record-layout");
+    layout?.classList.add("is-completing");
+    layout?.setAttribute("aria-busy", "true");
+    tripForm.querySelector('[type="submit"]').disabled = true;
+    window.setTimeout(() => {
+      tripForm.requestSubmit();
+    }, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 620);
+  });
 }
 
 document.querySelectorAll("[data-route-canvas]").forEach((routeCanvas) => {
@@ -415,6 +429,9 @@ if (routeCarousel) {
     position.textContent = `${activeIndex + 1} / ${slides.length}`;
     previous.disabled = activeIndex === 0;
     next.disabled = activeIndex === slides.length - 1;
+    slides.forEach((slide, index) => {
+      slide.classList.toggle("is-active", index === activeIndex);
+    });
   };
   const showSlide = (index) => {
     activeIndex = Math.max(0, Math.min(index, slides.length - 1));
