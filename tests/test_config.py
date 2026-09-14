@@ -165,6 +165,19 @@ def test_environment_variable_aliases_are_supported() -> None:
         APP_ENV="testing",
         SECRET_KEY="test-secret",
         MAX_ROUTE_POINTS="12",
+        MAX_ROUTE_INTERMEDIATE_POINTS="3",
+        MAX_ROUTE_VARIANTS="9",
     )
     assert settings.environment == "testing"
     assert settings.max_route_points == 12
+    assert settings.max_route_intermediate_points == 3
+    assert settings.max_route_variants == 9
+
+
+def test_route_search_limits_are_bounded() -> None:
+    """Глубина и объём выдачи не могут отключить защиту поиска."""
+
+    with pytest.raises(ValidationError, match="MAX_ROUTE_INTERMEDIATE_POINTS"):
+        Config(_env_file=None, MAX_ROUTE_INTERMEDIATE_POINTS="11")
+    with pytest.raises(ValidationError, match="MAX_ROUTE_VARIANTS"):
+        Config(_env_file=None, MAX_ROUTE_VARIANTS="1000")

@@ -702,9 +702,7 @@ def test_route_search_finds_and_merges_history_variants(
     assert len(variants) == 2
     assert [variant["total_minutes"] for variant in variants] == [26, 28]
     direct = variants[0]
-    assert [segment["transport"] for segment in direct["segments"]] == [
-        "Велосипед"
-    ]
+    assert [segment["transport"] for segment in direct["segments"]] == ["Велосипед"]
     assert direct["segments"][0]["samples"] == 2
     assert direct["segments"][0]["min_minutes"] == 24
     assert direct["segments"][0]["max_minutes"] == 28
@@ -726,11 +724,16 @@ def test_route_search_respects_intermediate_and_variant_limits(
     app.config["MAX_ROUTE_VARIANTS"] = 1
     with app.app_context():
         points = {
-            name: get_or_create_place(user.id, name)
-            for name in ("A", "B", "C", "D")
+            name: get_or_create_place(user.id, name) for name in ("A", "B", "C", "D")
         }
         db.session.flush()
-        for start, finish in (("A", "D"), ("A", "B"), ("B", "D"), ("A", "C"), ("C", "D")):
+        for start, finish in (
+            ("A", "D"),
+            ("A", "B"),
+            ("B", "D"),
+            ("A", "C"),
+            ("C", "D"),
+        ):
             db.session.add(
                 Trip(
                     user_id=user.id,

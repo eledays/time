@@ -256,9 +256,7 @@ def calculate_route_variants(
             "transport_key": transport_type,
             "transport": TRANSPORT_LABELS.get(transport_type, "Другое"),
             "transport_detail": details[0][0] if details else None,
-            "distance_km": round(distance_km, 1)
-            if distance_km is not None
-            else None,
+            "distance_km": round(distance_km, 1) if distance_km is not None else None,
             "speed_kmh": round(distance_km / (average / 60), 1)
             if distance_km is not None and average > 0
             else None,
@@ -301,8 +299,7 @@ def calculate_route_variants(
     unique: dict[tuple[tuple[int, int, str], ...], list[dict[str, Any]]] = {}
     for path in found:
         signature = tuple(
-            (edge["from_id"], edge["to_id"], edge["transport_key"])
-            for edge in path
+            (edge["from_id"], edge["to_id"], edge["transport_key"]) for edge in path
         )
         unique.setdefault(signature, path)
 
@@ -316,7 +313,9 @@ def calculate_route_variants(
         )
     )
     response["variants"] = variants[:max_variants]
-    response["search_truncated"] = response["search_truncated"] or len(variants) > max_variants
+    response["search_truncated"] = (
+        response["search_truncated"] or len(variants) > max_variants
+    )
     return response
 
 
@@ -340,9 +339,7 @@ def _route_variant(
         for point in points
     )
     total_distance_km = (
-        round(sum(edge["distance_km"] for edge in path), 1)
-        if has_full_track
-        else None
+        round(sum(edge["distance_km"] for edge in path), 1) if has_full_track else None
     )
     return {
         "points": points,

@@ -284,9 +284,7 @@ def calculate_result():
             g.user.id,
             origin,
             destination,
-            max_intermediate_points=current_app.config[
-                "MAX_ROUTE_INTERMEDIATE_POINTS"
-            ],
+            max_intermediate_points=current_app.config["MAX_ROUTE_INTERMEDIATE_POINTS"],
             max_variants=current_app.config["MAX_ROUTE_VARIANTS"],
         ),
     )
@@ -511,10 +509,7 @@ def profile():
         select(db.func.count(Place.id)).where(Place.user_id == g.user.id)
     )
     place_items = db.session.scalars(
-        select(Place)
-        .where(Place.user_id == g.user.id)
-        .order_by(Place.name)
-        .limit(6)
+        select(Place).where(Place.user_id == g.user.id).order_by(Place.name).limit(6)
     ).all()
     stats = {
         "trips": len(trip_items),
@@ -664,9 +659,7 @@ def calculate_api():
     """Вернуть оценку времени для последовательности точек."""
 
     payload = request.get_json(silent=True) or {}
-    if isinstance(payload, dict) and (
-        "origin" in payload or "destination" in payload
-    ):
+    if isinstance(payload, dict) and ("origin" in payload or "destination" in payload):
         origin = payload.get("origin")
         destination = payload.get("destination")
         if not isinstance(origin, str) or not isinstance(destination, str):

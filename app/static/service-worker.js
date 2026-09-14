@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "time-static-v1";
+const CACHE_NAME = "time-static-v2";
 const OFFLINE_URL = "/static/offline.html";
 const PRECACHE_URLS = [
   OFFLINE_URL,
