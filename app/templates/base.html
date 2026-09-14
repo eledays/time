@@ -22,7 +22,7 @@
     {% block head %}{% endblock %}
     <script defer src="{{ url_for('static', filename='js/app.js') }}"></script>
   </head>
-  <body{% if not g.user and request.endpoint == 'main.index' %} class="login-page"{% endif %} data-page="{% block page %}base{% endblock %}"{% if g.user %} data-timezone="{{ g.user.timezone or '' }}" data-timezone-auto="{{ 'false' if g.user.timezone else 'true' }}" data-csrf-token="{{ csrf_token() }}"{% endif %}>
+  <body{% if not g.user and request.endpoint == 'main.index' %} class="login-page"{% endif %} data-page="{% block page %}base{% endblock %}"{% if g.user %} data-timezone="{{ g.user.timezone or '' }}" data-timezone-auto="{{ 'false' if g.user.timezone else 'true' }}" data-csrf-token="{{ csrf_token() }}"{% endif %}{% if g.get('legal_update_required') %} data-legal-update="true"{% endif %}>
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         <div class="toast-stack" aria-live="polite">
@@ -32,6 +32,18 @@
     {% endwith %}
 
     {% block content %}{% endblock %}
+
+    {% if g.get('legal_update_required') %}
+      <dialog class="legal-update-dialog" data-legal-update-dialog open aria-labelledby="legal-update-title" aria-describedby="legal-update-copy">
+        <p class="legal-update-version">Версия {{ config.LEGAL_DOCUMENT_VERSION }}{% if config.LEGAL_EFFECTIVE_DATE %} · с {{ config.LEGAL_EFFECTIVE_DATE.strftime('%d.%m.%Y') }}{% endif %}</p>
+        <h2 id="legal-update-title">Условия обновлены</h2>
+        <p id="legal-update-copy">Чтобы продолжить пользоваться сервисом, примите новую редакцию <a href="{{ url_for('main.terms') }}">соглашения</a> и <a href="{{ url_for('main.privacy') }}">политики обработки данных</a>.</p>
+        <form action="{{ url_for('main.accept_legal_update') }}" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="primary-button" type="submit">Принять</button>
+        </form>
+      </dialog>
+    {% endif %}
 
     {% if g.user %}
       <nav class="bottom-nav" aria-label="Разделы приложения">

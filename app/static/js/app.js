@@ -1,5 +1,12 @@
 "use strict";
 
+const legalUpdateDialog = document.querySelector("[data-legal-update-dialog]");
+if (legalUpdateDialog) {
+  if (legalUpdateDialog.open) legalUpdateDialog.close();
+  legalUpdateDialog.showModal();
+  legalUpdateDialog.addEventListener("cancel", (event) => event.preventDefault());
+}
+
 const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 const activeTimezone = document.body.dataset.timezone || detectedTimezone;
 

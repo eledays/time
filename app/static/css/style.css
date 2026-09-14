@@ -27,6 +27,7 @@ body {
 body[data-page="legal"] { padding-bottom: 0; }
 body[data-page="legal"] .bottom-nav { display: none; }
 body[data-page="map"] { overflow: hidden; padding-bottom: 0; }
+body[data-legal-update="true"] { overflow: hidden; }
 body.login-page { min-height: 100dvh; overflow: hidden; padding-bottom: 0; background: #000; }
 body.login-page .page-shell { min-height: 100dvh; display: grid; padding: max(22px, env(safe-area-inset-top)) 20px max(22px, env(safe-area-inset-bottom)); }
 button, input, select, textarea { font: inherit; }
@@ -376,6 +377,14 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .legal-document dt { color: var(--faint); font-size: 11px; }
 .legal-document dd { margin: 0; overflow-wrap: anywhere; }
 .legal-warning { margin: -22px 0 48px; padding: 14px 16px; border: 1px solid rgba(255, 123, 114, .3); border-radius: 12px; color: var(--danger); font-size: 11px; line-height: 1.5; }
+.legal-update-dialog { width: min(calc(100% - 32px), 470px); padding: 26px; border: 1px solid var(--line); border-radius: 22px; background: var(--bg); color: var(--text); box-shadow: 0 28px 90px rgba(0, 0, 0, .72); }
+.legal-update-dialog::backdrop { background: rgba(0, 0, 0, .68); backdrop-filter: blur(7px); }
+.legal-update-version { margin: 0 0 28px; color: var(--faint); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; }
+.legal-update-dialog h2 { margin: 0; font-size: clamp(30px, 8vw, 42px); line-height: 1.04; letter-spacing: -.045em; font-weight: 560; }
+.legal-update-dialog > p:not(.legal-update-version) { margin: 16px 0 28px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.legal-update-dialog a { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+.legal-update-underlay { display: grid; gap: 12px; filter: blur(2px); opacity: .28; }
+.legal-update-underlay div { height: 130px; border: 1px solid var(--line); border-radius: 18px; background: var(--bg); }
 
 @media (max-width: 480px) {
   .legal-document dl { grid-template-columns: 1fr; gap: 4px; }

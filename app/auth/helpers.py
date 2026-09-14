@@ -21,14 +21,14 @@ def load_current_user() -> None:
 
 
 def require_current_terms() -> Response | None:
-    """Не продолжать работу до принятия опубликованной версии условий."""
+    """Показать обновление поверх страниц и блокировать изменения до принятия."""
 
     if (
         g.user is None
         or g.user.terms_version == current_app.config["LEGAL_DOCUMENT_VERSION"]
     ):
         return None
-    allowed_endpoints = {
+    always_allowed_endpoints = {
         "auth.delete_account",
         "auth.logout",
         "health",
@@ -41,7 +41,20 @@ def require_current_terms() -> Response | None:
         "readiness",
         "static",
     }
-    if request.endpoint in allowed_endpoints:
+    if request.endpoint in always_allowed_endpoints:
+        return None
+    modal_endpoints = {
+        "main.calculate",
+        "main.calculate_result",
+        "main.index",
+        "main.legal_update",
+        "main.map_view",
+        "main.places",
+        "main.profile",
+        "main.trips",
+    }
+    if request.method in {"GET", "HEAD"} and request.endpoint in modal_endpoints:
+        g.legal_update_required = True
         return None
     return redirect(url_for("main.legal_update"))
 

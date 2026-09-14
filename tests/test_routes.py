@@ -144,14 +144,27 @@ def test_changed_terms_require_explicit_reacceptance(
         db.session.commit()
 
     blocked = auth_client.get("/calculate")
-    assert blocked.status_code == 302
-    assert blocked.headers["Location"].endswith("/legal-update")
+    assert blocked.status_code == 200
+    assert "Как добраться?" in blocked.text
+    assert 'class="legal-update-dialog"' in blocked.text
+    assert "Условия обновлены" in blocked.text
+    assert ">Принять</button>" in blocked.text
+    assert "secondary-button" not in blocked.text
+
+    mutation = auth_client.post(
+        "/api/calculate",
+        json={"origin": "Дом", "destination": "Работа"},
+        headers={"X-CSRF-Token": "test-csrf"},
+    )
+    assert mutation.status_code == 302
+    assert mutation.headers["Location"].endswith("/legal-update")
 
     update = auth_client.get("/legal-update")
     assert update.status_code == 200
     assert "Условия обновлены" in update.text
     assert "/terms" in update.text
     assert "/privacy" in update.text
+    assert ">Выйти</button>" not in update.text
 
     accepted = auth_client.post(
         "/legal-update/accept", data={"csrf_token": "test-csrf"}
