@@ -434,11 +434,20 @@ function escapeHtml(value) {
 }
 
 const ESRI_IMAGERY_TILES = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+const ESRI_STREET_TILES = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}";
 
 const createImageryLayer = () => new ol.layer.Tile({
   source: new ol.source.XYZ({
     url: ESRI_IMAGERY_TILES,
     attributions: "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community",
+    maxZoom: 19,
+  }),
+});
+
+const createStreetLayer = () => new ol.layer.Tile({
+  source: new ol.source.XYZ({
+    url: ESRI_STREET_TILES,
+    attributions: "Tiles © Esri",
     maxZoom: 19,
   }),
 });
@@ -452,6 +461,25 @@ const createPointStyle = (color) => new ol.style.Style({
 });
 
 const initializeOpenLayersMaps = () => {
+  const mapPanel = document.querySelector("[data-map-panel]");
+  const panelOpenButton = document.querySelector("[data-map-panel-open]");
+  const setMapPanelOpen = (open) => {
+    if (!mapPanel || !panelOpenButton) return;
+    mapPanel.classList.toggle("is-open", open);
+    mapPanel.setAttribute("aria-hidden", String(!open));
+    panelOpenButton.setAttribute("aria-expanded", String(open));
+  };
+  const revealPlaceEditor = (placeId) => {
+    const editor = document.getElementById(`map-place-${placeId}`);
+    if (!editor) return;
+    setMapPanelOpen(true);
+    editor.open = true;
+    window.setTimeout(() => editor.scrollIntoView({ behavior: "smooth", block: "nearest" }), 180);
+  };
+  panelOpenButton?.addEventListener("click", () => setMapPanelOpen(true));
+  mapPanel?.querySelector("[data-map-panel-close]")
+    ?.addEventListener("click", () => setMapPanelOpen(false));
+
   const mapDialog = document.querySelector("[data-map-dialog]");
   if (mapDialog) {
     let activeForm = null;
@@ -479,7 +507,7 @@ const initializeOpenLayersMaps = () => {
             pickerMap = new ol.Map({
               target: "coordinate-map",
               layers: [
-                createImageryLayer(),
+                createStreetLayer(),
                 new ol.layer.Vector({
                   source: pickerSource,
                   style: createPointStyle("#191919"),
@@ -535,9 +563,12 @@ const initializeOpenLayersMaps = () => {
       offset: [0, -10],
       stopEvent: false,
     });
+    const streetLayer = createStreetLayer();
+    const imageryLayer = createImageryLayer();
+    imageryLayer.setVisible(false);
     const map = new ol.Map({
       target: journeyMapElement,
-      layers: [createImageryLayer(), new ol.layer.Vector({ source: vectorSource })],
+      layers: [streetLayer, imageryLayer, new ol.layer.Vector({ source: vectorSource })],
       overlays: [popup],
       view: new ol.View({
         center: ol.proj.fromLonLat([37.6184, 55.7512]),
@@ -551,6 +582,7 @@ const initializeOpenLayersMaps = () => {
       pointsById.set(place.id, point);
       const marker = new ol.Feature({
         geometry: new ol.geom.Point(point),
+        placeId: place.id,
         popupHtml: `<strong>${escapeHtml(place.name)}</strong>${place.description ? `<br>${escapeHtml(place.description)}` : ""}`,
       });
       marker.setStyle(createPointStyle(place.color));
@@ -572,10 +604,32 @@ const initializeOpenLayersMaps = () => {
     });
     map.on("singleclick", (event) => {
       const feature = map.forEachFeatureAtPixel(event.pixel, (item) => item);
+      const placeId = feature?.get("placeId");
+      if (placeId) {
+        popupElement.hidden = true;
+        popup.setPosition(undefined);
+        revealPlaceEditor(placeId);
+        return;
+      }
       const popupHtml = feature?.get("popupHtml");
       popupElement.hidden = !popupHtml;
       popupElement.innerHTML = popupHtml || "";
       popup.setPosition(popupHtml ? event.coordinate : undefined);
+    });
+    map.on("pointermove", (event) => {
+      journeyMapElement.style.cursor = map.hasFeatureAtPixel(event.pixel) ? "pointer" : "";
+    });
+    document.querySelectorAll("[data-map-layer]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const useImagery = button.dataset.mapLayer === "imagery";
+        streetLayer.setVisible(!useImagery);
+        imageryLayer.setVisible(useImagery);
+        document.querySelectorAll("[data-map-layer]").forEach((control) => {
+          const active = control === button;
+          control.classList.toggle("active", active);
+          control.setAttribute("aria-pressed", String(active));
+        });
+      });
     });
     if (mapData.places.length === 1) {
       map.getView().setCenter(pointsById.values().next().value);

@@ -3,10 +3,47 @@
 {% block page %}map{% endblock %}
 {% block content %}
 <main class="map-page">
-  <div class="map-heading"><h1>Карта</h1>{% if not map_data.places %}<p>Добавьте координаты в «Местах»</p>{% endif %}</div>
   <div id="journey-map" class="journey-map" aria-label="Карта сохранённых мест"></div>
+  <div class="map-toolbar" aria-label="Настройки карты">
+    <div class="map-layer-switcher">
+      <button type="button" class="active" data-map-layer="street" aria-pressed="true">Схема</button>
+      <button type="button" data-map-layer="imagery" aria-pressed="false">Спутник</button>
+    </div>
+    <button type="button" class="map-places-button" data-map-panel-open aria-expanded="{{ 'true' if not places and unmapped_places else 'false' }}">
+      Места <span>{{ (places|length) + (unmapped_places|length) }}</span>
+    </button>
+  </div>
+
+  <aside class="map-places-panel {{ 'is-open' if not places and unmapped_places }}" data-map-panel aria-label="Редактор мест" aria-hidden="{{ 'false' if not places and unmapped_places else 'true' }}">
+    <header><div><p>Все сохранённые</p><strong>Места</strong></div><button type="button" data-map-panel-close aria-label="Закрыть список">×</button></header>
+    <div class="map-panel-scroll">
+      {% if unmapped_places %}
+        <section class="map-place-group">
+          <div class="map-place-group-head"><h2>Без точки на карте</h2><span>{{ unmapped_places|length }}</span></div>
+          <p>Укажите координаты, чтобы эти места появились на карте.</p>
+          {% for place in unmapped_places %}{% include "partials/map_place_editor.html" %}{% endfor %}
+        </section>
+      {% endif %}
+      {% if places %}
+        <section class="map-place-group">
+          <div class="map-place-group-head"><h2>На карте</h2><span>{{ places|length }}</span></div>
+          {% for place in places %}{% include "partials/map_place_editor.html" %}{% endfor %}
+        </section>
+      {% endif %}
+      {% if not places and not unmapped_places %}
+        <div class="map-panel-empty"><p>Сохранённых мест пока нет.</p><a href="{{ url_for('main.places') }}">Добавить первое место</a></div>
+      {% endif %}
+    </div>
+  </aside>
+
   <script id="map-data" type="application/json">{{ map_data|tojson }}</script>
 </main>
+<dialog class="map-dialog" data-map-dialog>
+  <div class="dialog-head"><strong>Укажите точку</strong><button type="button" data-map-close aria-label="Закрыть">×</button></div>
+  <p class="dialog-hint">Нажмите на нужное место на схеме.</p>
+  <div id="coordinate-map"></div>
+  <button class="primary-button" type="button" data-map-apply>Готово</button>
+</dialog>
 {% endblock %}
 {% block head %}<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.6.1/ol.css" integrity="sha384-Jpg1uvTciFJuHq+90Ly0/2SKRT9yS5OhbIN5FuFoFWji9fc44ok8xxO88CJi8Z5W" crossorigin="anonymous">{% endblock %}
 {% block scripts %}<script src="https://cdn.jsdelivr.net/npm/ol@v10.6.1/dist/ol.js" integrity="sha384-R02sHnzL8yl/uvLZvMsfgBOMBIOOHLpuLNo4dLuWQWFun1sxEWJej+SPwiGxaeGd" crossorigin="anonymous"></script>{% endblock %}

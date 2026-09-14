@@ -408,13 +408,18 @@ def update_place(place_id: int):
     )
     if place is None:
         return render_template("error.html", code=404, message="Место не найдено"), 404
+    return_url = (
+        url_for("main.map_view")
+        if request.form.get("return_to") == "map"
+        else url_for("main.places")
+    )
     name = request.form.get("name", "").strip()
     if not name:
         flash("Название не может быть пустым", "error")
-        return redirect(url_for("main.places"))
+        return redirect(return_url)
     if len(name) > current_app.config["MAX_TEXT_LENGTH"]:
         flash("Название места слишком длинное", "error")
-        return redirect(url_for("main.places"))
+        return redirect(return_url)
     normalized = normalize_place(name)
     duplicate = db.session.scalar(
         select(Place).where(
@@ -425,20 +430,20 @@ def update_place(place_id: int):
     )
     if duplicate:
         flash("Место с таким названием уже существует", "error")
-        return redirect(url_for("main.places"))
+        return redirect(return_url)
     place.name = " ".join(name.split())
     place.normalized_name = normalized
     if not _update_place_fields(place):
         db.session.rollback()
-        return redirect(url_for("main.places"))
+        return redirect(return_url)
     try:
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
         flash("Место с таким названием уже существует", "warning")
-        return redirect(url_for("main.places"))
+        return redirect(return_url)
     flash("Изменения сохранены", "success")
-    return redirect(url_for("main.places"))
+    return redirect(return_url)
 
 
 @bp.get("/map")
@@ -446,13 +451,19 @@ def update_place(place_id: int):
 def map_view():
     """Показать места и поездки с координатами на карте."""
 
-    places = db.session.scalars(
-        select(Place).where(
-            Place.user_id == g.user.id,
-            Place.latitude.is_not(None),
-            Place.longitude.is_not(None),
-        )
+    all_places = db.session.scalars(
+        select(Place).where(Place.user_id == g.user.id).order_by(Place.name)
     ).all()
+    places = [
+        place
+        for place in all_places
+        if place.latitude is not None and place.longitude is not None
+    ]
+    unmapped_places = [
+        place
+        for place in all_places
+        if place.latitude is None or place.longitude is None
+    ]
     trips = db.session.scalars(select(Trip).where(Trip.user_id == g.user.id)).all()
     mapped_ids = {place.id for place in places}
     map_data = {
@@ -477,7 +488,12 @@ def map_view():
             if trip.origin_id in mapped_ids and trip.destination_id in mapped_ids
         ],
     }
-    return render_template("map.html", map_data=map_data)
+    return render_template(
+        "map.html",
+        map_data=map_data,
+        places=places,
+        unmapped_places=unmapped_places,
+    )
 
 
 @bp.get("/profile")

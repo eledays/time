@@ -952,6 +952,7 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
         assert place.latitude == 55.7512
         assert place.description == "У фонтана"
         assert place.marker_color == "#22aa66"
+        mapped_place_id = place.id
 
     places_page = auth_client.get("/places")
     assert 'name="address"' not in places_page.text
@@ -972,11 +973,52 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     assert "cdn.jsdelivr.net/npm/ol@v10.6.1" in map_page.text
     assert "leaflet" not in map_page.text.casefold()
     assert "OpenStreetMap" not in map_page.text
+    assert "<h1>Карта</h1>" not in map_page.text
+    assert 'data-map-layer="street"' in map_page.text
+    assert 'data-map-layer="imagery"' in map_page.text
+    assert f'id="map-place-{mapped_place_id}"' in map_page.text
+    assert 'name="return_to" value="map"' in map_page.text
     map_script = auth_client.get("/static/js/app.js")
     assert "World_Imagery/MapServer/tile" in map_script.text
+    assert "World_Street_Map/MapServer/tile" in map_script.text
     assert "new ol.Map" in map_script.text
-    assert "World_Street_Map" not in map_script.text
     assert "tile.openstreetmap.org" not in map_script.text
+    assert 'feature?.get("placeId")' in map_script.text
+
+
+def test_map_separates_places_without_coordinates_and_updates_in_place(
+    app: Flask, auth_client, user
+) -> None:
+    """Место без метки видно в меню и сохраняется с возвратом на карту."""
+
+    with app.app_context():
+        place = get_or_create_place(user.id, "Без координат")
+        db.session.commit()
+        place_id = place.id
+
+    page = auth_client.get("/map")
+    assert page.status_code == 200
+    assert "Без точки на карте" in page.text
+    assert "Без координат" in page.text
+    assert 'data-map-panel aria-label="Редактор мест" aria-hidden="false"' in page.text
+
+    updated = auth_client.post(
+        f"/places/{place_id}",
+        data={
+            "csrf_token": "test-csrf",
+            "return_to": "map",
+            "name": "Новая точка",
+            "latitude": "55.75",
+            "longitude": "37.61",
+            "marker_color": "#123456",
+        },
+    )
+    assert updated.status_code == 302
+    assert updated.headers["Location"].endswith("/map")
+    with app.app_context():
+        saved = db.session.get(Place, place_id)
+        assert saved.name == "Новая точка"
+        assert saved.latitude == 55.75
 
 
 def test_profile_previews_history_and_searches_trips_and_places(
