@@ -261,16 +261,6 @@ class Config(BaseSettings):
             ]
             if self.legal_effective_date is None:
                 missing.append("LEGAL_EFFECTIVE_DATE")
-            if self.legal_rkn_notice_date is None:
-                missing.append("LEGAL_RKN_NOTICE_DATE")
-            if self.legal_cross_border_transfer is None:
-                missing.append("LEGAL_CROSS_BORDER_TRANSFER")
-            elif self.legal_cross_border_transfer is False:
-                missing.append("LEGAL_CROSS_BORDER_TRANSFER=true для внешних ресурсов")
-            if self.legal_cross_border_notice_date is None:
-                missing.append("LEGAL_CROSS_BORDER_NOTICE_DATE")
-            if not self.legal_cross_border_countries:
-                missing.append("LEGAL_CROSS_BORDER_COUNTRIES")
             if missing:
                 raise ValueError(
                     "production требует юридические реквизиты: " + ", ".join(missing)

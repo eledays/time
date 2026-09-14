@@ -12,10 +12,6 @@ LEGAL_SETTINGS = {
     "legal_data_storage_location": "Москва, Россия",
     "legal_hosting_provider_name": "ООО Хостинг",
     "legal_hosting_provider_location": "Москва, Россия",
-    "legal_rkn_notice_date": "2026-09-10",
-    "legal_cross_border_transfer": True,
-    "legal_cross_border_notice_date": "2026-09-10",
-    "legal_cross_border_countries": "США, Германия",
     "legal_effective_date": "2026-09-11",
 }
 
@@ -102,22 +98,22 @@ def test_production_requires_legal_operator_details() -> None:
         )
 
 
-def test_production_requires_disclosed_external_transfers() -> None:
-    """Нельзя отрицать внешнюю передачу при загрузке сторонних ресурсов."""
+def test_production_allows_omitting_notification_metadata() -> None:
+    """Юридическая оценка уведомлений не должна технически блокировать запуск."""
 
-    settings = {**LEGAL_SETTINGS, "legal_cross_border_transfer": False}
-    with pytest.raises(ValidationError, match="внешних ресурсов"):
-        Config(
-            _env_file=None,
-            environment="production",
-            secret_key="a" * 32,
-            yandex_client_id="client",
-            yandex_client_secret="secret",
-            public_url="https://time.example",
-            trusted_hosts="time.example",
-            trusted_proxy_count=1,
-            **settings,
-        )
+    settings = Config(
+        _env_file=None,
+        environment="production",
+        secret_key="a" * 32,
+        yandex_client_id="client",
+        yandex_client_secret="secret",
+        public_url="https://time.example",
+        trusted_hosts="time.example",
+        trusted_proxy_count=1,
+        **LEGAL_SETTINGS,
+    )
+    assert settings.legal_rkn_notice_date is None
+    assert settings.legal_cross_border_transfer is None
 
 
 def test_production_requires_proxy_and_absolute_sqlite_paths() -> None:
