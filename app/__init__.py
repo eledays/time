@@ -4,8 +4,10 @@
 не создавая глобальное приложение при импорте пакета.
 """
 
+import os
 from pathlib import Path
 
+from alembic.util.exc import CommandError
 from flask import Flask, g, render_template, request
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -14,6 +16,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from app.config import Config
 from app.extensions import db, limiter, migrate, oauth
 from app.observability import configure_logging
+from app.readiness import database_is_current
 from app.security import init_csrf
 
 
@@ -21,7 +24,13 @@ def create_app(config_object: Config | type[Config] = Config) -> Flask:
     """Создать и настроить экземпляр Flask-приложения."""
 
     settings = config_object() if isinstance(config_object, type) else config_object
-    app = Flask(__name__, instance_relative_config=True)
+    if settings.environment == "production":
+        os.umask(0o077)
+    app = Flask(
+        __name__,
+        instance_relative_config=True,
+        instance_path=str(settings.instance_path),
+    )
     app.config.from_mapping(settings.flask_mapping())
     Path(app.instance_path).mkdir(parents=True, exist_ok=True)
     configure_logging(app)
@@ -70,7 +79,9 @@ def create_app(config_object: Config | type[Config] = Config) -> Flask:
 
         try:
             db.session.execute(text("SELECT 1"))
-        except SQLAlchemyError:
+            if not database_is_current(db.engine):
+                return {"status": "migrations_pending"}, 503
+        except (CommandError, SQLAlchemyError, OSError):
             db.session.rollback()
             app.logger.warning("Проверка готовности базы данных завершилась ошибкой")
             return {"status": "unavailable"}, 503

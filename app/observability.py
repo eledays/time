@@ -42,6 +42,7 @@ def configure_logging(app: Flask) -> None:
                     "level": "INFO",
                     "propagate": False,
                 },
+                "alembic.runtime.migration": {"level": "WARNING"},
             },
         }
     )

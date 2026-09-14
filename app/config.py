@@ -43,6 +43,9 @@ class Config(BaseSettings):
         validation_alias="DATABASE_URL",
         repr=False,
     )
+    instance_path: Path = Field(
+        default=BASE_DIR / "instance", validation_alias="INSTANCE_PATH"
+    )
     yandex_client_id: str = Field(default="", validation_alias="YANDEX_CLIENT_ID")
     yandex_client_secret: SecretStr = Field(
         default=SecretStr(""), validation_alias="YANDEX_CLIENT_SECRET"
@@ -117,6 +120,13 @@ class Config(BaseSettings):
             ) from error
         return value
 
+    @field_validator("instance_path")
+    @classmethod
+    def normalize_instance_path(cls, value: Path) -> Path:
+        """Передать Flask абсолютный путь, сохранив удобный локальный default."""
+
+        return value if value.is_absolute() else BASE_DIR / value
+
     @field_validator("trusted_hosts")
     @classmethod
     def normalize_trusted_hosts(cls, value: str) -> str:
@@ -187,6 +197,17 @@ class Config(BaseSettings):
                 raise ValueError("production запрещает отключать SESSION_COOKIE_SECURE")
             if not self.trusted_hosts:
                 raise ValueError("production требует TRUSTED_HOSTS")
+            if self.trusted_proxy_count < 1:
+                raise ValueError("production требует TRUSTED_PROXY_COUNT не меньше 1")
+            database_url = make_url(self.database_url)
+            if (
+                database_url.get_backend_name() == "sqlite"
+                and database_url.database != ":memory:"
+                and not Path(database_url.database or "").is_absolute()
+            ):
+                raise ValueError(
+                    "production SQLite DATABASE_URL должен содержать абсолютный путь"
+                )
             public_host = self.public_url.host
             allowed_hosts = self.trusted_hosts.split(",")
             if public_host not in allowed_hosts and not any(
@@ -222,6 +243,7 @@ class Config(BaseSettings):
         )
         return {
             "ENVIRONMENT": self.environment,
+            "INSTANCE_PATH": str(self.instance_path),
             "DEBUG": self.environment == "development",
             "TESTING": self.environment == "testing",
             "SECRET_KEY": self.secret_key.get_secret_value(),

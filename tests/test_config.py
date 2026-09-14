@@ -48,6 +48,7 @@ def test_production_requires_https_and_matching_trusted_host() -> None:
         "yandex_client_id": "client",
         "yandex_client_secret": "secret",
         "trusted_hosts": "time.example",
+        "trusted_proxy_count": 1,
     }
     with pytest.raises(ValidationError, match="HTTPS"):
         Config(**common, public_url="http://time.example")
@@ -68,6 +69,7 @@ def test_production_mapping_enables_secure_cookie() -> None:
         yandex_client_secret="secret",
         public_url="https://time.example",
         trusted_hosts="time.example",
+        trusted_proxy_count=1,
         **LEGAL_SETTINGS,
     )
     mapping = settings.flask_mapping()
@@ -89,6 +91,30 @@ def test_production_requires_legal_operator_details() -> None:
             yandex_client_secret="secret",
             public_url="https://time.example",
             trusted_hosts="time.example",
+            trusted_proxy_count=1,
+        )
+
+
+def test_production_requires_proxy_and_absolute_sqlite_paths() -> None:
+    """Production не принимает неоднозначные proxy и SQLite-настройки."""
+
+    common = {
+        "_env_file": None,
+        "environment": "production",
+        "secret_key": "a" * 32,
+        "yandex_client_id": "client",
+        "yandex_client_secret": "secret",
+        "public_url": "https://time.example",
+        "trusted_hosts": "time.example",
+        **LEGAL_SETTINGS,
+    }
+    with pytest.raises(ValidationError, match="TRUSTED_PROXY_COUNT"):
+        Config(**common)
+    with pytest.raises(ValidationError, match="абсолютный путь"):
+        Config(
+            **common,
+            trusted_proxy_count=1,
+            database_url="sqlite:///relative.sqlite3",
         )
 
 

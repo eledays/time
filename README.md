@@ -30,6 +30,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt
 cp .env.example .env
+flask --app run.py db upgrade
 flask --app run.py run --debug
 ```
 
@@ -58,10 +59,12 @@ DATABASE_URL=sqlite:///time.sqlite3
 Карта работает без отдельного API-ключа. Для интерфейса используется OpenLayers, а
 спутниковую подложку предоставляет Esri World Imagery. OpenStreetMap не используется.
 
-Для production установите `APP_ENV=production`, HTTPS-адрес в `PUBLIC_URL` и его
-хост в `TRUSTED_HOSTS`. Приложение не запустится без OAuth и стойкого `SECRET_KEY`
-длиной от 32 символов. Для нескольких процессов также укажите общее хранилище
-лимитов запросов через `RATE_LIMIT_STORAGE_URI`.
+Полная инструкция по production-развёртыванию через nginx, Gunicorn и systemd,
+включая миграции, health checks, резервные копии, восстановление, обновление и
+откат, находится в [`docs/production.md`](docs/production.md).
+
+Production-режим не запустится без HTTPS-адреса, доверенного proxy и Host,
+настроенного OAuth, абсолютных путей SQLite и стойкого `SECRET_KEY`.
 
 Перед публикацией заполните реквизиты Пользовательского соглашения и Политики
 конфиденциальности:
@@ -86,6 +89,8 @@ Production-режим проверяет обязательные реквизи
 
 ```bash
 pytest -q
+ruff check .
+ruff format --check .
 pip-audit -r requirements.txt
 ```
 
@@ -101,6 +106,9 @@ app/
 ├── services.py    # бизнес-логика расчёта
 └── __init__.py    # фабрика приложения
 tests/             # интеграционные тесты
+deploy/            # systemd, nginx и резервное копирование
+docs/              # production runbook
+migrations/        # версионируемая схема базы данных
 run.py             # точка входа
 ```
 

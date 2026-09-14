@@ -1,0 +1,34 @@
+[Unit]
+Description=Trip diary web application
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=timeapp
+Group=timeapp
+WorkingDirectory=/opt/time
+EnvironmentFile=/opt/time/.env
+ExecStartPre=/opt/time/.venv/bin/flask --app run.py db upgrade
+ExecStart=/opt/time/.venv/bin/gunicorn --config gunicorn.conf.py run:app
+ExecReload=/bin/kill -HUP $MAINPID
+KillSignal=SIGQUIT
+TimeoutStopSec=35
+Restart=on-failure
+RestartSec=5
+StateDirectory=time
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/time
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+LockPersonality=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

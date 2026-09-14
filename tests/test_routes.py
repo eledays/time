@@ -449,16 +449,23 @@ def test_migrations_create_a_fresh_database(tmp_path: Path) -> None:
     assert {"alembic_version", "user", "place", "trip", "active_trip"} <= tables
 
 
-def test_health_and_readiness_endpoints(client) -> None:
+def test_health_and_readiness_endpoints(app: Flask, client) -> None:
     """Оркестратор может отдельно проверить процесс и базу данных."""
 
     health = client.get("/healthz")
-    readiness = client.get("/readyz")
     assert health.status_code == 200
     assert health.json == {"status": "ok"}
+    assert health.headers["Cache-Control"] == "no-store"
+
+    pending = client.get("/readyz")
+    assert pending.status_code == 503
+    assert pending.json == {"status": "migrations_pending"}
+
+    stamped = app.test_cli_runner().invoke(args=["db", "stamp", "head"])
+    assert stamped.exit_code == 0, stamped.output
+    readiness = client.get("/readyz")
     assert readiness.status_code == 200
     assert readiness.json == {"status": "ok"}
-    assert health.headers["Cache-Control"] == "no-store"
 
 
 def test_active_trip_can_be_cleared(app: Flask, auth_client, user) -> None:

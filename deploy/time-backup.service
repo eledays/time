@@ -1,0 +1,16 @@
+[Unit]
+Description=Back up the trip diary SQLite database
+
+[Service]
+Type=oneshot
+User=timeapp
+Group=timeapp
+EnvironmentFile=/opt/time/.env
+UMask=0077
+ExecStart=/opt/time/deploy/backup-sqlite.sh /var/lib/time/time.sqlite3 /var/lib/time/backups ${LEGAL_BACKUP_RETENTION_DAYS}
+StateDirectory=time
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/time

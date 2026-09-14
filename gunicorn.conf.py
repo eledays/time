@@ -15,6 +15,10 @@ max_requests_jitter = int(os.getenv("GUNICORN_MAX_REQUESTS_JITTER", "200"))
 accesslog = "-"
 errorlog = "-"
 capture_output = True
+access_log_format = (
+    '%(t)s client="%({x-real-ip}i)s" method=%(m)s path="%(U)s" '
+    "protocol=%(H)s status=%(s)s bytes=%(b)s duration_us=%(D)s"
+)
 
 database_url = make_url(os.getenv("DATABASE_URL", "sqlite:///time.sqlite3"))
 rate_limit_storage = os.getenv("RATE_LIMIT_STORAGE_URI", "memory://")
