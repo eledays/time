@@ -878,6 +878,10 @@ def test_route_result_is_a_separate_page_with_geo_summary(
     assert "chevron_left" in response.text
     assert "chevron_right" in response.text
     assert "→" not in response.text
+    result_styles = auth_client.get("/static/css/style.css").text
+    assert ".route-carousel-toolbar [data-route-position]" in result_styles
+    assert ".route-carousel-toolbar button .material-symbols-rounded" in result_styles
+    assert "font-size: 25px" in result_styles
     assert "Пешком" in response.text
     assert "км/ч" in response.text
     assert "Путь рассчитан как сумма расстояний" in response.text
