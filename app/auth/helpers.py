@@ -35,7 +35,9 @@ def require_current_terms() -> Response | None:
         "main.accept_legal_update",
         "main.legal_update",
         "main.privacy",
+        "main.service_worker",
         "main.terms",
+        "main.webmanifest",
         "readiness",
         "static",
     }

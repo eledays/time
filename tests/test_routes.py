@@ -33,10 +33,48 @@ def test_home_is_available_without_login(client) -> None:
     assert 'rel="apple-touch-icon"' in response.text
     assert "/static/img/favicon/favicon-32x32.png" in response.text
     assert "/static/img/favicon/favicon-16x16.png" in response.text
-    assert "/static/img/favicon/site.webmanifest" in response.text
+    assert 'rel="manifest" href="/manifest.webmanifest"' in response.text
+    assert '<meta name="apple-mobile-web-app-capable" content="yes">' in response.text
     assert response.headers["X-Content-Type-Options"] == "nosniff"
     assert response.headers["Content-Security-Policy"].startswith("default-src 'self'")
     assert response.headers["Cross-Origin-Opener-Policy"] == "same-origin"
+
+
+def test_pwa_manifest_worker_and_offline_shell_are_available(client) -> None:
+    """PWA-файлы имеют корневой scope и безопасный офлайн-экран."""
+
+    manifest = client.get("/manifest.webmanifest")
+    assert manifest.status_code == 200
+    assert manifest.mimetype == "application/manifest+json"
+    assert manifest.json["id"] == "/"
+    assert manifest.json["start_url"] == "/"
+    assert manifest.json["scope"] == "/"
+    assert {icon["sizes"] for icon in manifest.json["icons"]} == {
+        "192x192",
+        "512x512",
+    }
+    for icon in manifest.json["icons"]:
+        assert client.get(icon["src"]).status_code == 200
+
+    worker = client.get("/service-worker.js")
+    assert worker.status_code == 200
+    assert worker.mimetype == "application/javascript"
+    assert worker.headers["Service-Worker-Allowed"] == "/"
+    assert "no-cache" in worker.headers["Cache-Control"]
+    assert 'const OFFLINE_URL = "/static/offline.html"' in worker.text
+    assert 'request.mode === "navigate"' in worker.text
+
+    offline = client.get("/static/offline.html")
+    assert offline.status_code == 200
+    assert "Нет соединения с сервером" in offline.text
+    assert "Сохранённые поездки не кэшируются" in offline.text
+    for asset in (
+        "/static/css/style.css",
+        "/static/img/logo.png",
+        "/static/img/favicon/apple-touch-icon.png",
+        "/static/img/favicon/favicon-32x32.png",
+    ):
+        assert client.get(asset).status_code == 200
 
 
 def test_calculator_requires_login(client) -> None:

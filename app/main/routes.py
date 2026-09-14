@@ -66,6 +66,27 @@ def privacy():
     return render_template("privacy.html")
 
 
+@bp.get("/manifest.webmanifest")
+def webmanifest():
+    """Отдать PWA manifest с корневой областью приложения."""
+
+    response = current_app.send_static_file("manifest.webmanifest")
+    response.mimetype = "application/manifest+json"
+    response.headers["Cache-Control"] = "public, max-age=3600"
+    return response
+
+
+@bp.get("/service-worker.js")
+def service_worker():
+    """Отдать service worker из корня, чтобы его scope охватывал приложение."""
+
+    response = current_app.send_static_file("service-worker.js")
+    response.mimetype = "application/javascript"
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Service-Worker-Allowed"] = "/"
+    return response
+
+
 @bp.get("/legal-update")
 @login_required
 def legal_update():
