@@ -10,8 +10,10 @@ threads = int(os.getenv("GUNICORN_THREADS", "4"))
 timeout = int(os.getenv("GUNICORN_TIMEOUT", "30"))
 graceful_timeout = int(os.getenv("GUNICORN_GRACEFUL_TIMEOUT", "30"))
 keepalive = int(os.getenv("GUNICORN_KEEPALIVE", "5"))
-max_requests = int(os.getenv("GUNICORN_MAX_REQUESTS", "2000"))
-max_requests_jitter = int(os.getenv("GUNICORN_MAX_REQUESTS_JITTER", "200"))
+# Автоматический recycle сбрасывает memory:// limiter, поэтому в поддерживаемой
+# однопроцессной SQLite-конфигурации он выключен. С внешним limiter его можно включить.
+max_requests = int(os.getenv("GUNICORN_MAX_REQUESTS", "0"))
+max_requests_jitter = int(os.getenv("GUNICORN_MAX_REQUESTS_JITTER", "0"))
 accesslog = "-"
 errorlog = "-"
 capture_output = True
