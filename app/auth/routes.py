@@ -13,13 +13,6 @@ from app.extensions import db, limiter, oauth
 from app.models import ActiveTrip, Place, Trip, User, utc_now
 
 
-def yandex_avatar_url(profile: dict[str, object]) -> str:
-    """Собрать URL портрета Яндекса или его штатной заглушки."""
-
-    avatar_id = profile.get("default_avatar_id") or "0"
-    return f"https://avatars.yandex.net/get-yapic/{avatar_id}/islands-200"
-
-
 @bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("20 per minute")
 def login():
@@ -65,23 +58,18 @@ def callback():
         flash("Не удалось войти через Яндекс. Попробуйте ещё раз.", "error")
         return redirect(url_for("main.index"))
     user = db.session.scalar(db.select(User).where(User.yandex_id == yandex_id))
-    avatar_url = yandex_avatar_url(profile)
     if user is None:
         user = User(
             yandex_id=yandex_id,
             display_name=profile.get("display_name")
             or profile.get("login")
             or "Пользователь",
-            email=profile.get("default_email"),
-            avatar_url=avatar_url,
             terms_version=str(terms_version),
             terms_accepted_at=terms_accepted_at,
         )
         db.session.add(user)
     else:
         user.display_name = profile.get("display_name") or user.display_name
-        user.email = profile.get("default_email") or user.email
-        user.avatar_url = avatar_url or user.avatar_url
         user.terms_version = str(terms_version)
         user.terms_accepted_at = terms_accepted_at
     db.session.commit()
@@ -103,7 +91,7 @@ def logout():
 @limiter.limit("3 per hour")
 @login_required
 def delete_account():
-    """Удалить профиль и все созданные им данные без возможности восстановления."""
+    """Удалить профиль и все созданные им данные из активной базы."""
 
     if request.form.get("confirmation", "").strip() != "УДАЛИТЬ":
         flash("Введите УДАЛИТЬ для подтверждения", "error")

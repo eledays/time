@@ -4,8 +4,9 @@ from flask import Blueprint
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
-from app.auth.helpers import load_current_user
+from app.auth.helpers import load_current_user, require_current_terms
 
 bp.before_app_request(load_current_user)
+bp.before_app_request(require_current_terms)
 
 from app.auth import routes  # noqa: F401

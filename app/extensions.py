@@ -33,4 +33,5 @@ def enable_sqlite_foreign_keys(connection: object, _record: object) -> None:
         cursor = connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.execute("PRAGMA busy_timeout=30000")
+        cursor.execute("PRAGMA secure_delete=ON")
         cursor.close()

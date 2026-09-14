@@ -85,14 +85,35 @@ class Config(BaseSettings):
     legal_operator_email: str = Field(
         default="", max_length=254, validation_alias="LEGAL_OPERATOR_EMAIL"
     )
+    legal_operator_address: str = Field(
+        default="", max_length=500, validation_alias="LEGAL_OPERATOR_ADDRESS"
+    )
     legal_operator_id: str = Field(
         default="", max_length=100, validation_alias="LEGAL_OPERATOR_ID"
     )
     legal_data_storage_location: str = Field(
         default="", max_length=300, validation_alias="LEGAL_DATA_STORAGE_LOCATION"
     )
+    legal_hosting_provider_name: str = Field(
+        default="", max_length=300, validation_alias="LEGAL_HOSTING_PROVIDER_NAME"
+    )
+    legal_hosting_provider_location: str = Field(
+        default="", max_length=300, validation_alias="LEGAL_HOSTING_PROVIDER_LOCATION"
+    )
+    legal_rkn_notice_date: date | None = Field(
+        default=None, validation_alias="LEGAL_RKN_NOTICE_DATE"
+    )
+    legal_cross_border_transfer: bool | None = Field(
+        default=None, validation_alias="LEGAL_CROSS_BORDER_TRANSFER"
+    )
+    legal_cross_border_notice_date: date | None = Field(
+        default=None, validation_alias="LEGAL_CROSS_BORDER_NOTICE_DATE"
+    )
+    legal_cross_border_countries: str = Field(
+        default="", max_length=500, validation_alias="LEGAL_CROSS_BORDER_COUNTRIES"
+    )
     legal_document_version: str = Field(
-        default="1.0",
+        default="1.1",
         min_length=1,
         max_length=30,
         validation_alias="LEGAL_DOCUMENT_VERSION",
@@ -105,6 +126,12 @@ class Config(BaseSettings):
         ge=0,
         le=365,
         validation_alias="LEGAL_BACKUP_RETENTION_DAYS",
+    )
+    legal_log_retention_days: int = Field(
+        default=30,
+        ge=1,
+        le=365,
+        validation_alias="LEGAL_LOG_RETENTION_DAYS",
     )
 
     @field_validator("database_url")
@@ -153,8 +180,12 @@ class Config(BaseSettings):
     @field_validator(
         "legal_operator_name",
         "legal_operator_email",
+        "legal_operator_address",
         "legal_operator_id",
         "legal_data_storage_location",
+        "legal_hosting_provider_name",
+        "legal_hosting_provider_location",
+        "legal_cross_border_countries",
         "legal_document_version",
     )
     @classmethod
@@ -220,13 +251,26 @@ class Config(BaseSettings):
             required_legal_fields = {
                 "LEGAL_OPERATOR_NAME": self.legal_operator_name,
                 "LEGAL_OPERATOR_EMAIL": self.legal_operator_email,
+                "LEGAL_OPERATOR_ADDRESS": self.legal_operator_address,
                 "LEGAL_DATA_STORAGE_LOCATION": self.legal_data_storage_location,
+                "LEGAL_HOSTING_PROVIDER_NAME": self.legal_hosting_provider_name,
+                "LEGAL_HOSTING_PROVIDER_LOCATION": self.legal_hosting_provider_location,
             }
             missing = [
                 name for name, value in required_legal_fields.items() if not value
             ]
             if self.legal_effective_date is None:
                 missing.append("LEGAL_EFFECTIVE_DATE")
+            if self.legal_rkn_notice_date is None:
+                missing.append("LEGAL_RKN_NOTICE_DATE")
+            if self.legal_cross_border_transfer is None:
+                missing.append("LEGAL_CROSS_BORDER_TRANSFER")
+            elif self.legal_cross_border_transfer is False:
+                missing.append("LEGAL_CROSS_BORDER_TRANSFER=true для внешних ресурсов")
+            if self.legal_cross_border_notice_date is None:
+                missing.append("LEGAL_CROSS_BORDER_NOTICE_DATE")
+            if not self.legal_cross_border_countries:
+                missing.append("LEGAL_CROSS_BORDER_COUNTRIES")
             if missing:
                 raise ValueError(
                     "production требует юридические реквизиты: " + ", ".join(missing)
@@ -273,9 +317,17 @@ class Config(BaseSettings):
             "LOG_LEVEL": self.log_level,
             "LEGAL_OPERATOR_NAME": self.legal_operator_name,
             "LEGAL_OPERATOR_EMAIL": self.legal_operator_email,
+            "LEGAL_OPERATOR_ADDRESS": self.legal_operator_address,
             "LEGAL_OPERATOR_ID": self.legal_operator_id,
             "LEGAL_DATA_STORAGE_LOCATION": self.legal_data_storage_location,
+            "LEGAL_HOSTING_PROVIDER_NAME": self.legal_hosting_provider_name,
+            "LEGAL_HOSTING_PROVIDER_LOCATION": self.legal_hosting_provider_location,
+            "LEGAL_RKN_NOTICE_DATE": self.legal_rkn_notice_date,
+            "LEGAL_CROSS_BORDER_TRANSFER": self.legal_cross_border_transfer,
+            "LEGAL_CROSS_BORDER_NOTICE_DATE": self.legal_cross_border_notice_date,
+            "LEGAL_CROSS_BORDER_COUNTRIES": self.legal_cross_border_countries,
             "LEGAL_DOCUMENT_VERSION": self.legal_document_version,
             "LEGAL_EFFECTIVE_DATE": self.legal_effective_date,
             "LEGAL_BACKUP_RETENTION_DAYS": self.legal_backup_retention_days,
+            "LEGAL_LOG_RETENTION_DAYS": self.legal_log_retention_days,
         }

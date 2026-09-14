@@ -11,7 +11,6 @@ from pydantic_settings import SettingsConfigDict
 from sqlalchemy import text
 
 from app import create_app
-from app.auth.routes import yandex_avatar_url
 from app.config import Config
 from app.extensions import db, oauth
 from app.models import ActiveTrip, Place, Trip, User
@@ -28,7 +27,7 @@ def test_home_is_available_without_login(client) -> None:
     assert 'src="/static/img/logo.png"' in response.text
     assert 'src="/static/img/yandex-id.svg"' in response.text
     assert "Пользовательское соглашение" in response.text
-    assert "Политикой конфиденциальности" in response.text
+    assert "Политикой обработки персональных данных" in response.text
     assert "data-theme-toggle" not in response.text
     assert '<meta name="theme-color" content="#090909">' in response.text
     assert 'rel="apple-touch-icon"' in response.text
@@ -67,7 +66,7 @@ def test_yandex_login_is_started_by_confirmed_post(
     response = client.post("/auth/login", data={"csrf_token": "test-csrf"})
     assert response.status_code == 302
     with client.session_transaction() as session:
-        assert session["pending_terms_version"] == "1.0"
+        assert session["pending_terms_version"] == "1.1"
         assert session["pending_terms_accepted_at"]
 
 
@@ -82,8 +81,41 @@ def test_legal_documents_are_public(client) -> None:
         "Расчёты времени, расстояния и скорости являются ориентировочными" in terms.text
     )
     assert privacy.status_code == 200
-    assert "Какие данные обрабатываются" in privacy.text
-    assert "удалить самостоятельно" in privacy.text
+    assert "Обработка для предоставления Сервиса" in privacy.text
+    assert "Историю и аккаунт можно удалить в интерфейсе" in privacy.text
+
+
+def test_changed_terms_require_explicit_reacceptance(
+    app: Flask, auth_client, user
+) -> None:
+    """Старая версия условий блокирует рабочие страницы до нового акцепта."""
+
+    with app.app_context():
+        account = db.session.get(User, user.id)
+        account.terms_version = "0.9"
+        db.session.commit()
+
+    blocked = auth_client.get("/calculate")
+    assert blocked.status_code == 302
+    assert blocked.headers["Location"].endswith("/legal-update")
+
+    update = auth_client.get("/legal-update")
+    assert update.status_code == 200
+    assert "Условия обновлены" in update.text
+    assert "/terms" in update.text
+    assert "/privacy" in update.text
+
+    accepted = auth_client.post(
+        "/legal-update/accept", data={"csrf_token": "test-csrf"}
+    )
+    assert accepted.status_code == 302
+    assert accepted.headers["Location"].endswith("/")
+    with app.app_context():
+        account = db.session.get(User, user.id)
+        assert account.terms_version == "1.1"
+        assert account.terms_accepted_at is not None
+
+    assert auth_client.get("/calculate").status_code == 200
 
 
 def test_trip_survives_reopen_and_finishes_with_bus_number(
@@ -420,6 +452,8 @@ def test_existing_taxi_cost_is_migrated(tmp_path: Path) -> None:
         assert "timezone" in user_columns
         assert "terms_version" in user_columns
         assert "terms_accepted_at" in user_columns
+        assert "email" not in user_columns
+        assert "avatar_url" not in user_columns
         assert migrated_cost == 750
 
 
@@ -447,6 +481,14 @@ def test_migrations_create_a_fresh_database(tmp_path: Path) -> None:
             )
         }
     assert {"alembic_version", "user", "place", "trip", "active_trip"} <= tables
+
+
+def test_sqlite_connections_enable_secure_deletion(app: Flask) -> None:
+    """SQLite затирает удалённые значения, а не оставляет их в свободных страницах."""
+
+    with app.app_context():
+        enabled = db.session.execute(text("PRAGMA secure_delete")).scalar_one()
+        assert enabled == 1
 
 
 def test_health_and_readiness_endpoints(app: Flask, client) -> None:
@@ -686,16 +728,10 @@ def test_csrf_is_required(auth_client) -> None:
     assert response.status_code == 400
 
 
-def test_yandex_avatar_uses_large_profile_image() -> None:
-    """Портрет строится из идентификатора, который вернул Яндекс."""
-
-    assert yandex_avatar_url({"default_avatar_id": "portrait-42"}) == (
-        "https://avatars.yandex.net/get-yapic/portrait-42/islands-200"
-    )
-
-
-def test_yandex_callback_saves_avatar(app: Flask, client, monkeypatch) -> None:
-    """OAuth callback сохраняет портрет из ответа Яндекс ID."""
+def test_yandex_callback_stores_only_required_profile_data(
+    app: Flask, client, monkeypatch
+) -> None:
+    """OAuth callback не сохраняет лишние поля из ответа Яндекс ID."""
 
     class ProfileResponse:
         """Минимальный ответ API профиля для теста."""
@@ -704,7 +740,7 @@ def test_yandex_callback_saves_avatar(app: Flask, client, monkeypatch) -> None:
             """Имитировать успешный HTTP-ответ."""
 
         def json(self) -> dict[str, object]:
-            """Вернуть профиль с идентификатором портрета."""
+            """Вернуть профиль с избыточными полями для проверки минимизации."""
 
             return {
                 "id": "99",
@@ -720,7 +756,7 @@ def test_yandex_callback_saves_avatar(app: Flask, client, monkeypatch) -> None:
         )
         monkeypatch.setattr(yandex, "get", lambda *_args, **_kwargs: ProfileResponse())
     with client.session_transaction() as session:
-        session["pending_terms_version"] = "1.0"
+        session["pending_terms_version"] = "1.1"
         session["pending_terms_accepted_at"] = "2026-09-11T10:00:00+00:00"
 
     response = client.get("/auth/callback")
@@ -728,8 +764,10 @@ def test_yandex_callback_saves_avatar(app: Flask, client, monkeypatch) -> None:
     with app.app_context():
         account = db.session.scalar(db.select(User).where(User.yandex_id == "99"))
         assert account is not None
-        assert account.avatar_url.endswith("/avatar-99/islands-200")
-        assert account.terms_version == "1.0"
+        assert account.display_name == "Анна"
+        assert not hasattr(account, "email")
+        assert not hasattr(account, "avatar_url")
+        assert account.terms_version == "1.1"
         assert account.terms_accepted_at is not None
 
 
@@ -748,7 +786,7 @@ def test_yandex_callback_failure_returns_to_home(
 
         monkeypatch.setattr(yandex, "authorize_access_token", fail_login)
     with client.session_transaction() as session:
-        session["pending_terms_version"] = "1.0"
+        session["pending_terms_version"] = "1.1"
         session["pending_terms_accepted_at"] = "2026-09-11T10:00:00+00:00"
 
     response = client.get("/auth/callback", follow_redirects=True)

@@ -4,13 +4,8 @@
 {% block content %}
 <main class="page-shell app-page profile-page">
   <section class="profile-card">
-    {% if g.user.avatar_url %}
-      <img src="{{ g.user.avatar_url }}" alt="Аватар {{ g.user.display_name }}" referrerpolicy="no-referrer">
-    {% else %}
-      <div class="avatar-fallback" aria-label="Аватар">{{ g.user.display_name[:1] }}</div>
-    {% endif %}
+    <div class="avatar-fallback" aria-label="Аватар">{{ g.user.display_name[:1] }}</div>
     <h1>{{ g.user.display_name }}</h1>
-    {% if g.user.email %}<p>{{ g.user.email }}</p>{% endif %}
   </section>
   <section class="stats-grid" aria-label="Статистика поездок">
     <article><strong>{{ stats.trips }}</strong><span>поездок</span></article>
@@ -38,12 +33,12 @@
   </form>
   <section class="profile-legal-links" aria-label="Юридическая информация">
     <a href="{{ url_for('main.terms') }}">Пользовательское соглашение</a>
-    <a href="{{ url_for('main.privacy') }}">Политика конфиденциальности</a>
+    <a href="{{ url_for('main.privacy') }}">Политика обработки персональных данных</a>
   </section>
   <details class="delete-account" id="delete-account">
     <summary>Удалить аккаунт</summary>
     <div>
-      <p>Будут безвозвратно удалены профиль, активная поездка, вся история и сохранённые места.</p>
+      <p>Профиль, активная поездка, вся история и сохранённые места будут удалены из активной базы. Срок очистки резервных копий указан в политике обработки данных.</p>
       <form action="{{ url_for('auth.delete_account') }}" method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label for="delete-confirmation">Для подтверждения введите УДАЛИТЬ</label>

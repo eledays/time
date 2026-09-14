@@ -21,8 +21,6 @@ class User(db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     yandex_id: Mapped[str] = mapped_column(unique=True, index=True)
     display_name: Mapped[str]
-    email: Mapped[str | None]
-    avatar_url: Mapped[str | None]
     timezone: Mapped[str | None]
     terms_version: Mapped[str | None]
     terms_accepted_at: Mapped[datetime | None]

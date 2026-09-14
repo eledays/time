@@ -269,7 +269,7 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .map-popup strong { font-size: 12px; }
 
 .profile-card { display: grid; justify-items: center; padding-top: 14px; text-align: center; }
-.profile-card img, .avatar-fallback { width: 112px; height: 112px; border-radius: 50%; object-fit: cover; background: var(--surface); }
+.avatar-fallback { width: 112px; height: 112px; border-radius: 50%; background: var(--surface); }
 .avatar-fallback { display: grid; place-items: center; font-size: 40px; }
 .profile-card h1 { margin-top: 22px; font-size: 34px; }
 .profile-card p { margin: 8px 0 0; color: var(--muted); font-size: 13px; }

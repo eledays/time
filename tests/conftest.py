@@ -1,6 +1,7 @@
 """Общие фикстуры тестов приложения."""
 
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from typing import Literal
 
 import pytest
@@ -51,7 +52,12 @@ def user(app: Flask) -> User:
     """Создать пользователя для авторизованных сценариев."""
 
     with app.app_context():
-        account = User(yandex_id="42", display_name="Лев", email="lev@example.ru")
+        account = User(
+            yandex_id="42",
+            display_name="Лев",
+            terms_version="1.1",
+            terms_accepted_at=datetime.now(UTC),
+        )
         db.session.add(account)
         db.session.commit()
         db.session.refresh(account)

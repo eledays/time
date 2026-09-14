@@ -56,7 +56,7 @@ def create_app(config_object: Config | type[Config] = Config) -> Flask:
         client_secret=app.config["YANDEX_CLIENT_SECRET"],
         authorize_url="https://oauth.yandex.ru/authorize",
         access_token_url="https://oauth.yandex.ru/token",
-        client_kwargs={"scope": "login:email login:info login:avatar"},
+        client_kwargs={"scope": "login:info"},
     )
 
     from app.auth import bp as auth_bp
@@ -105,7 +105,7 @@ def create_app(config_object: Config | type[Config] = Config) -> Flask:
             "script-src 'self' https://cdn.jsdelivr.net; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
             "font-src 'self' https://fonts.gstatic.com; "
-            "img-src 'self' data: https://avatars.yandex.net https://server.arcgisonline.com; "
+            "img-src 'self' data: https://server.arcgisonline.com; "
             "connect-src 'self'; object-src 'none'; base-uri 'self'; "
             "form-action 'self'; frame-ancestors 'none'",
         )

@@ -21,7 +21,7 @@ from sqlalchemy.exc import IntegrityError
 from app.auth.helpers import login_required
 from app.extensions import db, limiter
 from app.main import bp
-from app.models import ActiveTrip, Place, Trip
+from app.models import ActiveTrip, Place, Trip, utc_now
 from app.services import (
     TAXI_TARIFFS,
     TIMEZONE_CHOICES,
@@ -64,6 +64,25 @@ def privacy():
     """Показать политику обработки персональных данных."""
 
     return render_template("privacy.html")
+
+
+@bp.get("/legal-update")
+@login_required
+def legal_update():
+    """Показать новую редакцию документов до продолжения работы."""
+
+    return render_template("legal_update.html")
+
+
+@bp.post("/legal-update/accept")
+@login_required
+def accept_legal_update():
+    """Зафиксировать явное принятие новой версии соглашения."""
+
+    g.user.terms_version = current_app.config["LEGAL_DOCUMENT_VERSION"]
+    g.user.terms_accepted_at = utc_now()
+    db.session.commit()
+    return redirect(url_for("main.index"))
 
 
 @bp.post("/trips/start")
@@ -254,7 +273,7 @@ def trips():
 @bp.post("/trips/<int:trip_id>/delete")
 @login_required
 def delete_trip(trip_id: int):
-    """Безвозвратно удалить одну принадлежащую пользователю поездку."""
+    """Удалить одну принадлежащую пользователю поездку из активной базы."""
 
     trip = db.session.scalar(
         select(Trip).where(Trip.id == trip_id, Trip.user_id == g.user.id)
@@ -272,7 +291,7 @@ def delete_trip(trip_id: int):
 @bp.post("/trips/delete-all")
 @login_required
 def delete_all_trips():
-    """Безвозвратно удалить всю завершённую историю пользователя."""
+    """Удалить завершённую историю пользователя из активной базы."""
 
     if request.form.get("confirm_delete") != "1":
         flash("Подтвердите удаление поездок", "warning")
