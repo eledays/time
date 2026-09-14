@@ -24,6 +24,9 @@ def init_csrf(app: Flask) -> None:
             return
         provided = request.headers.get("X-CSRF-Token") or request.form.get("csrf_token")
         expected = session.get("csrf_token")
-        if not expected or not provided or not secrets.compare_digest(expected, provided):
+        if (
+            not expected
+            or not provided
+            or not secrets.compare_digest(expected, provided)
+        ):
             abort(400, description="Некорректный CSRF-токен")
-

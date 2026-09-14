@@ -1,0 +1,9 @@
+Database migrations are managed through Flask-Migrate.
+
+Create a migration after changing models:
+
+    flask --app run.py db migrate -m "describe the change"
+
+Review the generated file, then apply it:
+
+    flask --app run.py db upgrade

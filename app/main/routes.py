@@ -183,7 +183,10 @@ def finish_trip():
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        flash("Не удалось сохранить поездку. Обновите страницу и попробуйте ещё раз.", "error")
+        flash(
+            "Не удалось сохранить поездку. Обновите страницу и попробуйте ещё раз.",
+            "error",
+        )
         return redirect(url_for("main.index"))
     flash(f"Поездка сохранена · {trip.duration_minutes} мин", "success")
     return redirect(url_for("main.index"))
@@ -217,7 +220,9 @@ def calculate():
 def calculate_result():
     """Показать отдельный экран рассчитанного составного маршрута."""
 
-    points = [point.strip() for point in request.args.getlist("points") if point.strip()]
+    points = [
+        point.strip() for point in request.args.getlist("points") if point.strip()
+    ]
     if len(points) < 2:
         flash("Добавьте минимум две точки", "error")
         return redirect(url_for("main.calculate"))
@@ -239,9 +244,7 @@ def trips():
     """Показать полную историю поездок пользователя."""
 
     trip_items = db.session.scalars(
-        select(Trip)
-        .where(Trip.user_id == g.user.id)
-        .order_by(Trip.departed_at.desc())
+        select(Trip).where(Trip.user_id == g.user.id).order_by(Trip.departed_at.desc())
     ).all()
     return render_template(
         "trips.html", trips=trip_items, transport_labels=TRANSPORT_LABELS
@@ -257,7 +260,9 @@ def delete_trip(trip_id: int):
         select(Trip).where(Trip.id == trip_id, Trip.user_id == g.user.id)
     )
     if trip is None:
-        return render_template("error.html", code=404, message="Поездка не найдена"), 404
+        return render_template(
+            "error.html", code=404, message="Поездка не найдена"
+        ), 404
     db.session.delete(trip)
     db.session.commit()
     flash("Поездка удалена", "success")
@@ -287,9 +292,7 @@ def places():
     """Показать сохранённые места пользователя."""
 
     place_items = db.session.scalars(
-        select(Place)
-        .where(Place.user_id == g.user.id)
-        .order_by(Place.name)
+        select(Place).where(Place.user_id == g.user.id).order_by(Place.name)
     ).all()
     return render_template("places.html", places=place_items)
 
@@ -375,9 +378,7 @@ def map_view():
             Place.longitude.is_not(None),
         )
     ).all()
-    trips = db.session.scalars(
-        select(Trip).where(Trip.user_id == g.user.id)
-    ).all()
+    trips = db.session.scalars(select(Trip).where(Trip.user_id == g.user.id)).all()
     mapped_ids = {place.id for place in places}
     map_data = {
         "places": [
@@ -409,9 +410,7 @@ def map_view():
 def profile():
     """Показать профиль Яндекса и личную статистику поездок."""
 
-    trip_items = db.session.scalars(
-        select(Trip).where(Trip.user_id == g.user.id)
-    ).all()
+    trip_items = db.session.scalars(select(Trip).where(Trip.user_id == g.user.id)).all()
     durations = [trip.duration_minutes for trip in trip_items]
     transport_counts = Counter(trip.transport_type for trip in trip_items)
     favorite = transport_counts.most_common(1)[0][0] if transport_counts else None

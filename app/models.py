@@ -21,11 +21,11 @@ class User(db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     yandex_id: Mapped[str] = mapped_column(unique=True, index=True)
     display_name: Mapped[str]
-    email: Mapped[Optional[str]]
-    avatar_url: Mapped[Optional[str]]
-    timezone: Mapped[Optional[str]]
-    terms_version: Mapped[Optional[str]]
-    terms_accepted_at: Mapped[Optional[datetime]]
+    email: Mapped[str | None]
+    avatar_url: Mapped[str | None]
+    timezone: Mapped[str | None]
+    terms_version: Mapped[str | None]
+    terms_accepted_at: Mapped[datetime | None]
     created_at: Mapped[datetime] = mapped_column(default=utc_now)
 
     places: Mapped[list["Place"]] = relationship(back_populates="user")
@@ -47,10 +47,10 @@ class Place(db.Model):
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), index=True)
     name: Mapped[str]
     normalized_name: Mapped[str]
-    address: Mapped[Optional[str]]
-    latitude: Mapped[Optional[float]]
-    longitude: Mapped[Optional[float]]
-    description: Mapped[Optional[str]]
+    address: Mapped[str | None]
+    latitude: Mapped[float | None]
+    longitude: Mapped[float | None]
+    description: Mapped[str | None]
     marker_color: Mapped[str] = mapped_column(default="#111111")
     created_at: Mapped[datetime] = mapped_column(default=utc_now)
 
@@ -72,10 +72,10 @@ class Trip(db.Model):
     departed_at: Mapped[datetime]
     arrived_at: Mapped[datetime]
     transport_type: Mapped[str]
-    transport_detail: Mapped[Optional[str]]
-    cost: Mapped[Optional[float]]
-    taxi_cost: Mapped[Optional[float]]
-    taxi_tariff: Mapped[Optional[str]]
+    transport_detail: Mapped[str | None]
+    cost: Mapped[float | None]
+    taxi_cost: Mapped[float | None]
+    taxi_tariff: Mapped[str | None]
     created_at: Mapped[datetime] = mapped_column(default=utc_now)
 
     user: Mapped[User] = relationship(back_populates="trips")

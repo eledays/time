@@ -8,11 +8,13 @@ from pathlib import Path
 
 from flask import Flask, g, render_template, request
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.config import Config
-from app.extensions import db, limiter, oauth
+from app.extensions import db, limiter, migrate, oauth
+from app.observability import configure_logging
 from app.security import init_csrf
-from app.schema import upgrade_sqlite_schema
 
 
 def create_app(config_object: Config | type[Config] = Config) -> Flask:
@@ -22,8 +24,19 @@ def create_app(config_object: Config | type[Config] = Config) -> Flask:
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_mapping(settings.flask_mapping())
     Path(app.instance_path).mkdir(parents=True, exist_ok=True)
+    configure_logging(app)
+
+    proxy_count = app.config["TRUSTED_PROXY_COUNT"]
+    if proxy_count:
+        app.wsgi_app = ProxyFix(
+            app.wsgi_app,
+            x_for=proxy_count,
+            x_proto=proxy_count,
+            x_host=proxy_count,
+        )
 
     db.init_app(app)
+    migrate.init_app(app, db, compare_type=True, render_as_batch=True)
     oauth.init_app(app)
     limiter.init_app(app)
     limiter.exempt(app.view_functions["static"])
@@ -43,20 +56,37 @@ def create_app(config_object: Config | type[Config] = Config) -> Flask:
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
 
-    with app.app_context():
-        db.create_all()
-        if db.engine.dialect.name == "sqlite":
-            upgrade_sqlite_schema()
-            db.session.execute(text("PRAGMA optimize"))
-        db.session.commit()
+    @app.get("/healthz")
+    @limiter.exempt
+    def health() -> tuple[dict[str, str], int]:
+        """Подтвердить, что процесс приложения отвечает."""
+
+        return {"status": "ok"}, 200
+
+    @app.get("/readyz")
+    @limiter.exempt
+    def readiness() -> tuple[dict[str, str], int]:
+        """Подтвердить доступность базы данных для обработки запросов."""
+
+        try:
+            db.session.execute(text("SELECT 1"))
+        except SQLAlchemyError:
+            db.session.rollback()
+            app.logger.warning("Проверка готовности базы данных завершилась ошибкой")
+            return {"status": "unavailable"}, 503
+        return {"status": "ok"}, 200
 
     @app.after_request
     def add_security_headers(response):
         """Добавить базовые браузерные защиты ко всем ответам."""
 
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
-        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-        response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        response.headers.setdefault(
+            "Referrer-Policy", "strict-origin-when-cross-origin"
+        )
+        response.headers.setdefault(
+            "Permissions-Policy", "camera=(), microphone=(), geolocation=()"
+        )
         response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
         response.headers.setdefault(
             "Content-Security-Policy",
@@ -72,7 +102,11 @@ def create_app(config_object: Config | type[Config] = Config) -> Flask:
             response.headers.setdefault(
                 "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
             )
-        if g.get("user") is not None and request.endpoint != "static":
+        if (
+            request.endpoint in {"health", "readiness"}
+            or g.get("user") is not None
+            and request.endpoint != "static"
+        ):
             response.headers.setdefault("Cache-Control", "no-store")
         return response
 
@@ -86,18 +120,24 @@ def create_app(config_object: Config | type[Config] = Config) -> Flask:
     def request_too_large(_error: Exception) -> tuple[str, int]:
         """Отклонить запрос, превышающий разрешённый размер."""
 
-        return render_template("error.html", code=413, message="Запрос слишком большой"), 413
+        return render_template(
+            "error.html", code=413, message="Запрос слишком большой"
+        ), 413
 
     @app.errorhandler(429)
     def too_many_requests(_error: Exception) -> tuple[str, int]:
         """Сообщить о временном превышении частоты запросов."""
 
-        return render_template("error.html", code=429, message="Слишком много запросов"), 429
+        return render_template(
+            "error.html", code=429, message="Слишком много запросов"
+        ), 429
 
     @app.errorhandler(500)
     def server_error(_error: Exception) -> tuple[str, int]:
         """Показать нейтральное сообщение при внутренней ошибке."""
 
-        return render_template("error.html", code=500, message="Что-то пошло не так"), 500
+        return render_template(
+            "error.html", code=500, message="Что-то пошло не так"
+        ), 500
 
     return app

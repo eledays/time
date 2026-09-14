@@ -29,4 +29,3 @@ def login_required(view: F) -> F:
         return view(*args, **kwargs)
 
     return cast(F, wrapped)
-

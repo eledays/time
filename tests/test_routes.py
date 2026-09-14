@@ -32,9 +32,9 @@ def test_home_is_available_without_login(client) -> None:
     assert "data-theme-toggle" not in response.text
     assert '<meta name="theme-color" content="#090909">' in response.text
     assert 'rel="apple-touch-icon"' in response.text
-    assert '/static/img/favicon/favicon-32x32.png' in response.text
-    assert '/static/img/favicon/favicon-16x16.png' in response.text
-    assert '/static/img/favicon/site.webmanifest' in response.text
+    assert "/static/img/favicon/favicon-32x32.png" in response.text
+    assert "/static/img/favicon/favicon-16x16.png" in response.text
+    assert "/static/img/favicon/site.webmanifest" in response.text
     assert response.headers["X-Content-Type-Options"] == "nosniff"
     assert response.headers["Content-Security-Policy"].startswith("default-src 'self'")
     assert response.headers["Cross-Origin-Opener-Policy"] == "same-origin"
@@ -48,7 +48,9 @@ def test_calculator_requires_login(client) -> None:
     assert response.headers["Location"].endswith("/auth/login")
 
 
-def test_yandex_login_is_started_by_confirmed_post(app: Flask, client, monkeypatch) -> None:
+def test_yandex_login_is_started_by_confirmed_post(
+    app: Flask, client, monkeypatch
+) -> None:
     """Обычный GET не означает акцепт, а нажатие кнопки фиксирует его версию."""
 
     with app.app_context():
@@ -76,7 +78,9 @@ def test_legal_documents_are_public(client) -> None:
     privacy = client.get("/privacy")
     assert terms.status_code == 200
     assert "Пользовательское соглашение" in terms.text
-    assert "Расчёты времени, расстояния и скорости являются ориентировочными" in terms.text
+    assert (
+        "Расчёты времени, расстояния и скорости являются ориентировочными" in terms.text
+    )
     assert privacy.status_code == 200
     assert "Какие данные обрабатываются" in privacy.text
     assert "удалить самостоятельно" in privacy.text
@@ -180,12 +184,12 @@ def test_departure_time_is_hidden_by_default(auth_client) -> None:
     assert 'data-time-dialog-open="departed_at"' in page.text
     assert 'aria-label="Время отправления не сейчас"' in page.text
     assert 'data-time-dialog="departed_at"' in page.text
-    assert 'data-picker-date required disabled' in page.text
+    assert "data-picker-date required disabled" in page.text
     assert 'data-picker-clock step="60" required disabled' in page.text
     assert 'class="material-symbols-rounded"' in page.text
     assert ">schedule</span>" in page.text
     for icon in ("add_circle", "route", "history", "location_on", "map", "person"):
-        assert f'>{icon}</span><small>' in page.text
+        assert f">{icon}</span><small>" in page.text
     assert "fonts.googleapis.com/css2?family=Material+Symbols+Rounded" in page.text
 
 
@@ -400,14 +404,14 @@ def test_existing_taxi_cost_is_migrated(tmp_path: Path) -> None:
         database_url: str = f"sqlite:///{database_path}"
 
     application = create_app(LegacyConfig)
+    result = application.test_cli_runner().invoke(args=["db", "upgrade"])
+    assert result.exit_code == 0, result.output
     with application.app_context():
         columns = {
-            row[1]
-            for row in db.session.execute(text("PRAGMA table_info(trip)")).all()
+            row[1] for row in db.session.execute(text("PRAGMA table_info(trip)")).all()
         }
         user_columns = {
-            row[1]
-            for row in db.session.execute(text("PRAGMA table_info(user)")).all()
+            row[1] for row in db.session.execute(text("PRAGMA table_info(user)")).all()
         }
         migrated_cost = db.session.execute(
             text("SELECT cost FROM trip WHERE id = 1")
@@ -417,6 +421,44 @@ def test_existing_taxi_cost_is_migrated(tmp_path: Path) -> None:
         assert "terms_version" in user_columns
         assert "terms_accepted_at" in user_columns
         assert migrated_cost == 750
+
+
+def test_migrations_create_a_fresh_database(tmp_path: Path) -> None:
+    """Новая база полностью создаётся только явной миграцией."""
+
+    database_path = tmp_path / "fresh.sqlite3"
+
+    class FreshConfig(Config):
+        """Изолированная конфигурация для проверки миграций."""
+
+        model_config = SettingsConfigDict(env_file=None, populate_by_name=True)
+        environment: Literal["testing"] = "testing"
+        secret_key: SecretStr = SecretStr("migration-test")
+        database_url: str = f"sqlite:///{database_path}"
+
+    application = create_app(FreshConfig)
+    result = application.test_cli_runner().invoke(args=["db", "upgrade"])
+    assert result.exit_code == 0, result.output
+    with sqlite3.connect(database_path) as connection:
+        tables = {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            )
+        }
+    assert {"alembic_version", "user", "place", "trip", "active_trip"} <= tables
+
+
+def test_health_and_readiness_endpoints(client) -> None:
+    """Оркестратор может отдельно проверить процесс и базу данных."""
+
+    health = client.get("/healthz")
+    readiness = client.get("/readyz")
+    assert health.status_code == 200
+    assert health.json == {"status": "ok"}
+    assert readiness.status_code == 200
+    assert readiness.json == {"status": "ok"}
+    assert health.headers["Cache-Control"] == "no-store"
 
 
 def test_active_trip_can_be_cleared(app: Flask, auth_client, user) -> None:
@@ -577,7 +619,9 @@ def test_incomplete_route_does_not_report_average_speed(
     )
     assert response.status_code == 200
     assert response.json["complete"] is False
-    assert response.json["total_distance_km"] > response.json["segments"][0]["distance_km"]
+    assert (
+        response.json["total_distance_km"] > response.json["segments"][0]["distance_km"]
+    )
     assert response.json["average_speed_kmh"] is None
 
 
@@ -610,7 +654,7 @@ def test_route_result_is_a_separate_page_with_geo_summary(
 
     response = auth_client.get("/calculate/result?points=Дом&points=Офис")
     assert response.status_code == 200
-    assert 'data-route-canvas' in response.text
+    assert "data-route-canvas" in response.text
     assert "ХОД · МОЙ МАРШРУТ" not in response.text
     assert "Изменить маршрут" not in response.text
     assert "Пешком" in response.text
@@ -664,7 +708,9 @@ def test_yandex_callback_saves_avatar(app: Flask, client, monkeypatch) -> None:
 
     with app.app_context():
         yandex = oauth.create_client("yandex")
-        monkeypatch.setattr(yandex, "authorize_access_token", lambda: {"access_token": "token"})
+        monkeypatch.setattr(
+            yandex, "authorize_access_token", lambda: {"access_token": "token"}
+        )
         monkeypatch.setattr(yandex, "get", lambda *_args, **_kwargs: ProfileResponse())
     with client.session_transaction() as session:
         session["pending_terms_version"] = "1.0"
@@ -680,7 +726,9 @@ def test_yandex_callback_saves_avatar(app: Flask, client, monkeypatch) -> None:
         assert account.terms_accepted_at is not None
 
 
-def test_yandex_callback_failure_returns_to_home(app: Flask, client, monkeypatch) -> None:
+def test_yandex_callback_failure_returns_to_home(
+    app: Flask, client, monkeypatch
+) -> None:
     """Ошибка или отмена OAuth не превращается в страницу 500."""
 
     from authlib.integrations.base_client.errors import OAuthError
@@ -729,7 +777,7 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     assert 'name="latitude" type="hidden"' in places_page.text
     assert "Указать точку на карте" in places_page.text
 
-    for path, text in [
+    for path, expected_text in [
         ("/trips", "Все поездки"),
         ("/places", "Места"),
         ("/map", "journey-map"),
@@ -737,7 +785,7 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     ]:
         page = auth_client.get(path)
         assert page.status_code == 200
-        assert text in page.text
+        assert expected_text in page.text
 
     map_page = auth_client.get("/map")
     assert "cdn.jsdelivr.net/npm/ol@v10.6.1" in map_page.text

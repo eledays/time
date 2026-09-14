@@ -69,7 +69,9 @@ def callback():
     if user is None:
         user = User(
             yandex_id=yandex_id,
-            display_name=profile.get("display_name") or profile.get("login") or "Пользователь",
+            display_name=profile.get("display_name")
+            or profile.get("login")
+            or "Пользователь",
             email=profile.get("default_email"),
             avatar_url=avatar_url,
             terms_version=str(terms_version),
@@ -84,6 +86,7 @@ def callback():
         user.terms_accepted_at = terms_accepted_at
     db.session.commit()
     session.clear()
+    session.permanent = True
     session["user_id"] = user.id
     return redirect(url_for("main.index"))
 

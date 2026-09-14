@@ -2,7 +2,7 @@
 
 import re
 import secrets
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Literal
 
@@ -53,7 +53,10 @@ class Config(BaseSettings):
         default=None, validation_alias="SESSION_COOKIE_SECURE"
     )
     max_content_length: int = Field(
-        default=1_048_576, ge=16_384, le=10_485_760, validation_alias="MAX_CONTENT_LENGTH"
+        default=1_048_576,
+        ge=16_384,
+        le=10_485_760,
+        validation_alias="MAX_CONTENT_LENGTH",
     )
     max_route_points: int = Field(
         default=20, ge=2, le=100, validation_alias="MAX_ROUTE_POINTS"
@@ -63,6 +66,15 @@ class Config(BaseSettings):
     )
     rate_limit_storage_uri: str = Field(
         default="memory://", validation_alias="RATE_LIMIT_STORAGE_URI"
+    )
+    trusted_proxy_count: int = Field(
+        default=0, ge=0, le=10, validation_alias="TRUSTED_PROXY_COUNT"
+    )
+    session_lifetime_hours: int = Field(
+        default=168, ge=1, le=8760, validation_alias="SESSION_LIFETIME_HOURS"
+    )
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
+        default="INFO", validation_alias="LOG_LEVEL"
     )
     legal_operator_name: str = Field(
         default="", max_length=300, validation_alias="LEGAL_OPERATOR_NAME"
@@ -77,7 +89,10 @@ class Config(BaseSettings):
         default="", max_length=300, validation_alias="LEGAL_DATA_STORAGE_LOCATION"
     )
     legal_document_version: str = Field(
-        default="1.0", min_length=1, max_length=30, validation_alias="LEGAL_DOCUMENT_VERSION"
+        default="1.0",
+        min_length=1,
+        max_length=30,
+        validation_alias="LEGAL_DOCUMENT_VERSION",
     )
     legal_effective_date: date | None = Field(
         default=None, validation_alias="LEGAL_EFFECTIVE_DATE"
@@ -97,7 +112,9 @@ class Config(BaseSettings):
         try:
             make_url(value)
         except ArgumentError as error:
-            raise ValueError("DATABASE_URL должен быть корректным URL SQLAlchemy") from error
+            raise ValueError(
+                "DATABASE_URL должен быть корректным URL SQLAlchemy"
+            ) from error
         return value
 
     @field_validator("trusted_hosts")
@@ -157,7 +174,9 @@ class Config(BaseSettings):
             if "secret_key" not in self.model_fields_set:
                 raise ValueError("production требует явно заданный SECRET_KEY")
             if secret in INSECURE_SECRET_KEYS or len(secret) < 32:
-                raise ValueError("production SECRET_KEY должен содержать минимум 32 символа")
+                raise ValueError(
+                    "production SECRET_KEY должен содержать минимум 32 символа"
+                )
             if not self.yandex_client_id:
                 raise ValueError("production требует настройки Яндекс OAuth")
             if self.public_url is None:
@@ -174,13 +193,17 @@ class Config(BaseSettings):
                 host.startswith("*.") and public_host.endswith(host[1:])
                 for host in allowed_hosts
             ):
-                raise ValueError("хост PUBLIC_URL должен присутствовать в TRUSTED_HOSTS")
+                raise ValueError(
+                    "хост PUBLIC_URL должен присутствовать в TRUSTED_HOSTS"
+                )
             required_legal_fields = {
                 "LEGAL_OPERATOR_NAME": self.legal_operator_name,
                 "LEGAL_OPERATOR_EMAIL": self.legal_operator_email,
                 "LEGAL_DATA_STORAGE_LOCATION": self.legal_data_storage_location,
             }
-            missing = [name for name, value in required_legal_fields.items() if not value]
+            missing = [
+                name for name, value in required_legal_fields.items() if not value
+            ]
             if self.legal_effective_date is None:
                 missing.append("LEGAL_EFFECTIVE_DATE")
             if missing:
@@ -207,17 +230,25 @@ class Config(BaseSettings):
             "SESSION_COOKIE_HTTPONLY": True,
             "SESSION_COOKIE_SAMESITE": "Lax",
             "SESSION_COOKIE_SECURE": secure_cookie,
-            "SESSION_COOKIE_NAME": "__Host-time_session" if secure_cookie else "session",
+            "SESSION_COOKIE_NAME": "__Host-time_session"
+            if secure_cookie
+            else "session",
+            "PERMANENT_SESSION_LIFETIME": timedelta(hours=self.session_lifetime_hours),
+            "SESSION_REFRESH_EACH_REQUEST": False,
             "MAX_CONTENT_LENGTH": self.max_content_length,
             "MAX_ROUTE_POINTS": self.max_route_points,
             "MAX_TEXT_LENGTH": self.max_text_length,
             "YANDEX_CLIENT_ID": self.yandex_client_id,
             "YANDEX_CLIENT_SECRET": self.yandex_client_secret.get_secret_value(),
             "PUBLIC_URL": str(self.public_url).rstrip("/") if self.public_url else None,
-            "TRUSTED_HOSTS": self.trusted_hosts.split(",") if self.trusted_hosts else None,
+            "TRUSTED_HOSTS": self.trusted_hosts.split(",")
+            if self.trusted_hosts
+            else None,
             "RATELIMIT_STORAGE_URI": self.rate_limit_storage_uri,
             "RATELIMIT_ENABLED": self.environment != "testing",
             "RATELIMIT_HEADERS_ENABLED": True,
+            "TRUSTED_PROXY_COUNT": self.trusted_proxy_count,
+            "LOG_LEVEL": self.log_level,
             "LEGAL_OPERATOR_NAME": self.legal_operator_name,
             "LEGAL_OPERATOR_EMAIL": self.legal_operator_email,
             "LEGAL_OPERATOR_ID": self.legal_operator_id,

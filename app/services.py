@@ -2,6 +2,7 @@
 
 from collections import Counter
 from datetime import datetime
+from itertools import pairwise
 from math import asin, cos, radians, sin, sqrt
 from typing import Any
 
@@ -116,7 +117,7 @@ def calculate_route(user_id: int, point_names: list[str]) -> dict[str, Any]:
         )
         trips_by_route.setdefault(route_key, []).append(trip)
 
-    for origin_name, destination_name in zip(point_names, point_names[1:]):
+    for origin_name, destination_name in pairwise(point_names):
         origin = normalize_place(origin_name)
         destination = normalize_place(destination_name)
         origin_place = places_by_name.get(origin)
@@ -139,16 +140,18 @@ def calculate_route(user_id: int, point_names: list[str]) -> dict[str, Any]:
             )
             continue
 
-        common_transport = Counter(trip.transport_type for trip in trips).most_common(1)[
-            0
-        ][0]
+        common_transport = Counter(trip.transport_type for trip in trips).most_common(
+            1
+        )[0][0]
         representative_trips = [
             trip for trip in trips if trip.transport_type == common_transport
         ]
         durations = [trip.duration_minutes for trip in representative_trips]
         average = round(sum(durations) / len(durations))
         common_detail = Counter(
-            trip.transport_detail for trip in representative_trips if trip.transport_detail
+            trip.transport_detail
+            for trip in representative_trips
+            if trip.transport_detail
         ).most_common(1)
         total_minutes += average
         segments.append(
@@ -162,7 +165,9 @@ def calculate_route(user_id: int, point_names: list[str]) -> dict[str, Any]:
                 "samples": len(representative_trips),
                 "transport": TRANSPORT_LABELS.get(common_transport, "Другое"),
                 "transport_detail": common_detail[0][0] if common_detail else None,
-                "distance_km": round(distance_km, 1) if distance_km is not None else None,
+                "distance_km": round(distance_km, 1)
+                if distance_km is not None
+                else None,
                 "speed_kmh": round(distance_km / (average / 60), 1)
                 if distance_km is not None and average > 0
                 else None,
