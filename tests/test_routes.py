@@ -44,7 +44,7 @@ def test_home_is_available_without_login(client) -> None:
     assert response.headers["Cross-Origin-Opener-Policy"] == "same-origin"
     styles = client.get("/static/css/style.css").text
     assert (
-        "body.login-page { min-height: 100dvh; overflow: hidden; padding-bottom: 0"
+        "body.login-page { min-height: 100dvh; overflow-x: hidden; padding-bottom: 0"
         in styles
     )
     assert "body.login-page .page-shell { min-height: 100dvh" in styles

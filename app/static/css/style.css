@@ -28,7 +28,7 @@ body[data-page="legal"] { padding-bottom: 0; }
 body[data-page="legal"] .bottom-nav { display: none; }
 body[data-page="map"] { overflow: hidden; padding-bottom: 0; }
 body[data-legal-update="true"] { overflow: hidden; }
-body.login-page { min-height: 100dvh; overflow: hidden; padding-bottom: 0; background: #000; }
+body.login-page { min-height: 100dvh; overflow-x: hidden; padding-bottom: 0; background: #000; }
 body.login-page .page-shell { min-height: 100dvh; display: grid; padding: max(22px, env(safe-area-inset-top)) 20px max(22px, env(safe-area-inset-bottom)); }
 button, input, select, textarea { font: inherit; }
 button, a, summary { -webkit-tap-highlight-color: transparent; }
