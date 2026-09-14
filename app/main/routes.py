@@ -27,6 +27,7 @@ from app.services import (
     TIMEZONE_CHOICES,
     TRANSPORT_LABELS,
     calculate_route,
+    calculate_route_variants,
     get_or_create_place,
     normalize_place,
     parse_local_datetime,
@@ -258,23 +259,35 @@ def calculate():
 @limiter.limit("30 per minute")
 @login_required
 def calculate_result():
-    """Показать отдельный экран рассчитанного составного маршрута."""
+    """Показать найденные по истории варианты маршрута между двумя местами."""
 
-    points = [
+    legacy_points = [
         point.strip() for point in request.args.getlist("points") if point.strip()
     ]
-    if len(points) < 2:
-        flash("Добавьте минимум две точки", "error")
+    origin = request.args.get("origin", "").strip()
+    destination = request.args.get("destination", "").strip()
+    if not origin and len(legacy_points) == 2:
+        origin, destination = legacy_points
+    if not origin or not destination:
+        flash("Укажите начальную и конечную точки", "error")
         return redirect(url_for("main.calculate"))
-    if len(points) > current_app.config["MAX_ROUTE_POINTS"]:
-        flash("В маршруте слишком много точек", "error")
-        return redirect(url_for("main.calculate"))
-    if any(len(point) > current_app.config["MAX_TEXT_LENGTH"] for point in points):
+    if any(
+        len(point) > current_app.config["MAX_TEXT_LENGTH"]
+        for point in (origin, destination)
+    ):
         flash("Название точки слишком длинное", "error")
         return redirect(url_for("main.calculate"))
     return render_template(
         "calculate_result.html",
-        result=calculate_route(g.user.id, points),
+        route_search=calculate_route_variants(
+            g.user.id,
+            origin,
+            destination,
+            max_intermediate_points=current_app.config[
+                "MAX_ROUTE_INTERMEDIATE_POINTS"
+            ],
+            max_variants=current_app.config["MAX_ROUTE_VARIANTS"],
+        ),
     )
 
 
@@ -600,6 +613,32 @@ def calculate_api():
     """Вернуть оценку времени для последовательности точек."""
 
     payload = request.get_json(silent=True) or {}
+    if isinstance(payload, dict) and (
+        "origin" in payload or "destination" in payload
+    ):
+        origin = payload.get("origin")
+        destination = payload.get("destination")
+        if not isinstance(origin, str) or not isinstance(destination, str):
+            return jsonify({"error": "Точки должны быть строками"}), 400
+        origin, destination = origin.strip(), destination.strip()
+        if not origin or not destination:
+            return jsonify({"error": "Укажите начальную и конечную точки"}), 400
+        if any(
+            len(point) > current_app.config["MAX_TEXT_LENGTH"]
+            for point in (origin, destination)
+        ):
+            return jsonify({"error": "Название точки слишком длинное"}), 400
+        return jsonify(
+            calculate_route_variants(
+                g.user.id,
+                origin,
+                destination,
+                max_intermediate_points=current_app.config[
+                    "MAX_ROUTE_INTERMEDIATE_POINTS"
+                ],
+                max_variants=current_app.config["MAX_ROUTE_VARIANTS"],
+            )
+        )
     raw_points = payload.get("points", []) if isinstance(payload, dict) else []
     if not isinstance(raw_points, list) or any(
         not isinstance(point, str) for point in raw_points

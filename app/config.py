@@ -64,6 +64,15 @@ class Config(BaseSettings):
     max_route_points: int = Field(
         default=20, ge=2, le=100, validation_alias="MAX_ROUTE_POINTS"
     )
+    max_route_intermediate_points: int = Field(
+        default=4,
+        ge=0,
+        le=10,
+        validation_alias="MAX_ROUTE_INTERMEDIATE_POINTS",
+    )
+    max_route_variants: int = Field(
+        default=12, ge=1, le=50, validation_alias="MAX_ROUTE_VARIANTS"
+    )
     max_text_length: int = Field(
         default=200, ge=32, le=2_000, validation_alias="MAX_TEXT_LENGTH"
     )
@@ -291,6 +300,8 @@ class Config(BaseSettings):
             "SESSION_REFRESH_EACH_REQUEST": False,
             "MAX_CONTENT_LENGTH": self.max_content_length,
             "MAX_ROUTE_POINTS": self.max_route_points,
+            "MAX_ROUTE_INTERMEDIATE_POINTS": self.max_route_intermediate_points,
+            "MAX_ROUTE_VARIANTS": self.max_route_variants,
             "MAX_TEXT_LENGTH": self.max_text_length,
             "YANDEX_CLIENT_ID": self.yandex_client_id,
             "YANDEX_CLIENT_SECRET": self.yandex_client_secret.get_secret_value(),

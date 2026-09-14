@@ -661,6 +661,98 @@ def test_route_uses_average_duration(app: Flask, auth_client, user) -> None:
     assert response.json["segments"][0]["samples"] == 2
 
 
+def test_route_search_finds_and_merges_history_variants(
+    app: Flask, auth_client, user
+) -> None:
+    """Поиск строит прямые и составные варианты, объединяя наблюдения."""
+
+    with app.app_context():
+        home = get_or_create_place(user.id, "Дом")
+        metro = get_or_create_place(user.id, "Метро")
+        work = get_or_create_place(user.id, "Работа")
+        db.session.flush()
+        records = [
+            (home, work, "bike", "08:00", "08:24", None),
+            (home, work, "bike", "09:00", "09:28", None),
+            (home, metro, "walk", "08:00", "08:08", None),
+            (metro, work, "metro", "08:08", "08:28", "Сокольническая"),
+        ]
+        for start, finish, transport, departed, arrived, detail in records:
+            db.session.add(
+                Trip(
+                    user_id=user.id,
+                    origin_id=start.id,
+                    destination_id=finish.id,
+                    departed_at=datetime.fromisoformat(f"2026-09-03T{departed}"),
+                    arrived_at=datetime.fromisoformat(f"2026-09-03T{arrived}"),
+                    transport_type=transport,
+                    transport_detail=detail,
+                )
+            )
+        db.session.commit()
+
+    response = auth_client.post(
+        "/api/calculate",
+        json={"origin": "дом", "destination": "РАБОТА"},
+        headers={"X-CSRF-Token": "test-csrf"},
+    )
+    assert response.status_code == 200
+    variants = response.json["variants"]
+    assert len(variants) == 2
+    assert [variant["total_minutes"] for variant in variants] == [26, 28]
+    direct = variants[0]
+    assert [segment["transport"] for segment in direct["segments"]] == [
+        "Велосипед"
+    ]
+    assert direct["segments"][0]["samples"] == 2
+    assert direct["segments"][0]["min_minutes"] == 24
+    assert direct["segments"][0]["max_minutes"] == 28
+    composed = variants[1]
+    assert [point["name"] for point in composed["points"]] == [
+        "Дом",
+        "Метро",
+        "Работа",
+    ]
+    assert composed["segments"][1]["transport_detail"] == "Сокольническая"
+
+
+def test_route_search_respects_intermediate_and_variant_limits(
+    app: Flask, auth_client, user
+) -> None:
+    """Пределы графа не позволяют истории раздувать ответ бесконечно."""
+
+    app.config["MAX_ROUTE_INTERMEDIATE_POINTS"] = 1
+    app.config["MAX_ROUTE_VARIANTS"] = 1
+    with app.app_context():
+        points = {
+            name: get_or_create_place(user.id, name)
+            for name in ("A", "B", "C", "D")
+        }
+        db.session.flush()
+        for start, finish in (("A", "D"), ("A", "B"), ("B", "D"), ("A", "C"), ("C", "D")):
+            db.session.add(
+                Trip(
+                    user_id=user.id,
+                    origin_id=points[start].id,
+                    destination_id=points[finish].id,
+                    departed_at=datetime.fromisoformat("2026-09-03T08:00"),
+                    arrived_at=datetime.fromisoformat("2026-09-03T08:10"),
+                    transport_type="walk",
+                )
+            )
+        db.session.commit()
+
+    response = auth_client.post(
+        "/api/calculate",
+        json={"origin": "A", "destination": "D"},
+        headers={"X-CSRF-Token": "test-csrf"},
+    )
+    assert response.status_code == 200
+    assert len(response.json["variants"]) == 1
+    assert len(response.json["variants"][0]["segments"]) <= 2
+    assert response.json["search_truncated"] is True
+
+
 def test_route_rejects_malformed_and_excessive_points(auth_client) -> None:
     """API возвращает 400 вместо 500 и ограничивает сложность расчёта."""
 

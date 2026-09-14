@@ -41,6 +41,9 @@ TIMEZONE_CHOICES = {
     "UTC": "UTC",
 }
 
+MAX_ROUTE_SEARCH_STATES = 5_000
+MAX_ROUTE_CANDIDATES = 1_000
+
 
 def normalize_place(value: str) -> str:
     """Нормализовать пробелы и регистр названия места."""
@@ -188,6 +191,170 @@ def calculate_route(user_id: int, point_names: list[str]) -> dict[str, Any]:
         else None,
         "complete": complete,
         "has_full_track": has_full_distance,
+    }
+
+
+def calculate_route_variants(
+    user_id: int,
+    origin_name: str,
+    destination_name: str,
+    *,
+    max_intermediate_points: int,
+    max_variants: int,
+) -> dict[str, Any]:
+    """Найти ограниченный набор составных маршрутов по истории пользователя."""
+
+    places = db.session.scalars(
+        select(Place).where(Place.user_id == user_id).order_by(Place.id)
+    ).all()
+    places_by_name = {place.normalized_name: place for place in places}
+    origin = places_by_name.get(normalize_place(origin_name))
+    destination = places_by_name.get(normalize_place(destination_name))
+    response: dict[str, Any] = {
+        "origin": origin.name if origin else origin_name,
+        "destination": destination.name if destination else destination_name,
+        "variants": [],
+        "max_intermediate_points": max_intermediate_points,
+        "max_variants": max_variants,
+        "search_truncated": False,
+    }
+    if origin is None or destination is None:
+        return response
+
+    trips = db.session.scalars(
+        select(Trip).where(Trip.user_id == user_id).order_by(Trip.id)
+    ).all()
+    grouped: dict[tuple[int, int, str], list[Trip]] = {}
+    for trip in trips:
+        grouped.setdefault(
+            (trip.origin_id, trip.destination_id, trip.transport_type), []
+        ).append(trip)
+
+    places_by_id = {place.id: place for place in places}
+    adjacency: dict[int, list[dict[str, Any]]] = {}
+    for (origin_id, destination_id, transport_type), observations in grouped.items():
+        start = places_by_id.get(origin_id)
+        finish = places_by_id.get(destination_id)
+        if start is None or finish is None:
+            continue
+        durations = [trip.duration_minutes for trip in observations]
+        average = round(sum(durations) / len(durations))
+        details = Counter(
+            trip.transport_detail for trip in observations if trip.transport_detail
+        ).most_common(1)
+        distance_km = _distance_between(start, finish)
+        edge = {
+            "from_id": origin_id,
+            "to_id": destination_id,
+            "from": start.name,
+            "to": finish.name,
+            "known": True,
+            "minutes": average,
+            "min_minutes": min(durations),
+            "max_minutes": max(durations),
+            "samples": len(observations),
+            "transport_key": transport_type,
+            "transport": TRANSPORT_LABELS.get(transport_type, "Другое"),
+            "transport_detail": details[0][0] if details else None,
+            "distance_km": round(distance_km, 1)
+            if distance_km is not None
+            else None,
+            "speed_kmh": round(distance_km / (average / 60), 1)
+            if distance_km is not None and average > 0
+            else None,
+        }
+        adjacency.setdefault(origin_id, []).append(edge)
+
+    for edges in adjacency.values():
+        edges.sort(
+            key=lambda edge: (
+                edge["minutes"],
+                normalize_place(edge["to"]),
+                edge["transport_key"],
+            )
+        )
+
+    max_edges = max_intermediate_points + 1
+    found: list[list[dict[str, Any]]] = []
+    states: list[tuple[int, list[dict[str, Any]], frozenset[int]]] = [
+        (origin.id, [], frozenset({origin.id}))
+    ]
+    inspected_states = 0
+    while (
+        states
+        and inspected_states < MAX_ROUTE_SEARCH_STATES
+        and len(found) < MAX_ROUTE_CANDIDATES
+    ):
+        current_id, path, visited = states.pop()
+        inspected_states += 1
+        for edge in reversed(adjacency.get(current_id, [])):
+            next_id = edge["to_id"]
+            next_path = [*path, edge]
+            if next_id == destination.id and next_path:
+                found.append(next_path)
+                continue
+            if len(next_path) >= max_edges or next_id in visited:
+                continue
+            states.append((next_id, next_path, visited | {next_id}))
+    response["search_truncated"] = bool(states) or len(found) >= MAX_ROUTE_CANDIDATES
+
+    unique: dict[tuple[tuple[int, int, str], ...], list[dict[str, Any]]] = {}
+    for path in found:
+        signature = tuple(
+            (edge["from_id"], edge["to_id"], edge["transport_key"])
+            for edge in path
+        )
+        unique.setdefault(signature, path)
+
+    variants = [_route_variant(path, places_by_id) for path in unique.values()]
+    variants.sort(
+        key=lambda variant: (
+            variant["total_minutes"],
+            len(variant["segments"]),
+            -variant["observations"],
+            tuple(point["name"] for point in variant["points"]),
+        )
+    )
+    response["variants"] = variants[:max_variants]
+    response["search_truncated"] = response["search_truncated"] or len(variants) > max_variants
+    return response
+
+
+def _route_variant(
+    path: list[dict[str, Any]], places_by_id: dict[int, Place]
+) -> dict[str, Any]:
+    """Собрать итоговые показатели одного найденного варианта."""
+
+    point_ids = [path[0]["from_id"], *(edge["to_id"] for edge in path)]
+    points = [
+        {
+            "name": places_by_id[place_id].name,
+            "latitude": places_by_id[place_id].latitude,
+            "longitude": places_by_id[place_id].longitude,
+        }
+        for place_id in point_ids
+    ]
+    total_minutes = sum(edge["minutes"] for edge in path)
+    has_full_track = all(
+        point["latitude"] is not None and point["longitude"] is not None
+        for point in points
+    )
+    total_distance_km = (
+        round(sum(edge["distance_km"] for edge in path), 1)
+        if has_full_track
+        else None
+    )
+    return {
+        "points": points,
+        "segments": path,
+        "total_minutes": total_minutes,
+        "total_distance_km": total_distance_km,
+        "average_speed_kmh": round(total_distance_km / (total_minutes / 60), 1)
+        if total_distance_km is not None and total_minutes > 0
+        else None,
+        "complete": True,
+        "has_full_track": has_full_track,
+        "observations": sum(edge["samples"] for edge in path),
     }
 
 
