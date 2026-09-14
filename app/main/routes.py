@@ -508,9 +508,6 @@ def profile():
     place_count = db.session.scalar(
         select(db.func.count(Place.id)).where(Place.user_id == g.user.id)
     )
-    place_items = db.session.scalars(
-        select(Place).where(Place.user_id == g.user.id).order_by(Place.name).limit(6)
-    ).all()
     stats = {
         "trips": len(trip_items),
         "minutes": sum(durations),
@@ -523,9 +520,6 @@ def profile():
         "profile.html",
         stats=stats,
         timezone_choices=TIMEZONE_CHOICES,
-        recent_trips=trip_items[:4],
-        places=place_items,
-        transport_labels=TRANSPORT_LABELS,
     )
 
 

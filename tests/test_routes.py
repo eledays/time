@@ -42,6 +42,12 @@ def test_home_is_available_without_login(client) -> None:
         in response.headers["Content-Security-Policy"]
     )
     assert response.headers["Cross-Origin-Opener-Policy"] == "same-origin"
+    styles = client.get("/static/css/style.css").text
+    assert (
+        "body.login-page { min-height: 100dvh; overflow: hidden; padding-bottom: 0"
+        in styles
+    )
+    assert "body.login-page .page-shell { min-height: 100dvh" in styles
 
 
 def test_pwa_manifest_worker_and_offline_shell_are_available(client) -> None:
@@ -1024,10 +1030,10 @@ def test_map_separates_places_without_coordinates_and_updates_in_place(
         assert saved.latitude == 55.75
 
 
-def test_profile_previews_history_and_searches_trips_and_places(
+def test_profile_links_to_history_and_place_searches(
     app: Flask, auth_client, user
 ) -> None:
-    """Профиль объединяет недавние поездки и переходы к двум видам поиска."""
+    """Профиль остаётся компактным, а данные и поиск живут на отдельных страницах."""
 
     with app.app_context():
         home = get_or_create_place(user.id, "Дом")
@@ -1050,11 +1056,14 @@ def test_profile_previews_history_and_searches_trips_and_places(
     profile = auth_client.get("/profile")
     assert profile.status_code == 200
     assert "История поездок" in profile.text
-    assert "Все и поиск по дате" in profile.text
-    assert "Дом" in profile.text
-    assert "Работа" in profile.text
-    assert 'action="/places"' in profile.text
-    assert 'name="q"' in profile.text
+    assert "Все записи и поиск по дате" in profile.text
+    assert 'class="profile-link-card" href="/trips"' in profile.text
+    assert 'class="profile-link-card" href="/places"' in profile.text
+    assert "Последние записи" not in profile.text
+    assert "Сохранённые точки" not in profile.text
+    assert "avatar-fallback" not in profile.text
+    assert "08:00–08:30" not in profile.text
+    assert profile.text.count('class="profile-action-row"') == 4
 
     dated = auth_client.get("/trips?date=2026-09-03")
     assert dated.status_code == 200

@@ -3,10 +3,10 @@
 {% block page %}profile{% endblock %}
 {% block content %}
 <main class="page-shell app-page profile-page">
-  <section class="profile-card">
-    <div class="avatar-fallback" aria-label="Аватар">{{ g.user.display_name[:1] }}</div>
+  <header class="profile-head">
     <h1>{{ g.user.display_name }}</h1>
-  </section>
+  </header>
+
   <section class="stats-grid" aria-label="Статистика поездок">
     <article><strong>{{ stats.trips }}</strong><span>поездок</span></article>
     <article><strong>{{ stats.minutes }}</strong><span>минут в пути</span></article>
@@ -15,41 +15,21 @@
     <article><strong>{{ stats.days }}</strong><span>дней с поездками</span></article>
     <article><strong>{{ stats.favorite }}</strong><span>чаще всего</span></article>
   </section>
-  <section class="profile-content-section" aria-labelledby="recent-trips-title">
-    <div class="profile-section-head">
-      <div><p>Последние записи</p><h2 id="recent-trips-title">История поездок</h2></div>
-      <a href="{{ url_for('main.trips') }}">Все и поиск по дате</a>
-    </div>
-    {% if recent_trips %}
-      <div class="journey-list profile-journeys">
-        {% for trip in recent_trips %}{% include "partials/trip_card.html" %}{% endfor %}
-      </div>
-    {% else %}
-      <div class="profile-empty"><span>Поездок пока нет</span><a href="{{ url_for('main.index') }}">Записать первую</a></div>
-    {% endif %}
-  </section>
-  <section class="profile-content-section" aria-labelledby="saved-places-title">
-    <div class="profile-section-head">
-      <div><p>Сохранённые точки</p><h2 id="saved-places-title">Места</h2></div>
-      <a href="{{ url_for('main.places') }}">Все места</a>
-    </div>
-    <form class="search-bar profile-place-search" method="get" action="{{ url_for('main.places') }}">
-      <label class="visually-hidden" for="profile-place-query">Поиск места</label>
-      <div><input id="profile-place-query" type="search" name="q" maxlength="{{ config.MAX_TEXT_LENGTH }}" placeholder="Найти место"><button type="submit">Найти</button></div>
-    </form>
-    {% if places %}
-      <div class="profile-place-list">
-        {% for place in places %}
-          <a href="{{ url_for('main.places', _anchor='place-' ~ place.id) }}"><i style="--marker: {{ place.marker_color }}"></i><span><strong>{{ place.name }}</strong><small>{{ place.description or ('Есть точка на карте' if place.latitude is not none and place.longitude is not none else 'Без точки на карте') }}</small></span><b>›</b></a>
-        {% endfor %}
-      </div>
-    {% else %}
-      <div class="profile-empty"><span>Сохранённых мест пока нет</span><a href="{{ url_for('main.places') }}">Добавить место</a></div>
-    {% endif %}
-  </section>
-  <section class="profile-settings" id="settings">
+
+  <nav class="profile-section-links" aria-label="Личные данные">
+    <a class="profile-link-card" href="{{ url_for('main.trips') }}">
+      <span><strong>История поездок</strong><small>Все записи и поиск по дате</small></span>
+      <b>{{ stats.trips }}</b><i>›</i>
+    </a>
+    <a class="profile-link-card" href="{{ url_for('main.places') }}">
+      <span><strong>Места</strong><small>Список, поиск и редактирование</small></span>
+      <b>{{ stats.places }}</b><i>›</i>
+    </a>
+  </nav>
+
+  <section class="profile-block" id="settings">
     <h2>Настройки</h2>
-    <form action="{{ url_for('main.update_timezone') }}" method="post">
+    <form class="profile-settings-form" action="{{ url_for('main.update_timezone') }}" method="post">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <label for="profile-timezone">Часовой пояс</label>
       <select id="profile-timezone" name="timezone">
@@ -59,25 +39,29 @@
       <button class="secondary-button" type="submit">Сохранить пояс</button>
     </form>
   </section>
-  <form action="{{ url_for('auth.logout') }}" method="post" class="logout-form">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit">Выйти из аккаунта</button>
-  </form>
-  <section class="profile-legal-links" aria-label="Юридическая информация">
-    <a href="{{ url_for('main.terms') }}">Пользовательское соглашение</a>
-    <a href="{{ url_for('main.privacy') }}">Политика обработки персональных данных</a>
-  </section>
-  <details class="delete-account" id="delete-account">
-    <summary>Удалить аккаунт</summary>
-    <div>
-      <p>Профиль, активная поездка, вся история и сохранённые места будут удалены из активной базы. Срок очистки резервных копий указан в политике обработки данных.</p>
-      <form action="{{ url_for('auth.delete_account') }}" method="post">
+
+  <section class="profile-block profile-account" aria-labelledby="account-title">
+    <h2 id="account-title">Аккаунт</h2>
+    <div class="profile-action-list">
+      <a class="profile-action-row" href="{{ url_for('main.terms') }}"><span>Пользовательское соглашение</span><i>›</i></a>
+      <a class="profile-action-row" href="{{ url_for('main.privacy') }}"><span>Политика обработки данных</span><i>›</i></a>
+      <form class="profile-action-row" action="{{ url_for('auth.logout') }}" method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <label for="delete-confirmation">Для подтверждения введите УДАЛИТЬ</label>
-        <input id="delete-confirmation" name="confirmation" type="text" autocomplete="off" required pattern="УДАЛИТЬ">
-        <button type="submit">Удалить аккаунт и данные</button>
+        <button type="submit">Выйти из аккаунта</button><i>›</i>
       </form>
+      <details class="profile-delete-account" id="delete-account">
+        <summary class="profile-action-row"><span>Удалить аккаунт</span><i>›</i></summary>
+        <div>
+          <p>Профиль, активная поездка, вся история и сохранённые места будут удалены из активной базы.</p>
+          <form action="{{ url_for('auth.delete_account') }}" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="delete-confirmation">Для подтверждения введите УДАЛИТЬ</label>
+            <input id="delete-confirmation" name="confirmation" type="text" autocomplete="off" required pattern="УДАЛИТЬ">
+            <button type="submit">Удалить аккаунт и данные</button>
+          </form>
+        </div>
+      </details>
     </div>
-  </details>
+  </section>
 </main>
 {% endblock %}
