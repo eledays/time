@@ -10,8 +10,6 @@ LEGAL_SETTINGS = {
     "legal_operator_email": "privacy@example.ru",
     "legal_operator_address": "Москва, ул. Примерная, 1",
     "legal_data_storage_location": "Москва, Россия",
-    "legal_hosting_provider_name": "ООО Хостинг",
-    "legal_hosting_provider_location": "Москва, Россия",
     "legal_effective_date": "2026-09-11",
 }
 
@@ -114,6 +112,8 @@ def test_production_allows_omitting_notification_metadata() -> None:
     )
     assert settings.legal_rkn_notice_date is None
     assert settings.legal_cross_border_transfer is None
+    assert settings.legal_hosting_provider_name == ""
+    assert settings.legal_hosting_provider_location == ""
 
 
 def test_production_requires_proxy_and_absolute_sqlite_paths() -> None:

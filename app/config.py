@@ -253,8 +253,6 @@ class Config(BaseSettings):
                 "LEGAL_OPERATOR_EMAIL": self.legal_operator_email,
                 "LEGAL_OPERATOR_ADDRESS": self.legal_operator_address,
                 "LEGAL_DATA_STORAGE_LOCATION": self.legal_data_storage_location,
-                "LEGAL_HOSTING_PROVIDER_NAME": self.legal_hosting_provider_name,
-                "LEGAL_HOSTING_PROVIDER_LOCATION": self.legal_hosting_provider_location,
             }
             missing = [
                 name for name, value in required_legal_fields.items() if not value

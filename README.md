@@ -76,18 +76,17 @@ LEGAL_OPERATOR_EMAIL=privacy@example.ru
 LEGAL_OPERATOR_ADDRESS=почтовый адрес оператора
 LEGAL_OPERATOR_ID=ИНН / ОГРН / ОГРНИП при наличии
 LEGAL_DATA_STORAGE_LOCATION=город и страна размещения основной базы
-LEGAL_HOSTING_PROVIDER_NAME=наименование провайдера
-LEGAL_HOSTING_PROVIDER_LOCATION=город и страна провайдера
 LEGAL_DOCUMENT_VERSION=1.1
 LEGAL_EFFECTIVE_DATE=2026-09-14
 LEGAL_BACKUP_RETENTION_DAYS=30
 LEGAL_LOG_RETENTION_DAYS=30
 ```
 
-Необязательные `LEGAL_RKN_NOTICE_DATE`, `LEGAL_CROSS_BORDER_TRANSFER`,
-`LEGAL_CROSS_BORDER_NOTICE_DATE` и `LEGAL_CROSS_BORDER_COUNTRIES` заполняются,
-только если они применимы по результатам юридической оценки фактического
-развёртывания. Их отсутствие не блокирует production-запуск.
+Необязательные `LEGAL_HOSTING_PROVIDER_NAME`, `LEGAL_HOSTING_PROVIDER_LOCATION`,
+`LEGAL_RKN_NOTICE_DATE`, `LEGAL_CROSS_BORDER_TRANSFER`,
+`LEGAL_CROSS_BORDER_NOTICE_DATE` и `LEGAL_CROSS_BORDER_COUNTRIES` заполняются при
+необходимости по результатам оценки фактического развёртывания. Их отсутствие не
+блокирует production-запуск.
 
 Production-режим проверяет обязательные реквизиты при запуске. Документы отражают
 текущую механику приложения, но перед реальным запуском их нужно сверить с юристом,
