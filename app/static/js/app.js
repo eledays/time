@@ -522,6 +522,7 @@ const initializeOpenLayersMaps = () => {
     const placementPanel = document.querySelector("[data-map-placement]");
     const placementName = placementPanel?.querySelector("[data-map-placement-name]");
     const placementApply = placementPanel?.querySelector("[data-map-placement-apply]");
+    const placementApplyIcon = placementPanel?.querySelector("[data-map-placement-apply-icon]");
     const placementCancel = placementPanel?.querySelector("[data-map-placement-cancel]");
     const mapPage = journeyMapElement.closest(".map-page");
     let activePlacementForm = null;
@@ -605,7 +606,10 @@ const initializeOpenLayersMaps = () => {
       }
       placementPanel.hidden = false;
       placementApply.disabled = !hasCoordinates;
-      placementApply.textContent = "Сохранить точку";
+      placementApply.classList.remove("is-saving");
+      placementApply.setAttribute("aria-label", "Сохранить точку");
+      placementApply.title = "Сохранить точку";
+      if (placementApplyIcon) placementApplyIcon.textContent = "check";
       mapPage?.classList.add("is-picking");
       setMapPanelOpen(false);
       popupElement.hidden = true;
@@ -629,7 +633,10 @@ const initializeOpenLayersMaps = () => {
       form.querySelector("[name=latitude]").value = latitude.toFixed(6);
       form.querySelector("[name=longitude]").value = longitude.toFixed(6);
       placementApply.disabled = true;
-      placementApply.textContent = "Сохраняем…";
+      placementApply.classList.add("is-saving");
+      placementApply.setAttribute("aria-label", "Сохраняем точку");
+      placementApply.title = "Сохраняем точку";
+      if (placementApplyIcon) placementApplyIcon.textContent = "progress_activity";
       form.requestSubmit();
     });
     document.addEventListener("keydown", (event) => {

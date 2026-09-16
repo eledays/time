@@ -37,14 +37,14 @@
   </aside>
 
   <section class="map-placement-panel" data-map-placement hidden aria-live="polite" aria-label="Выбор положения места">
-    <div class="map-placement-copy">
-      <span>Положение места</span>
-      <strong data-map-placement-name></strong>
-      <small>Нажмите на карту. Крупная метка покажет новое положение, остальные точки останутся видны.</small>
-    </div>
+    <strong data-map-placement-name></strong>
     <div class="map-placement-actions">
-      <button class="secondary-button" type="button" data-map-placement-cancel>Отмена</button>
-      <button class="primary-button" type="button" data-map-placement-apply disabled>Сохранить точку</button>
+      <button class="map-placement-icon-button" type="button" data-map-placement-cancel aria-label="Отменить выбор" title="Отменить">
+        <span class="material-symbols-rounded" aria-hidden="true">close</span>
+      </button>
+      <button class="map-placement-icon-button is-primary" type="button" data-map-placement-apply aria-label="Сохранить точку" title="Сохранить точку" disabled>
+        <span class="material-symbols-rounded" aria-hidden="true" data-map-placement-apply-icon>check</span>
+      </button>
     </div>
   </section>
 

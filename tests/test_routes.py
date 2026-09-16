@@ -1031,6 +1031,11 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     assert 'name="return_to" value="map"' in map_page.text
     assert "data-map-placement" in map_page.text
     assert "data-map-placement-apply" in map_page.text
+    assert "data-map-placement-name" in map_page.text
+    assert ">close</span>" in map_page.text
+    assert ">check</span>" in map_page.text
+    assert "Положение места</span>" not in map_page.text
+    assert "Нажмите на карту" not in map_page.text
     assert "data-map-dialog" not in map_page.text
     assert 'id="coordinate-map"' not in map_page.text
     map_script = auth_client.get("/static/js/app.js")
@@ -1041,7 +1046,8 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     assert 'feature?.get("placeId")' in map_script.text
     assert "const placementSource = new ol.source.Vector()" in map_script.text
     assert "journeyMapElement.style.cursor = activePlacementForm" in map_script.text
-    assert 'placementApply.textContent = "Сохраняем…"' in map_script.text
+    assert 'placementApply.classList.add("is-saving")' in map_script.text
+    assert 'placementApplyIcon.textContent = "progress_activity"' in map_script.text
     assert "form.requestSubmit()" in map_script.text
     map_styles = auth_client.get("/static/css/style.css").text
     assert (
@@ -1051,6 +1057,8 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
         ".map-page { position: fixed; inset: 0; width: 100%; height: 100dvh"
         in map_styles
     )
+    assert ".map-placement-panel" in map_styles
+    assert ".map-placement-icon-button { width: 46px; height: 46px" in map_styles
     assert ".map-page .ol-attribution" in map_styles
 
 
@@ -1120,7 +1128,7 @@ def test_place_position_is_selected_on_main_map(app: Flask, auth_client, user) -
     assert f'data-map-pick-place="{created_id}"' in map_page.text
     assert "Дом" in map_page.text
     assert "Новая точка" in map_page.text
-    assert "остальные точки останутся видны" in map_page.text
+    assert "data-map-placement-name" in map_page.text
 
     unknown = auth_client.get("/map?pick=999999")
     assert 'data-map-pick-place=""' in unknown.text
