@@ -1,9 +1,5 @@
-<details class="map-place-editor" id="map-place-{{ place.id }}">
-  <summary><i style="--marker: {{ place.marker_color }}"></i><span><strong>{{ place.name }}</strong><small>{{ place.description or ('Точка указана' if place.latitude is not none and place.longitude is not none else 'Нужна точка') }}</small></span><span class="material-symbols-rounded ui-chevron" aria-hidden="true">chevron_right</span></summary>
-  <form action="{{ url_for('main.update_place', place_id=place.id) }}" method="post" class="place-form">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="return_to" value="map">
-    {% with current=place %}{% include "partials/place_fields.html" %}{% endwith %}
-    <button class="primary-button" type="submit">Сохранить изменения</button>
-  </form>
-</details>
+<button class="map-place-editor" id="map-place-{{ place.id }}" type="button" data-map-edit-place="{{ place.id }}" aria-label="Редактировать место {{ place.name }}">
+  <i style="--marker: {{ place.marker_color }}"></i>
+  <span><strong>{{ place.name }}</strong><small>{{ place.description or ('Точка указана' if place.latitude is not none and place.longitude is not none else 'Нужна точка') }}</small></span>
+  <span class="material-symbols-rounded ui-chevron" aria-hidden="true">chevron_right</span>
+</button>

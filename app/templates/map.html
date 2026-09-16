@@ -36,17 +36,30 @@
     </div>
   </aside>
 
-  <section class="map-placement-panel" data-map-placement hidden aria-live="polite" aria-label="Выбор положения места">
-    <strong data-map-placement-name></strong>
+  <form class="map-placement-panel" data-map-placement hidden method="post" aria-label="Редактирование места">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="return_to" value="map">
+    <input type="hidden" name="latitude" data-map-placement-latitude>
+    <input type="hidden" name="longitude" data-map-placement-longitude>
+    <div class="map-placement-fields">
+      <label class="visually-hidden" for="map-placement-name">Название</label>
+      <input id="map-placement-name" name="name" type="text" maxlength="{{ config.MAX_TEXT_LENGTH }}" placeholder="Название места" required data-map-placement-name>
+      <label class="visually-hidden" for="map-placement-description">Описание</label>
+      <textarea id="map-placement-description" name="description" rows="2" maxlength="{{ config.MAX_TEXT_LENGTH }}" placeholder="Описание" data-map-placement-description></textarea>
+      <div class="map-placement-meta">
+        <span class="map-placement-hint"><span class="material-symbols-rounded" aria-hidden="true">location_on</span> Нажмите на карту, чтобы изменить положение</span>
+        <label class="map-placement-color" title="Цвет метки"><span class="visually-hidden">Цвет метки</span><input name="marker_color" type="color" value="#111111" data-map-placement-color></label>
+      </div>
+    </div>
     <div class="map-placement-actions">
-      <button class="map-placement-icon-button" type="button" data-map-placement-cancel aria-label="Отменить выбор" title="Отменить">
+      <button class="map-placement-icon-button" type="button" data-map-placement-cancel aria-label="Закрыть без сохранения" title="Закрыть без сохранения">
         <span class="material-symbols-rounded" aria-hidden="true">close</span>
       </button>
-      <button class="map-placement-icon-button is-primary" type="button" data-map-placement-apply aria-label="Сохранить точку" title="Сохранить точку" disabled>
+      <button class="map-placement-icon-button is-primary" type="submit" data-map-placement-apply aria-label="Сохранить место" title="Сохранить место">
         <span class="material-symbols-rounded" aria-hidden="true" data-map-placement-apply-icon>check</span>
       </button>
     </div>
-  </section>
+  </form>
 
   <script id="map-data" type="application/json">{{ map_data|tojson }}</script>
 </main>

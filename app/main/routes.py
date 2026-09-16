@@ -489,6 +489,18 @@ def map_view():
             }
             for place in places
         ],
+        "placeEditors": [
+            {
+                "id": place.id,
+                "name": place.name,
+                "description": place.description or "",
+                "lat": place.latitude,
+                "lng": place.longitude,
+                "color": place.marker_color,
+                "updateUrl": url_for("main.update_place", place_id=place.id),
+            }
+            for place in all_places
+        ],
         "trips": [
             {
                 "from": trip.origin_id,

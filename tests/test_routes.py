@@ -1028,14 +1028,19 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     assert 'data-map-layer="street"' in map_page.text
     assert 'data-map-layer="imagery"' in map_page.text
     assert f'id="map-place-{mapped_place_id}"' in map_page.text
+    assert f'data-map-edit-place="{mapped_place_id}"' in map_page.text
+    assert '<details class="map-place-editor"' not in map_page.text
     assert 'name="return_to" value="map"' in map_page.text
     assert "data-map-placement" in map_page.text
     assert "data-map-placement-apply" in map_page.text
     assert "data-map-placement-name" in map_page.text
+    assert "data-map-placement-description" in map_page.text
+    assert "data-map-placement-color" in map_page.text
+    assert 'name="marker_color" type="color"' in map_page.text
     assert ">close</span>" in map_page.text
     assert ">check</span>" in map_page.text
     assert "Положение места</span>" not in map_page.text
-    assert "Нажмите на карту" not in map_page.text
+    assert "Нажмите на карту, чтобы изменить положение" in map_page.text
     assert "data-map-dialog" not in map_page.text
     assert 'id="coordinate-map"' not in map_page.text
     map_script = auth_client.get("/static/js/app.js")
@@ -1045,10 +1050,12 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     assert "tile.openstreetmap.org" not in map_script.text
     assert 'feature?.get("placeId")' in map_script.text
     assert "const placementSource = new ol.source.Vector()" in map_script.text
-    assert "journeyMapElement.style.cursor = activePlacementForm" in map_script.text
+    assert "journeyMapElement.style.cursor = activePlaceId !== null" in map_script.text
+    assert "startPlaceEditor(placeId)" in map_script.text
+    assert "setMapPanelOpen(false)" in map_script.text
     assert 'placementApply.classList.add("is-saving")' in map_script.text
     assert 'placementApplyIcon.textContent = "progress_activity"' in map_script.text
-    assert "form.requestSubmit()" in map_script.text
+    assert 'placementPanel?.addEventListener("submit"' in map_script.text
     map_styles = auth_client.get("/static/css/style.css").text
     assert (
         'body[data-page="map"] { overflow: hidden; padding-bottom: 0; }' in map_styles
@@ -1060,7 +1067,7 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     assert ".map-placement-panel" in map_styles
     assert ".map-placement-icon-button { width: 46px; height: 46px" in map_styles
     assert "gap: 8px; padding: 0; border: 0; background: transparent" in map_styles
-    assert ".map-placement-panel > strong { min-width: 0; height: 46px" in map_styles
+    assert ".map-placement-fields { min-width: 0; flex: 1" in map_styles
     assert ".map-page .ol-attribution" in map_styles
 
 
