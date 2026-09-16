@@ -1031,6 +1031,7 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     assert f'data-map-edit-place="{mapped_place_id}"' in map_page.text
     assert '<details class="map-place-editor"' not in map_page.text
     assert 'name="return_to" value="map"' in map_page.text
+    assert '"createUrl": "/places"' in map_page.text
     assert "data-map-placement" in map_page.text
     assert "data-map-placement-apply" in map_page.text
     assert "data-map-placement-name" in map_page.text
@@ -1054,6 +1055,10 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     assert "const placementSource = new ol.source.Vector()" in map_script.text
     assert "journeyMapElement.style.cursor = activePlaceId !== null" in map_script.text
     assert "startPlaceEditor(placeId)" in map_script.text
+    assert "startNewPlaceEditor(latitude, longitude)" in map_script.text
+    assert "hiddenPointFeature?.setStyle(new ol.style.Style({}))" in map_script.text
+    assert 'window.matchMedia("(pointer: coarse)")' in map_script.text
+    assert "}, 600)" in map_script.text
     assert "map.getView().animate({" in map_script.text
     assert "zoom: 15" in map_script.text
     assert "duration: 450" in map_script.text
@@ -1147,6 +1152,34 @@ def test_place_position_is_selected_on_main_map(app: Flask, auth_client, user) -
 
     unknown = auth_client.get("/map?pick=999999")
     assert 'data-map-pick-place=""' in unknown.text
+
+
+def test_place_can_be_created_directly_on_map(app: Flask, auth_client, user) -> None:
+    """Новая точка с карты сохраняется и возвращает пользователя на карту."""
+
+    response = auth_client.post(
+        "/places",
+        data={
+            "csrf_token": "test-csrf",
+            "return_to": "map",
+            "name": "Точка с карты",
+            "description": "Создана долгим нажатием",
+            "latitude": "55.7558",
+            "longitude": "37.6173",
+            "marker_color": "#abcdef",
+        },
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/map")
+    with app.app_context():
+        place = db.session.scalar(
+            db.select(Place).where(Place.normalized_name == "точка с карты")
+        )
+        assert place is not None
+        assert place.description == "Создана долгим нажатием"
+        assert place.latitude == 55.7558
+        assert place.longitude == 37.6173
+        assert place.marker_color == "#abcdef"
 
 
 def test_profile_links_to_history_and_place_searches(

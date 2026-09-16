@@ -513,6 +513,7 @@ const initializeOpenLayersMaps = () => {
     const placeEditors = new Map(mapData.placeEditors.map((place) => [place.id, place]));
     const vectorSource = new ol.source.Vector();
     const placementSource = new ol.source.Vector();
+    const pointFeaturesById = new Map();
     const placementPanel = document.querySelector("[data-map-placement]");
     const placementName = placementPanel?.querySelector("[data-map-placement-name]");
     const placementDescription = placementPanel?.querySelector("[data-map-placement-description]");
@@ -526,6 +527,7 @@ const initializeOpenLayersMaps = () => {
     const mapPage = journeyMapElement.closest(".map-page");
     let activePlaceId = null;
     let placementCoordinates = null;
+    let hiddenPointFeature = null;
     const popupElement = document.createElement("div");
     popupElement.className = "map-popup";
     popupElement.hidden = true;
@@ -568,7 +570,28 @@ const initializeOpenLayersMaps = () => {
       placementSource.addFeature(marker);
     };
 
+    const restoreHiddenPoint = () => {
+      if (!hiddenPointFeature) return;
+      const place = placeEditors.get(hiddenPointFeature.get("placeId"));
+      hiddenPointFeature.setStyle(createPointStyle(place?.color || "#191919"));
+      hiddenPointFeature = null;
+    };
+
+    const preparePlaceEditor = () => {
+      placementPanel.hidden = false;
+      placementApply.disabled = false;
+      placementApply.classList.remove("is-saving");
+      placementApply.setAttribute("aria-label", "Сохранить место");
+      placementApply.title = "Сохранить место";
+      if (placementApplyIcon) placementApplyIcon.textContent = "check";
+      mapPage?.classList.add("is-picking");
+      setMapPanelOpen(false);
+      popupElement.hidden = true;
+      popup.setPosition(undefined);
+    };
+
     const closePlaceEditor = () => {
+      restoreHiddenPoint();
       placementSource.clear();
       placementCoordinates = null;
       activePlaceId = null;
@@ -582,6 +605,7 @@ const initializeOpenLayersMaps = () => {
           || !placementColor || !placementApply) return;
       const place = placeEditors.get(Number(placeId));
       if (!place) return;
+      restoreHiddenPoint();
       activePlaceId = place.id;
       placementPanel.action = place.updateUrl;
       placementName.value = place.name;
@@ -591,17 +615,10 @@ const initializeOpenLayersMaps = () => {
       const latitude = Number.parseFloat(place.lat);
       const longitude = Number.parseFloat(place.lng);
       const hasCoordinates = Number.isFinite(latitude) && Number.isFinite(longitude);
-      placementPanel.hidden = false;
-      placementApply.disabled = false;
-      placementApply.classList.remove("is-saving");
-      placementApply.setAttribute("aria-label", "Сохранить место");
-      placementApply.title = "Сохранить место";
-      if (placementApplyIcon) placementApplyIcon.textContent = "check";
-      mapPage?.classList.add("is-picking");
-      setMapPanelOpen(false);
-      popupElement.hidden = true;
-      popup.setPosition(undefined);
+      preparePlaceEditor();
       if (hasCoordinates) {
+        hiddenPointFeature = pointFeaturesById.get(place.id) || null;
+        hiddenPointFeature?.setStyle(new ol.style.Style({}));
         setPlacementMarker(latitude, longitude);
         map.getView().animate({
           center: ol.proj.fromLonLat([longitude, latitude]),
@@ -614,6 +631,20 @@ const initializeOpenLayersMaps = () => {
         if (placementLongitude) placementLongitude.value = "";
         placementSource.clear();
       }
+    };
+
+    const startNewPlaceEditor = (latitude, longitude) => {
+      if (!placementPanel || !placementName || !placementDescription
+          || !placementColor || !placementApply || !mapData.createUrl) return;
+      restoreHiddenPoint();
+      activePlaceId = "new";
+      placementPanel.action = mapData.createUrl;
+      placementName.value = "";
+      placementDescription.value = "";
+      placementColor.value = "#111111";
+      placementColorButton?.style.setProperty("--marker-color", "#111111");
+      preparePlaceEditor();
+      setPlacementMarker(latitude, longitude);
     };
 
     document.querySelectorAll("[data-map-edit-place]").forEach((button) => {
@@ -650,6 +681,7 @@ const initializeOpenLayersMaps = () => {
         popupHtml: `<strong>${escapeHtml(place.name)}</strong>${place.description ? `<br>${escapeHtml(place.description)}` : ""}`,
       });
       marker.setStyle(createPointStyle(place.color));
+      pointFeaturesById.set(place.id, marker);
       vectorSource.addFeature(marker);
     });
     mapData.trips.forEach((trip) => {
@@ -666,7 +698,10 @@ const initializeOpenLayersMaps = () => {
         vectorSource.addFeature(line);
       }
     });
+    const usesLongPress = window.matchMedia("(pointer: coarse)").matches;
+    let suppressSingleClickUntil = 0;
     map.on("singleclick", (event) => {
+      if (performance.now() < suppressSingleClickUntil) return;
       if (activePlaceId !== null) {
         const [longitude, latitude] = ol.proj.toLonLat(event.coordinate);
         setPlacementMarker(latitude, longitude);
@@ -681,9 +716,53 @@ const initializeOpenLayersMaps = () => {
         return;
       }
       const popupHtml = feature?.get("popupHtml");
+      if (!popupHtml && !usesLongPress) {
+        const [longitude, latitude] = ol.proj.toLonLat(event.coordinate);
+        startNewPlaceEditor(latitude, longitude);
+        return;
+      }
       popupElement.hidden = !popupHtml;
       popupElement.innerHTML = popupHtml || "";
       popup.setPosition(popupHtml ? event.coordinate : undefined);
+    });
+    let longPressTimer = null;
+    let longPressStart = null;
+    const cancelLongPress = () => {
+      window.clearTimeout(longPressTimer);
+      longPressTimer = null;
+      longPressStart = null;
+    };
+    journeyMapElement.addEventListener("pointerdown", (event) => {
+      if (!usesLongPress || event.pointerType === "mouse" || activePlaceId !== null) return;
+      longPressStart = { x: event.clientX, y: event.clientY };
+      longPressTimer = window.setTimeout(() => {
+        const rect = journeyMapElement.getBoundingClientRect();
+        const pixel = [
+          event.clientX - rect.left,
+          event.clientY - rect.top,
+        ];
+        if (map.hasFeatureAtPixel(pixel)) {
+          cancelLongPress();
+          return;
+        }
+        const coordinate = map.getCoordinateFromPixel(pixel);
+        const [longitude, latitude] = ol.proj.toLonLat(coordinate);
+        suppressSingleClickUntil = performance.now() + 800;
+        startNewPlaceEditor(latitude, longitude);
+        longPressTimer = null;
+        longPressStart = null;
+      }, 600);
+    });
+    journeyMapElement.addEventListener("pointermove", (event) => {
+      if (!longPressStart) return;
+      if (Math.hypot(event.clientX - longPressStart.x, event.clientY - longPressStart.y) > 10) {
+        cancelLongPress();
+      }
+    });
+    journeyMapElement.addEventListener("pointerup", cancelLongPress);
+    journeyMapElement.addEventListener("pointercancel", cancelLongPress);
+    journeyMapElement.addEventListener("contextmenu", (event) => {
+      if (usesLongPress) event.preventDefault();
     });
     map.on("pointermove", (event) => {
       journeyMapElement.style.cursor = activePlaceId !== null

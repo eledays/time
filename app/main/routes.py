@@ -375,28 +375,33 @@ def places():
 def create_place():
     """Создать место и сохранить его дополнительные данные."""
 
+    return_url = (
+        url_for("main.map_view")
+        if request.form.get("return_to") == "map"
+        else url_for("main.places")
+    )
     name = request.form.get("name", "").strip()
     if not name:
         flash("Введите название места", "error")
-        return redirect(url_for("main.places"))
+        return redirect(return_url)
     if len(name) > current_app.config["MAX_TEXT_LENGTH"]:
         flash("Название места слишком длинное", "error")
-        return redirect(url_for("main.places"))
+        return redirect(return_url)
     place = get_or_create_place(g.user.id, name)
     if not _update_place_fields(place):
         db.session.rollback()
-        return redirect(url_for("main.places"))
+        return redirect(return_url)
     try:
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
         flash("Место с таким названием уже существует", "warning")
-        return redirect(url_for("main.places"))
+        return redirect(return_url)
     if request.form.get("choose_on_map") == "1":
         flash("Место сохранено · выберите положение на карте", "success")
         return redirect(url_for("main.map_view", pick=place.id))
     flash("Место сохранено", "success")
-    return redirect(url_for("main.places"))
+    return redirect(return_url)
 
 
 @bp.post("/places/<int:place_id>")
@@ -478,6 +483,7 @@ def map_view():
     trips = db.session.scalars(select(Trip).where(Trip.user_id == g.user.id)).all()
     mapped_ids = {place.id for place in places}
     map_data = {
+        "createUrl": url_for("main.create_place"),
         "places": [
             {
                 "id": place.id,
