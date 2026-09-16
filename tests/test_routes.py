@@ -1059,6 +1059,8 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     )
     assert ".map-placement-panel" in map_styles
     assert ".map-placement-icon-button { width: 46px; height: 46px" in map_styles
+    assert "gap: 8px; padding: 0; border: 0; background: transparent" in map_styles
+    assert ".map-placement-panel > strong { min-width: 0; height: 46px" in map_styles
     assert ".map-page .ol-attribution" in map_styles
 
 
