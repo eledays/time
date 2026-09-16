@@ -2,7 +2,7 @@
 {% block title %}Карта{% endblock %}
 {% block page %}map{% endblock %}
 {% block content %}
-<main class="map-page">
+<main class="map-page" data-map-pick-place="{{ pick_place_id or '' }}">
   <div id="journey-map" class="journey-map" aria-label="Карта сохранённых мест"></div>
   <div class="map-toolbar" aria-label="Настройки карты">
     <div class="map-layer-switcher">
@@ -36,14 +36,20 @@
     </div>
   </aside>
 
+  <section class="map-placement-panel" data-map-placement hidden aria-live="polite" aria-label="Выбор положения места">
+    <div class="map-placement-copy">
+      <span>Положение места</span>
+      <strong data-map-placement-name></strong>
+      <small>Нажмите на карту. Крупная метка покажет новое положение, остальные точки останутся видны.</small>
+    </div>
+    <div class="map-placement-actions">
+      <button class="secondary-button" type="button" data-map-placement-cancel>Отмена</button>
+      <button class="primary-button" type="button" data-map-placement-apply disabled>Сохранить точку</button>
+    </div>
+  </section>
+
   <script id="map-data" type="application/json">{{ map_data|tojson }}</script>
 </main>
-<dialog class="map-dialog" data-map-dialog>
-  <div class="dialog-head"><strong>Укажите точку</strong><button type="button" data-map-close aria-label="Закрыть">×</button></div>
-  <p class="dialog-hint">Нажмите на нужное место на схеме.</p>
-  <div id="coordinate-map"></div>
-  <button class="primary-button" type="button" data-map-apply>Готово</button>
-</dialog>
 {% endblock %}
 {% block head %}<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.6.1/ol.css" integrity="sha384-Jpg1uvTciFJuHq+90Ly0/2SKRT9yS5OhbIN5FuFoFWji9fc44ok8xxO88CJi8Z5W" crossorigin="anonymous">{% endblock %}
 {% block scripts %}<script src="https://cdn.jsdelivr.net/npm/ol@v10.6.1/dist/ol.js" integrity="sha384-R02sHnzL8yl/uvLZvMsfgBOMBIOOHLpuLNo4dLuWQWFun1sxEWJej+SPwiGxaeGd" crossorigin="anonymous"></script>{% endblock %}

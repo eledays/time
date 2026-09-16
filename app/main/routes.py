@@ -392,6 +392,9 @@ def create_place():
         db.session.rollback()
         flash("Место с таким названием уже существует", "warning")
         return redirect(url_for("main.places"))
+    if request.form.get("choose_on_map") == "1":
+        flash("Место сохранено · выберите положение на карте", "success")
+        return redirect(url_for("main.map_view", pick=place.id))
     flash("Место сохранено", "success")
     return redirect(url_for("main.places"))
 
@@ -406,6 +409,7 @@ def update_place(place_id: int):
     )
     if place is None:
         return render_template("error.html", code=404, message="Место не найдено"), 404
+    choose_on_map = request.form.get("choose_on_map") == "1"
     return_url = (
         url_for("main.map_view")
         if request.form.get("return_to") == "map"
@@ -440,6 +444,9 @@ def update_place(place_id: int):
         db.session.rollback()
         flash("Место с таким названием уже существует", "warning")
         return redirect(return_url)
+    if choose_on_map:
+        flash("Данные сохранены · выберите положение на карте", "success")
+        return redirect(url_for("main.map_view", pick=place.id))
     flash("Изменения сохранены", "success")
     return redirect(return_url)
 
@@ -462,6 +469,12 @@ def map_view():
         for place in all_places
         if place.latitude is None or place.longitude is None
     ]
+    requested_pick_id = request.args.get("pick", type=int)
+    pick_place_id = (
+        requested_pick_id
+        if requested_pick_id in {place.id for place in all_places}
+        else None
+    )
     trips = db.session.scalars(select(Trip).where(Trip.user_id == g.user.id)).all()
     mapped_ids = {place.id for place in places}
     map_data = {
@@ -489,6 +502,7 @@ def map_view():
     return render_template(
         "map.html",
         map_data=map_data,
+        pick_place_id=pick_place_id,
         places=places,
         unmapped_places=unmapped_places,
     )

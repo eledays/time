@@ -1006,7 +1006,9 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     places_page = auth_client.get("/places")
     assert 'name="address"' not in places_page.text
     assert 'name="latitude" type="hidden"' in places_page.text
-    assert "Указать точку на карте" in places_page.text
+    assert "Указать точку на основной карте" in places_page.text
+    assert 'name="choose_on_map" value="1"' in places_page.text
+    assert "cdn.jsdelivr.net/npm/ol" not in places_page.text
 
     for path, expected_text in [
         ("/trips", "История"),
@@ -1027,12 +1029,20 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     assert 'data-map-layer="imagery"' in map_page.text
     assert f'id="map-place-{mapped_place_id}"' in map_page.text
     assert 'name="return_to" value="map"' in map_page.text
+    assert "data-map-placement" in map_page.text
+    assert "data-map-placement-apply" in map_page.text
+    assert "data-map-dialog" not in map_page.text
+    assert 'id="coordinate-map"' not in map_page.text
     map_script = auth_client.get("/static/js/app.js")
     assert "World_Imagery/MapServer/tile" in map_script.text
     assert "World_Street_Map/MapServer/tile" in map_script.text
     assert "new ol.Map" in map_script.text
     assert "tile.openstreetmap.org" not in map_script.text
     assert 'feature?.get("placeId")' in map_script.text
+    assert "const placementSource = new ol.source.Vector()" in map_script.text
+    assert "journeyMapElement.style.cursor = activePlacementForm" in map_script.text
+    assert 'placementApply.textContent = "Сохраняем…"' in map_script.text
+    assert "form.requestSubmit()" in map_script.text
     map_styles = auth_client.get("/static/css/style.css").text
     assert (
         'body[data-page="map"] { overflow: hidden; padding-bottom: 0; }' in map_styles
@@ -1077,6 +1087,43 @@ def test_map_separates_places_without_coordinates_and_updates_in_place(
         saved = db.session.get(Place, place_id)
         assert saved.name == "Новая точка"
         assert saved.latitude == 55.75
+
+
+def test_place_position_is_selected_on_main_map(app: Flask, auth_client, user) -> None:
+    """Создание места переводит в режим выбора на общей карте с другими точками."""
+
+    with app.app_context():
+        existing = get_or_create_place(user.id, "Дом")
+        existing.latitude = 55.7512
+        existing.longitude = 37.6184
+        db.session.commit()
+
+    response = auth_client.post(
+        "/places",
+        data={
+            "csrf_token": "test-csrf",
+            "name": "Новая точка",
+            "choose_on_map": "1",
+        },
+    )
+    assert response.status_code == 302
+    with app.app_context():
+        created = db.session.scalar(
+            db.select(Place).where(Place.normalized_name == "новая точка")
+        )
+        assert created is not None
+        created_id = created.id
+    assert response.headers["Location"].endswith(f"/map?pick={created_id}")
+
+    map_page = auth_client.get(response.headers["Location"])
+    assert map_page.status_code == 200
+    assert f'data-map-pick-place="{created_id}"' in map_page.text
+    assert "Дом" in map_page.text
+    assert "Новая точка" in map_page.text
+    assert "остальные точки останутся видны" in map_page.text
+
+    unknown = auth_client.get("/map?pick=999999")
+    assert 'data-map-pick-place=""' in unknown.text
 
 
 def test_profile_links_to_history_and_place_searches(

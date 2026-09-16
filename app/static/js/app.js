@@ -484,6 +484,15 @@ const createPointStyle = (color) => new ol.style.Style({
   }),
 });
 
+const createPlacementStyle = (color) => new ol.style.Style({
+  image: new ol.style.Circle({
+    radius: 12,
+    fill: new ol.style.Fill({ color }),
+    stroke: new ol.style.Stroke({ color: "#f7f7f2", width: 3 }),
+  }),
+  zIndex: 20,
+});
+
 const initializeOpenLayersMaps = () => {
   const mapPanel = document.querySelector("[data-map-panel]");
   const panelOpenButton = document.querySelector("[data-map-panel-open]");
@@ -504,79 +513,19 @@ const initializeOpenLayersMaps = () => {
   mapPanel?.querySelector("[data-map-panel-close]")
     ?.addEventListener("click", () => setMapPanelOpen(false));
 
-  const mapDialog = document.querySelector("[data-map-dialog]");
-  if (mapDialog) {
-    let activeForm = null;
-    let pickerMap = null;
-    let pickerCoordinates = null;
-    const pickerSource = new ol.source.Vector();
-
-    const placePickerMarker = (latitude, longitude) => {
-      pickerCoordinates = [latitude, longitude];
-      pickerSource.clear();
-      pickerSource.addFeature(new ol.Feature({
-        geometry: new ol.geom.Point(ol.proj.fromLonLat([longitude, latitude])),
-      }));
-    };
-
-    document.querySelectorAll("[data-map-pick]").forEach((button) => {
-      button.addEventListener("click", () => {
-        activeForm = button.closest("form");
-        const latitude = Number.parseFloat(activeForm.querySelector("[name=latitude]").value);
-        const longitude = Number.parseFloat(activeForm.querySelector("[name=longitude]").value);
-        const hasCoordinates = Number.isFinite(latitude) && Number.isFinite(longitude);
-        mapDialog.showModal();
-        window.setTimeout(() => {
-          if (!pickerMap) {
-            pickerMap = new ol.Map({
-              target: "coordinate-map",
-              layers: [
-                createStreetLayer(),
-                new ol.layer.Vector({
-                  source: pickerSource,
-                  style: createPointStyle("#191919"),
-                }),
-              ],
-              view: new ol.View({
-                center: ol.proj.fromLonLat([37.6184, 55.7512]),
-                zoom: 11,
-              }),
-            });
-            pickerMap.on("singleclick", (event) => {
-              const [longitude, latitude] = ol.proj.toLonLat(event.coordinate);
-              placePickerMarker(latitude, longitude);
-            });
-          }
-          pickerMap.updateSize();
-          if (hasCoordinates) {
-            pickerMap.getView().setCenter(ol.proj.fromLonLat([longitude, latitude]));
-            pickerMap.getView().setZoom(15);
-            placePickerMarker(latitude, longitude);
-          } else {
-            pickerCoordinates = null;
-            pickerSource.clear();
-            pickerMap.getView().setCenter(ol.proj.fromLonLat([37.6184, 55.7512]));
-            pickerMap.getView().setZoom(11);
-          }
-        }, 50);
-      });
-    });
-    mapDialog.querySelector("[data-map-close]").addEventListener("click", () => mapDialog.close());
-    mapDialog.querySelector("[data-map-apply]").addEventListener("click", () => {
-      if (!activeForm || !pickerCoordinates) return;
-      const [latitude, longitude] = pickerCoordinates;
-      activeForm.querySelector("[name=latitude]").value = latitude.toFixed(6);
-      activeForm.querySelector("[name=longitude]").value = longitude.toFixed(6);
-      activeForm.querySelector("[data-map-pick]").textContent = "Изменить точку на карте";
-      mapDialog.close();
-    });
-  }
-
   const journeyMapElement = document.getElementById("journey-map");
   const mapDataElement = document.getElementById("map-data");
   if (journeyMapElement && mapDataElement) {
     const mapData = JSON.parse(mapDataElement.textContent);
     const vectorSource = new ol.source.Vector();
+    const placementSource = new ol.source.Vector();
+    const placementPanel = document.querySelector("[data-map-placement]");
+    const placementName = placementPanel?.querySelector("[data-map-placement-name]");
+    const placementApply = placementPanel?.querySelector("[data-map-placement-apply]");
+    const placementCancel = placementPanel?.querySelector("[data-map-placement-cancel]");
+    const mapPage = journeyMapElement.closest(".map-page");
+    let activePlacementForm = null;
+    let placementCoordinates = null;
     const popupElement = document.createElement("div");
     popupElement.className = "map-popup";
     popupElement.hidden = true;
@@ -590,14 +539,101 @@ const initializeOpenLayersMaps = () => {
     const streetLayer = createStreetLayer();
     const imageryLayer = createImageryLayer();
     imageryLayer.setVisible(false);
+    const placementLayer = new ol.layer.Vector({ source: placementSource });
     const map = new ol.Map({
       target: journeyMapElement,
-      layers: [streetLayer, imageryLayer, new ol.layer.Vector({ source: vectorSource })],
+      layers: [
+        streetLayer,
+        imageryLayer,
+        new ol.layer.Vector({ source: vectorSource }),
+        placementLayer,
+      ],
       overlays: [popup],
       view: new ol.View({
         center: ol.proj.fromLonLat([37.6184, 55.7512]),
         zoom: 10,
       }),
+    });
+
+    const setPlacementMarker = (latitude, longitude) => {
+      placementCoordinates = [latitude, longitude];
+      placementSource.clear();
+      const marker = new ol.Feature({
+        geometry: new ol.geom.Point(ol.proj.fromLonLat([longitude, latitude])),
+      });
+      const markerColor = activePlacementForm
+        ?.querySelector("[name=marker_color]")?.value || "#191919";
+      marker.setStyle(createPlacementStyle(markerColor));
+      placementSource.addFeature(marker);
+      if (placementApply) placementApply.disabled = false;
+    };
+
+    const finishPlacement = () => {
+      const form = activePlacementForm;
+      const editor = form?.closest(".map-place-editor");
+      const pickButton = form?.querySelector("[data-map-pick]");
+      placementSource.clear();
+      placementCoordinates = null;
+      activePlacementForm = null;
+      placementPanel.hidden = true;
+      mapPage?.classList.remove("is-picking");
+      setMapPanelOpen(true);
+      if (editor) editor.open = true;
+      window.setTimeout(() => {
+        editor?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        pickButton?.focus({ preventScroll: true });
+      }, 180);
+    };
+
+    const startPlacement = (button) => {
+      if (!placementPanel || !placementApply) return;
+      activePlacementForm = button.closest("form");
+      if (!activePlacementForm) return;
+      if (!activePlacementForm.reportValidity()) {
+        activePlacementForm = null;
+        return;
+      }
+      const latitude = Number.parseFloat(
+        activePlacementForm.querySelector("[name=latitude]").value,
+      );
+      const longitude = Number.parseFloat(
+        activePlacementForm.querySelector("[name=longitude]").value,
+      );
+      const hasCoordinates = Number.isFinite(latitude) && Number.isFinite(longitude);
+      if (placementName) {
+        placementName.textContent = activePlacementForm.querySelector("[name=name]").value.trim();
+      }
+      placementPanel.hidden = false;
+      placementApply.disabled = !hasCoordinates;
+      placementApply.textContent = "Сохранить точку";
+      mapPage?.classList.add("is-picking");
+      setMapPanelOpen(false);
+      popupElement.hidden = true;
+      popup.setPosition(undefined);
+      if (hasCoordinates) {
+        setPlacementMarker(latitude, longitude);
+      } else {
+        placementCoordinates = null;
+        placementSource.clear();
+      }
+    };
+
+    document.querySelectorAll("[data-map-pick]").forEach((button) => {
+      button.addEventListener("click", () => startPlacement(button));
+    });
+    placementCancel?.addEventListener("click", finishPlacement);
+    placementApply?.addEventListener("click", () => {
+      if (!activePlacementForm || !placementCoordinates) return;
+      const form = activePlacementForm;
+      const [latitude, longitude] = placementCoordinates;
+      form.querySelector("[name=latitude]").value = latitude.toFixed(6);
+      form.querySelector("[name=longitude]").value = longitude.toFixed(6);
+      placementApply.disabled = true;
+      placementApply.textContent = "Сохраняем…";
+      form.requestSubmit();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && activePlacementForm) finishPlacement();
     });
 
     const pointsById = new Map();
@@ -627,6 +663,11 @@ const initializeOpenLayersMaps = () => {
       }
     });
     map.on("singleclick", (event) => {
+      if (activePlacementForm) {
+        const [longitude, latitude] = ol.proj.toLonLat(event.coordinate);
+        setPlacementMarker(latitude, longitude);
+        return;
+      }
       const feature = map.forEachFeatureAtPixel(event.pixel, (item) => item);
       const placeId = feature?.get("placeId");
       if (placeId) {
@@ -641,7 +682,9 @@ const initializeOpenLayersMaps = () => {
       popup.setPosition(popupHtml ? event.coordinate : undefined);
     });
     map.on("pointermove", (event) => {
-      journeyMapElement.style.cursor = map.hasFeatureAtPixel(event.pixel) ? "pointer" : "";
+      journeyMapElement.style.cursor = activePlacementForm
+        ? "crosshair"
+        : map.hasFeatureAtPixel(event.pixel) ? "pointer" : "";
     });
     document.querySelectorAll("[data-map-layer]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -663,6 +706,12 @@ const initializeOpenLayersMaps = () => {
         padding: [80, 48, 100, 48],
         maxZoom: 15,
       });
+    }
+    const initialPickId = Number.parseInt(mapPage?.dataset.mapPickPlace || "", 10);
+    if (Number.isInteger(initialPickId)) {
+      const editor = document.getElementById(`map-place-${initialPickId}`);
+      const pickButton = editor?.querySelector("[data-map-pick]");
+      if (pickButton) startPlacement(pickButton);
     }
   }
 };
