@@ -517,6 +517,7 @@ const initializeOpenLayersMaps = () => {
     const placementName = placementPanel?.querySelector("[data-map-placement-name]");
     const placementDescription = placementPanel?.querySelector("[data-map-placement-description]");
     const placementColor = placementPanel?.querySelector("[data-map-placement-color]");
+    const placementColorButton = placementPanel?.querySelector("[data-map-placement-color-button]");
     const placementLatitude = placementPanel?.querySelector("[data-map-placement-latitude]");
     const placementLongitude = placementPanel?.querySelector("[data-map-placement-longitude]");
     const placementApply = placementPanel?.querySelector("[data-map-placement-apply]");
@@ -586,6 +587,7 @@ const initializeOpenLayersMaps = () => {
       placementName.value = place.name;
       placementDescription.value = place.description;
       placementColor.value = place.color;
+      placementColorButton?.style.setProperty("--marker-color", place.color);
       const latitude = Number.parseFloat(place.lat);
       const longitude = Number.parseFloat(place.lng);
       const hasCoordinates = Number.isFinite(latitude) && Number.isFinite(longitude);
@@ -601,6 +603,11 @@ const initializeOpenLayersMaps = () => {
       popup.setPosition(undefined);
       if (hasCoordinates) {
         setPlacementMarker(latitude, longitude);
+        map.getView().animate({
+          center: ol.proj.fromLonLat([longitude, latitude]),
+          zoom: 15,
+          duration: 450,
+        });
       } else {
         placementCoordinates = null;
         if (placementLatitude) placementLatitude.value = "";
@@ -613,6 +620,7 @@ const initializeOpenLayersMaps = () => {
       button.addEventListener("click", () => startPlaceEditor(button.dataset.mapEditPlace));
     });
     placementColor?.addEventListener("input", () => {
+      placementColorButton?.style.setProperty("--marker-color", placementColor.value);
       if (!placementCoordinates) return;
       setPlacementMarker(...placementCoordinates);
     });

@@ -1036,7 +1036,9 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     assert "data-map-placement-name" in map_page.text
     assert "data-map-placement-description" in map_page.text
     assert "data-map-placement-color" in map_page.text
+    assert "data-map-placement-color-button" in map_page.text
     assert 'name="marker_color" type="color"' in map_page.text
+    assert ">palette</span>" in map_page.text
     assert ">close</span>" in map_page.text
     assert ">check</span>" in map_page.text
     assert "Положение места</span>" not in map_page.text
@@ -1052,6 +1054,9 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     assert "const placementSource = new ol.source.Vector()" in map_script.text
     assert "journeyMapElement.style.cursor = activePlaceId !== null" in map_script.text
     assert "startPlaceEditor(placeId)" in map_script.text
+    assert "map.getView().animate({" in map_script.text
+    assert "zoom: 15" in map_script.text
+    assert "duration: 450" in map_script.text
     assert "setMapPanelOpen(false)" in map_script.text
     assert 'placementApply.classList.add("is-saving")' in map_script.text
     assert 'placementApplyIcon.textContent = "progress_activity"' in map_script.text
@@ -1067,7 +1072,8 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     assert ".map-placement-panel" in map_styles
     assert ".map-placement-icon-button { width: 46px; height: 46px" in map_styles
     assert "gap: 8px; padding: 0; border: 0; background: transparent" in map_styles
-    assert ".map-placement-fields { min-width: 0; flex: 1" in map_styles
+    assert ".map-placement-fields { min-width: 0; height: 152px; flex: 1" in map_styles
+    assert ".map-placement-color-button" in map_styles
     assert ".map-page .ol-attribution" in map_styles
 
 

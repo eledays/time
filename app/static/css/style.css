@@ -307,16 +307,13 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .map-places-button span { display: inline-grid; min-width: 19px; height: 19px; margin-left: 6px; place-items: center; border-radius: 9px; background: var(--line); color: var(--muted); font-size: 9px; }
 .map-page.is-picking .map-places-button { opacity: .38; pointer-events: none; }
 .map-placement-panel { position: absolute; z-index: 700; bottom: max(92px, calc(env(safe-area-inset-bottom) + 82px)); left: 50%; width: min(520px, calc(100% - 24px)); display: flex; align-items: flex-end; gap: 8px; padding: 0; border: 0; background: transparent; box-shadow: none; transform: translateX(-50%); animation: map-placement-enter .3s cubic-bezier(.2,.75,.25,1) both; }
-.map-placement-fields { min-width: 0; flex: 1; padding: 13px 15px 12px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface-raised); box-shadow: var(--shadow); backdrop-filter: blur(18px); }
+.map-placement-fields { min-width: 0; height: 152px; flex: 1; display: flex; flex-direction: column; padding: 13px 15px 12px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface-raised); box-shadow: var(--shadow); backdrop-filter: blur(18px); }
 .map-placement-fields input[type="text"], .map-placement-fields textarea { width: 100%; display: block; padding: 0; border: 0; outline: 0; background: transparent; color: var(--text); }
 .map-placement-fields input[type="text"] { padding-bottom: 10px; border-bottom: 1px solid var(--line); font-size: 16px; font-weight: 560; }
 .map-placement-fields textarea { min-height: 43px; padding-top: 10px; resize: none; font-size: 12px; line-height: 1.45; }
 .map-placement-fields input[type="text"]:focus { border-color: var(--faint); }
-.map-placement-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; }
-.map-placement-hint { min-width: 0; display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 9px; line-height: 1.35; }
+.map-placement-hint { min-width: 0; display: inline-flex; align-items: center; gap: 5px; margin-top: auto; color: var(--muted); font-size: 9px; line-height: 1.35; }
 .map-placement-hint .material-symbols-rounded { flex: none; font-size: 16px; }
-.map-placement-color { width: 34px; height: 30px; flex: none; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: 9px; cursor: pointer; }
-.map-placement-color input { width: 42px; height: 38px; padding: 0; border: 0; background: transparent; cursor: pointer; }
 .map-placement-actions { flex: none; display: flex; flex-direction: column; gap: 7px; }
 .map-placement-icon-button { width: 46px; height: 46px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); color: var(--text); box-shadow: var(--shadow); cursor: pointer; backdrop-filter: blur(18px); transition: border-color .18s ease, opacity .18s ease, transform .18s ease; }
 .map-placement-icon-button:hover { border-color: var(--faint); }
@@ -326,6 +323,9 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .map-placement-icon-button.is-saving { cursor: wait; }
 .map-placement-icon-button .material-symbols-rounded { font-size: 24px; }
 .map-placement-icon-button.is-saving .material-symbols-rounded { animation: placement-icon-spin .8s linear infinite; }
+.map-placement-color-button { position: relative; --marker-color: #111111; }
+.map-placement-color-button::after { position: absolute; right: 7px; bottom: 7px; width: 8px; height: 8px; border: 1px solid #fff; border-radius: 50%; background: var(--marker-color); content: ""; pointer-events: none; }
+.map-placement-color-button input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer; }
 .map-places-panel { position: absolute; z-index: 600; top: max(12px, calc(env(safe-area-inset-top) + 12px)); right: 12px; bottom: max(92px, calc(env(safe-area-inset-bottom) + 82px)); width: min(390px, calc(100% - 24px)); overflow: hidden; border: 1px solid var(--line); border-radius: 22px; background: rgba(9, 9, 9, .96); box-shadow: var(--shadow); opacity: 0; visibility: hidden; transform: translateX(calc(100% + 24px)); transition: opacity .2s ease, transform .28s cubic-bezier(.2,.75,.25,1), visibility .28s; backdrop-filter: blur(18px); }
 .map-places-panel.is-open { opacity: 1; visibility: visible; transform: none; }
 .map-places-panel > header { min-height: 76px; display: flex; align-items: center; justify-content: space-between; padding: 15px 18px; border-bottom: 1px solid var(--line); }

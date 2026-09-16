@@ -46,17 +46,18 @@
       <input id="map-placement-name" name="name" type="text" maxlength="{{ config.MAX_TEXT_LENGTH }}" placeholder="Название места" required data-map-placement-name>
       <label class="visually-hidden" for="map-placement-description">Описание</label>
       <textarea id="map-placement-description" name="description" rows="2" maxlength="{{ config.MAX_TEXT_LENGTH }}" placeholder="Описание" data-map-placement-description></textarea>
-      <div class="map-placement-meta">
-        <span class="map-placement-hint"><span class="material-symbols-rounded" aria-hidden="true">location_on</span> Нажмите на карту, чтобы изменить положение</span>
-        <label class="map-placement-color" title="Цвет метки"><span class="visually-hidden">Цвет метки</span><input name="marker_color" type="color" value="#111111" data-map-placement-color></label>
-      </div>
+      <span class="map-placement-hint"><span class="material-symbols-rounded" aria-hidden="true">location_on</span> Нажмите на карту, чтобы изменить положение</span>
     </div>
     <div class="map-placement-actions">
-      <button class="map-placement-icon-button" type="button" data-map-placement-cancel aria-label="Закрыть без сохранения" title="Закрыть без сохранения">
-        <span class="material-symbols-rounded" aria-hidden="true">close</span>
-      </button>
+      <label class="map-placement-icon-button map-placement-color-button" data-map-placement-color-button aria-label="Выбрать цвет метки" title="Цвет метки">
+        <span class="material-symbols-rounded" aria-hidden="true">palette</span>
+        <input name="marker_color" type="color" value="#111111" data-map-placement-color>
+      </label>
       <button class="map-placement-icon-button is-primary" type="submit" data-map-placement-apply aria-label="Сохранить место" title="Сохранить место">
         <span class="material-symbols-rounded" aria-hidden="true" data-map-placement-apply-icon>check</span>
+      </button>
+      <button class="map-placement-icon-button" type="button" data-map-placement-cancel aria-label="Закрыть без сохранения" title="Закрыть без сохранения">
+        <span class="material-symbols-rounded" aria-hidden="true">close</span>
       </button>
     </div>
   </form>
