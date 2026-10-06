@@ -656,6 +656,30 @@ const createPlacementStyle = (color) => new ol.style.Style({
 });
 
 const initializeOpenLayersMaps = () => {
+  const miniMapElement = document.querySelector("[data-place-mini-map]");
+  if (miniMapElement) {
+    const latitude = Number.parseFloat(miniMapElement.dataset.latitude);
+    const longitude = Number.parseFloat(miniMapElement.dataset.longitude);
+    if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+      const point = new ol.Feature({
+        geometry: new ol.geom.Point(ol.proj.fromLonLat([longitude, latitude])),
+      });
+      point.setStyle(createPointStyle(miniMapElement.dataset.color));
+      miniMapElement.replaceChildren();
+      new ol.Map({
+        target: miniMapElement,
+        layers: [createOpenStreetMapLayer(), new ol.layer.Vector({
+          source: new ol.source.Vector({ features: [point] }),
+        })],
+        controls: [new ol.control.Attribution({ collapsible: false })],
+        interactions: [],
+        view: new ol.View({ center: ol.proj.fromLonLat([longitude, latitude]), zoom: 14 }),
+      });
+      document.getElementById("place-color")?.addEventListener("input", (event) => {
+        point.setStyle(createPointStyle(event.target.value));
+      });
+    }
+  }
   const mapPanel = document.querySelector("[data-map-panel]");
   const panelOpenButton = document.querySelector("[data-map-panel-open]");
   const setMapPanelOpen = (open) => {

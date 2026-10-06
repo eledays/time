@@ -96,7 +96,7 @@ def test_delete_unused_place(auth_client, app, user):
         db.session.commit()
         place_id = place.id
     assert f'href="/places/{place_id}/edit"' in auth_client.get("/places").text
-    assert "Удалить место" in auth_client.get(f"/places/{place_id}/edit").text
+    assert ">Удалить</button>" in auth_client.get(f"/places/{place_id}/edit").text
     response = auth_client.post(
         f"/places/{place_id}/delete", data={"csrf_token": "test-csrf"}
     )
@@ -184,12 +184,23 @@ def test_separate_place_editor_and_save(auth_client, app, user):
     assert "Объединить места" not in listing
     page = auth_client.get(f"/places/{place_id}/edit")
     assert page.status_code == 200
-    assert 'class="secondary-button" type="submit">Объединить места' in page.text
-    assert (
-        page.text.index('id="merge-target"')
-        < page.text.index(">Объединить места")
-        < page.text.index(">Сохранить</button>")
-    )
+    assert 'class="secondary-button" type="submit" >Объединить' in page.text
+    assert "<h1" not in page.text
+    ordered = [
+        "data-place-mini-map",
+        ">Изменить место на карте",
+        'id="place-name"',
+        'id="place-description"',
+        'id="place-color"',
+        ">Сохранить</button>",
+        ">Объединение</h2>",
+        'id="merge-target"',
+        ">Объединить</button>",
+        ">Удалить</button>",
+        'name="delete_related"',
+    ]
+    positions = [page.text.index(item) for item in ordered]
+    assert positions == sorted(positions)
     assert "Поездки перенесутся в выбранное место" not in page.text
     response = auth_client.post(
         f"/places/{place_id}",
@@ -210,3 +221,27 @@ def test_place_editor_ownership(auth_client, app, user):
         place_id = place.id
     assert auth_client.get(f"/places/{place_id}/edit").status_code == 404
     assert auth_client.get("/places/999999/edit").status_code == 404
+
+
+def test_place_mini_map_coordinates_and_empty_state(auth_client, app, user):
+    with app.app_context():
+        mapped = Place(
+            user_id=user.id,
+            name="Ноль",
+            normalized_name="ноль",
+            latitude=0,
+            longitude=0,
+            marker_color="#123456",
+        )
+        empty = Place(user_id=user.id, name="Без точки", normalized_name="без точки")
+        db.session.add_all([mapped, empty])
+        db.session.commit()
+        mapped_id, empty_id = mapped.id, empty.id
+    page = auth_client.get(f"/places/{mapped_id}/edit").text
+    assert 'data-latitude="0.0"' in page
+    assert 'data-longitude="0.0"' in page
+    assert 'data-color="#123456"' in page
+    assert "ol@v10.6.1/dist/ol.js" in page
+    page = auth_client.get(f"/places/{empty_id}/edit").text
+    assert 'data-latitude=""' in page
+    assert "Положение места пока не указано" in page

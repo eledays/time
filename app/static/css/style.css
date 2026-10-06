@@ -613,7 +613,7 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .place-edit-page h1 { overflow-wrap: anywhere; }
 .place-edit-page .place-form { padding: 0; }
 .place-edit-page .color-field { margin-bottom: 20px; }
-.place-edit-page .place-merge-form { margin-bottom: 16px; }
+.place-edit-page .place-merge-form { margin-bottom: 0; }
 .place-edit-page select { width: 100%; min-height: 52px; padding: 13px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg); color: var(--text); font: inherit; color-scheme: dark; }
 .place-edit-page select:focus-visible { outline: 2px solid var(--faint); outline-offset: 2px; }
 .place-edit-page .place-delete-form { display: grid; gap: 16px; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
@@ -621,3 +621,9 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
   .place-card { gap: 10px; padding: 12px; }
   .place-card > span:not(.ui-chevron) { font-size: 14px; }
 }
+
+.place-mini-map { position: relative; width: 100%; height: 220px; overflow: hidden; margin-bottom: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.place-mini-map-empty { display: flex; align-items: center; justify-content: center; height: 100%; padding: 20px; color: var(--muted); font-size: 13px; text-align: center; }
+.place-edit-page .place-merge-section { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
+.place-merge-section h2 { margin: 0 0 16px; font-size: 18px; font-weight: 560; }
+.place-merge-section button:disabled, .place-merge-section select:disabled { opacity: .45; cursor: default; }

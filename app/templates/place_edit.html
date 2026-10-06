@@ -4,30 +4,41 @@
 {% block content %}
 <main class="page-shell app-page history-page place-edit-page">
   <a class="manage-back" href="{{ url_for('main.places') }}">← Места</a>
-  <header class="page-heading"><h1>{{ place.name }}</h1></header>
   <form id="place-save" action="{{ url_for('main.update_place', place_id=place.id) }}" method="post" class="place-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="return_to" value="edit">
-    {% with current=place %}{% include "partials/place_fields.html" %}{% endwith %}
-  </form>
-  {% if merge_targets %}
-  <form action="{{ url_for('main.merge_place', place_id=place.id) }}" method="post" class="place-form place-merge-form" data-confirm="Объединить это место с выбранным? Все поездки будут перенесены, название и координаты выбранного места сохранятся.">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="field-group">
-      <label for="merge-target">Объединить с</label>
-      <select id="merge-target" name="target_id" required>
-        <option value="">Выберите место</option>
-        {% for target in merge_targets %}<option value="{{ target.id }}">{{ target.name }}</option>{% endfor %}
-      </select>
+    <input name="latitude" type="hidden" value="{{ place.latitude if place.latitude is not none else '' }}">
+    <input name="longitude" type="hidden" value="{{ place.longitude if place.longitude is not none else '' }}">
+    <div class="place-mini-map" data-place-mini-map data-latitude="{{ place.latitude if place.latitude is not none else '' }}" data-longitude="{{ place.longitude if place.longitude is not none else '' }}" data-color="{{ place.marker_color }}" role="img" aria-label="Положение места {{ place.name }} на карте">
+      <span class="place-mini-map-empty">{{ 'Загрузка карты…' if place.latitude is not none and place.longitude is not none else 'Положение места пока не указано' }}</span>
     </div>
-    <button class="secondary-button" type="submit">Объединить места</button>
+    <button class="map-pick-button" type="submit" name="choose_on_map" value="1">Изменить место на карте</button>
+    <div class="field-group"><label for="place-name">Название</label><input id="place-name" name="name" maxlength="{{ config.MAX_TEXT_LENGTH }}" value="{{ place.name }}" placeholder="Дом" required></div>
+    <div class="field-group"><label for="place-description">Описание</label><textarea id="place-description" name="description" rows="3" maxlength="{{ config.MAX_TEXT_LENGTH }}" placeholder="Ориентир или заметка">{{ place.description or '' }}</textarea></div>
+    <label class="color-field" for="place-color">Цвет <input id="place-color" name="marker_color" type="color" value="{{ place.marker_color }}"></label>
+    <button class="primary-button" type="submit">Сохранить</button>
   </form>
-  {% endif %}
-  <button class="primary-button" type="submit" form="place-save">Сохранить</button>
+  <section class="place-merge-section" aria-labelledby="place-merge-heading">
+    <h2 id="place-merge-heading">Объединение</h2>
+    <form action="{{ url_for('main.merge_place', place_id=place.id) }}" method="post" class="place-form place-merge-form" data-confirm="Объединить это место с выбранным? Все поездки будут перенесены, название и координаты выбранного места сохранятся.">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field-group">
+        <label class="visually-hidden" for="merge-target">Место для объединения</label>
+        <select id="merge-target" name="target_id" required {% if not merge_targets %}disabled{% endif %}>
+          <option value="">{{ 'Выберите место' if merge_targets else 'Нет других мест' }}</option>
+          {% for target in merge_targets %}<option value="{{ target.id }}">{{ target.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <button class="secondary-button" type="submit" {% if not merge_targets %}disabled{% endif %}>Объединить</button>
+    </form>
+  </section>
   <form action="{{ url_for('main.delete_place', place_id=place.id) }}" method="post" class="place-form place-delete-form" data-confirm="Удалить место? Если отмечено удаление связанных поездок, они также будут удалены, включая текущую поездку. Это действие нельзя отменить.">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <label class="place-delete-related"><input type="checkbox" name="delete_related" value="1"> Удалить также связанные поездки, включая текущую</label>
-    <button class="danger-button" type="submit">Удалить место</button>
+    <button class="danger-button" type="submit">Удалить</button>
+    <label class="place-delete-related"><input type="checkbox" name="delete_related" value="1"> Удалить связанные поездки</label>
   </form>
 </main>
 {% endblock %}
+
+{% block head %}<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.6.1/ol.css" integrity="sha384-Jpg1uvTciFJuHq+90Ly0/2SKRT9yS5OhbIN5FuFoFWji9fc44ok8xxO88CJi8Z5W" crossorigin="anonymous">{% endblock %}
+{% block scripts %}<script src="https://cdn.jsdelivr.net/npm/ol@v10.6.1/dist/ol.js" integrity="sha384-R02sHnzL8yl/uvLZvMsfgBOMBIOOHLpuLNo4dLuWQWFun1sxEWJej+SPwiGxaeGd" crossorigin="anonymous"></script>{% endblock %}
