@@ -571,3 +571,5 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .trip-detail-info dt { color: var(--muted); }
 .trip-detail-info dd { margin: 0; overflow-wrap: anywhere; min-width: 0; }
 .trip-detail-edit-toggle { padding: 16px; font-size: 14px; }
+
+.trip-detail-page > .trip-delete-form button { min-height: 44px; color: var(--danger); font-size: 14px; }

@@ -12,8 +12,4 @@
             <label>Тариф такси<select name="taxi_tariff"><option value="">Не выбран</option>{% for tariff in taxi_tariffs %}<option value="{{ tariff }}" {% if trip.taxi_tariff == tariff %}selected{% endif %}>{{ tariff }}</option>{% endfor %}</select></label>
             <button class="primary-button" type="submit">Сохранить изменения</button>
           </form>
-          <form class="trip-delete-form" action="{{ url_for('main.delete_trip', trip_id=trip.id) }}" method="post" data-confirm="Удалить эту поездку? Это действие нельзя отменить.">
-            {% if trip_detail|default(false) %}<input type="hidden" name="return_to" value="trip">{% endif %}
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit">Удалить поездку</button>
-          </form>
+          {% if not trip_detail|default(false) %}{% include "partials/trip_delete_form.html" %}{% endif %}
