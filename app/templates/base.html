@@ -17,7 +17,7 @@
     <link rel="manifest" href="{{ url_for('main.webmanifest') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&icon_names=add_circle,check,chevron_left,chevron_right,close,history,location_on,map,palette,person,progress_activity,route,schedule&display=block">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&icon_names=add_circle,check,chevron_left,chevron_right,close,delete,image,history,link,location_on,map,palette,person,progress_activity,route,schedule&display=block">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block head %}{% endblock %}
     <script defer src="{{ url_for('static', filename='js/app.js') }}"></script>
@@ -50,11 +50,12 @@
         {% set items = [
           ('main.index', 'add_circle', 'Запись'),
           ('main.calculate', 'route', 'Расчёт'),
+          ('main.trips', 'history', 'История'),
           ('main.map_view', 'map', 'Карта'),
           ('main.profile', 'person', 'Профиль')
         ] %}
         {% for endpoint, icon, label in items %}
-          {% set item_active = request.endpoint == endpoint or (endpoint == 'main.calculate' and request.endpoint == 'main.calculate_result') or (endpoint == 'main.profile' and request.endpoint in ['main.trips', 'main.places']) %}
+          {% set item_active = request.endpoint == endpoint or (endpoint == 'main.calculate' and request.endpoint == 'main.calculate_result') or (endpoint == 'main.profile' and request.endpoint in ['main.places', 'main.manage_trips', 'main.edit_trip']) %}
           <a class="bottom-nav-item {{ 'active' if item_active }}" href="{{ url_for(endpoint) }}" {% if item_active %}aria-current="page"{% endif %}>
             <span class="material-symbols-rounded" aria-hidden="true">{{ icon }}</span><small>{{ label }}</small>
           </a>

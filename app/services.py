@@ -51,6 +51,12 @@ def normalize_place(value: str) -> str:
     return " ".join(value.strip().casefold().split())
 
 
+def _undirected_pair(first: Any, second: Any) -> tuple[Any, Any]:
+    """Вернуть стабильный ключ пары без учёта направления."""
+
+    return (first, second) if first <= second else (second, first)
+
+
 def get_or_create_place(user_id: int, name: str) -> Place:
     """Найти место пользователя или создать новое."""
 
@@ -114,7 +120,7 @@ def calculate_route(user_id: int, point_names: list[str]) -> dict[str, Any]:
     )
     trips_by_route: dict[tuple[str, str], list[Trip]] = {}
     for trip in relevant_trips:
-        route_key = (
+        route_key = _undirected_pair(
             places_by_id[trip.origin_id].normalized_name,
             places_by_id[trip.destination_id].normalized_name,
         )
@@ -128,7 +134,7 @@ def calculate_route(user_id: int, point_names: list[str]) -> dict[str, Any]:
         distance_km = _distance_between(origin_place, destination_place)
         if distance_km is not None:
             total_distance_km += distance_km
-        trips = trips_by_route.get((origin, destination), [])
+        trips = trips_by_route.get(_undirected_pair(origin, destination), [])
         if not trips:
             complete = False
             segments.append(
@@ -226,15 +232,14 @@ def calculate_route_variants(
     ).all()
     grouped: dict[tuple[int, int, str], list[Trip]] = {}
     for trip in trips:
-        grouped.setdefault(
-            (trip.origin_id, trip.destination_id, trip.transport_type), []
-        ).append(trip)
+        first_id, second_id = _undirected_pair(trip.origin_id, trip.destination_id)
+        grouped.setdefault((first_id, second_id, trip.transport_type), []).append(trip)
 
     places_by_id = {place.id: place for place in places}
     adjacency: dict[int, list[dict[str, Any]]] = {}
-    for (origin_id, destination_id, transport_type), observations in grouped.items():
-        start = places_by_id.get(origin_id)
-        finish = places_by_id.get(destination_id)
+    for (first_id, second_id, transport_type), observations in grouped.items():
+        start = places_by_id.get(first_id)
+        finish = places_by_id.get(second_id)
         if start is None or finish is None:
             continue
         durations = [trip.duration_minutes for trip in observations]
@@ -243,11 +248,7 @@ def calculate_route_variants(
             trip.transport_detail for trip in observations if trip.transport_detail
         ).most_common(1)
         distance_km = _distance_between(start, finish)
-        edge = {
-            "from_id": origin_id,
-            "to_id": destination_id,
-            "from": start.name,
-            "to": finish.name,
+        shared = {
             "known": True,
             "minutes": average,
             "min_minutes": min(durations),
@@ -261,7 +262,18 @@ def calculate_route_variants(
             if distance_km is not None and average > 0
             else None,
         }
-        adjacency.setdefault(origin_id, []).append(edge)
+        directions = [(start, finish)]
+        if first_id != second_id:
+            directions.append((finish, start))
+        for edge_start, edge_finish in directions:
+            edge = {
+                **shared,
+                "from_id": edge_start.id,
+                "to_id": edge_finish.id,
+                "from": edge_start.name,
+                "to": edge_finish.name,
+            }
+            adjacency.setdefault(edge_start.id, []).append(edge)
 
     for edges in adjacency.values():
         edges.sort(

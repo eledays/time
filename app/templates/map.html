@@ -4,11 +4,7 @@
 {% block content %}
 <main class="map-page" data-map-pick-place="{{ pick_place_id or '' }}">
   <div id="journey-map" class="journey-map" aria-label="Карта сохранённых мест"></div>
-  <div class="map-toolbar" aria-label="Настройки карты">
-    <div class="map-layer-switcher">
-      <button type="button" class="active" data-map-layer="street" aria-pressed="true">Схема</button>
-      <button type="button" data-map-layer="imagery" aria-pressed="false">Спутник</button>
-    </div>
+  <div class="map-toolbar" aria-label="Действия карты">
     <button type="button" class="map-places-button" data-map-panel-open aria-expanded="{{ 'true' if not places and unmapped_places else 'false' }}">
       Места <span>{{ (places|length) + (unmapped_places|length) }}</span>
     </button>

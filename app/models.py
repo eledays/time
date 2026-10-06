@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from typing import Optional
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKey, Index, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
@@ -28,6 +28,7 @@ class User(db.Model):
 
     places: Mapped[list["Place"]] = relationship(back_populates="user")
     trips: Mapped[list["Trip"]] = relationship(back_populates="user")
+    saved_routes: Mapped[list["SavedRoute"]] = relationship(back_populates="user")
     active_trip: Mapped[Optional["ActiveTrip"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
@@ -98,3 +99,20 @@ class ActiveTrip(db.Model):
 
     user: Mapped[User] = relationship(back_populates="active_trip")
     origin: Mapped[Place] = relationship()
+
+
+class SavedRoute(db.Model):
+    """Снимок рассчитанного маршрута с отзываемой публичной ссылкой."""
+
+    __table_args__ = (Index("idx_saved_route_user_created", "user_id", "created_at"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), index=True)
+    title: Mapped[str]
+    origin_name: Mapped[str]
+    destination_name: Mapped[str]
+    route_data: Mapped[str] = mapped_column(Text)
+    public_token: Mapped[str] = mapped_column(unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(default=utc_now)
+
+    user: Mapped[User] = relationship(back_populates="saved_routes")

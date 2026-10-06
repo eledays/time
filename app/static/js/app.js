@@ -164,7 +164,10 @@ const initializeAutocomplete = (input) => {
   const choose = (option, moveForward = false) => {
     input.value = option.textContent;
     setOpen(false);
-    if (input.dataset.timeTarget) setCurrentTime(input.dataset.timeTarget);
+    const timeInput = input.dataset.timeTarget
+      ? document.getElementById(input.dataset.timeTarget)
+      : null;
+    if (timeInput?.dataset.timeMode === "now") setCurrentTime(input.dataset.timeTarget);
     input.dispatchEvent(new Event("change", { bubbles: true }));
     if (moveForward) {
       const formInputs = [...(input.closest("form") || document).querySelectorAll("[data-place-input]")]
@@ -451,29 +454,188 @@ if (routeCarousel) {
   updatePosition();
 }
 
+const roundedRectPath = (context, x, y, width, height, radius) => {
+  const safeRadius = Math.min(radius, width / 2, height / 2);
+  context.beginPath();
+  context.moveTo(x + safeRadius, y);
+  context.arcTo(x + width, y, x + width, y + height, safeRadius);
+  context.arcTo(x + width, y + height, x, y + height, safeRadius);
+  context.arcTo(x, y + height, x, y, safeRadius);
+  context.arcTo(x, y, x + width, y, safeRadius);
+  context.closePath();
+};
+
+const wrapCanvasText = (context, text, maxWidth, maxLines = 2) => {
+  const words = String(text).split(/\s+/);
+  const lines = [];
+  let line = "";
+  words.forEach((word) => {
+    const candidate = line ? `${line} ${word}` : word;
+    if (line && context.measureText(candidate).width > maxWidth) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = candidate;
+    }
+  });
+  if (line) lines.push(line);
+  if (lines.length > maxLines) {
+    lines.length = maxLines;
+    while (context.measureText(`${lines.at(-1)}…`).width > maxWidth) {
+      lines[lines.length - 1] = lines.at(-1).slice(0, -1);
+    }
+    lines[lines.length - 1] += "…";
+  }
+  return lines;
+};
+
+const createRouteShareImage = async (payload) => {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1080;
+  canvas.height = 1350;
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#090909";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  const glow = context.createRadialGradient(860, 120, 0, 860, 120, 680);
+  glow.addColorStop(0, "rgba(255,255,255,.09)");
+  glow.addColorStop(1, "rgba(255,255,255,0)");
+  context.fillStyle = glow;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.strokeStyle = "#30302d";
+  context.lineWidth = 2;
+  roundedRectPath(context, 42, 42, 996, 1266, 38);
+  context.stroke();
+
+  context.fillStyle = "#8f8f88";
+  context.font = "500 22px Inter, sans-serif";
+  context.fillText("СОХРАНЁННЫЙ МАРШРУТ", 92, 116);
+  context.fillStyle = "#f7f7f2";
+  context.font = "600 66px Inter, sans-serif";
+  const titleLines = wrapCanvasText(context, payload.title, 880, 2);
+  titleLines.forEach((line, index) => context.fillText(line, 92, 208 + index * 76));
+  let cursorY = 238 + titleLines.length * 76;
+  context.fillStyle = "#a2a29b";
+  context.font = "500 29px Inter, sans-serif";
+  wrapCanvasText(context, `Из ${payload.origin} в ${payload.destination}`, 880, 2)
+    .forEach((line, index) => context.fillText(line, 92, cursorY + index * 38));
+  cursorY += 108;
+
+  context.fillStyle = "#777771";
+  context.font = "500 22px Inter, sans-serif";
+  const chain = payload.route.points.map((point) => point.name).join("  ·  ");
+  wrapCanvasText(context, chain, 880, 3)
+    .forEach((line, index) => context.fillText(line, 92, cursorY + index * 31));
+  cursorY += 128;
+
+  const metrics = [
+    [String(payload.route.total_minutes), "минут"],
+    [payload.route.total_distance_km ?? "—", "километров"],
+    [String(payload.route.segments.length), "отрезков"],
+  ];
+  metrics.forEach(([value, label], index) => {
+    const x = 92 + index * 302;
+    context.fillStyle = "#111110";
+    context.strokeStyle = "#30302d";
+    roundedRectPath(context, x, cursorY, 278, 158, 24);
+    context.fill();
+    context.stroke();
+    context.fillStyle = "#f7f7f2";
+    context.font = "600 52px Inter, sans-serif";
+    context.fillText(String(value), x + 25, cursorY + 69, 225);
+    context.fillStyle = "#8f8f88";
+    context.font = "500 19px Inter, sans-serif";
+    context.fillText(label, x + 25, cursorY + 120);
+  });
+  cursorY += 215;
+
+  context.fillStyle = "#8f8f88";
+  context.font = "500 20px Inter, sans-serif";
+  context.fillText("ПО ОТРЕЗКАМ", 92, cursorY);
+  cursorY += 48;
+  payload.route.segments.slice(0, 5).forEach((segment, index) => {
+    context.fillStyle = "#f7f7f2";
+    context.font = "600 25px Inter, sans-serif";
+    context.fillText(String(index + 1).padStart(2, "0"), 92, cursorY);
+    context.font = "600 27px Inter, sans-serif";
+    context.fillText(`${segment.from} · ${segment.to}`, 150, cursorY, 620);
+    context.fillStyle = "#8f8f88";
+    context.font = "500 21px Inter, sans-serif";
+    context.textAlign = "right";
+    context.fillText(`${segment.transport} · ${segment.minutes} мин`, 980, cursorY);
+    context.textAlign = "left";
+    cursorY += 70;
+  });
+
+  context.fillStyle = "#62625c";
+  context.font = "500 19px Inter, sans-serif";
+  context.fillText("ДНЕВНИК ПОЕЗДОК", 92, 1256);
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("image")), "image/png");
+  });
+};
+
+document.querySelectorAll("[data-saved-route-card]").forEach((card) => {
+  const payload = JSON.parse(card.querySelector("[data-saved-route-share]").textContent);
+  const status = card.querySelector("[data-share-route-status]");
+  const linkButton = card.querySelector("[data-share-route-link]");
+  const imageButton = card.querySelector("[data-share-route-image]");
+  const setStatus = (message) => { status.textContent = message; };
+
+  linkButton.addEventListener("click", async () => {
+    linkButton.disabled = true;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: payload.title,
+          text: `${payload.origin} — ${payload.destination}`,
+          url: payload.shareUrl,
+        });
+        setStatus("Ссылка отправлена");
+      } else {
+        await navigator.clipboard.writeText(payload.shareUrl);
+        setStatus("Ссылка скопирована");
+      }
+    } catch (error) {
+      if (error.name !== "AbortError") setStatus("Не удалось отправить ссылку");
+    } finally {
+      linkButton.disabled = false;
+    }
+  });
+
+  imageButton.addEventListener("click", async () => {
+    imageButton.disabled = true;
+    setStatus("Готовим карточку…");
+    try {
+      const blob = await createRouteShareImage(payload);
+      const file = new File([blob], "route-card.png", { type: "image/png" });
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ title: payload.title, files: [file] });
+        setStatus("Карточка отправлена");
+      } else {
+        const downloadUrl = URL.createObjectURL(blob);
+        const download = document.createElement("a");
+        download.href = downloadUrl;
+        download.download = "route-card.png";
+        download.click();
+        window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+        setStatus("Карточка сохранена как PNG");
+      }
+    } catch (error) {
+      if (error.name !== "AbortError") setStatus("Не удалось создать картинку");
+    } finally {
+      imageButton.disabled = false;
+    }
+  });
+});
+
 function escapeHtml(value) {
   const element = document.createElement("span");
   element.textContent = String(value);
   return element.innerHTML;
 }
 
-const ESRI_IMAGERY_TILES = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
-const ESRI_STREET_TILES = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}";
-
-const createImageryLayer = () => new ol.layer.Tile({
-  source: new ol.source.XYZ({
-    url: ESRI_IMAGERY_TILES,
-    attributions: "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community",
-    maxZoom: 19,
-  }),
-});
-
-const createStreetLayer = () => new ol.layer.Tile({
-  source: new ol.source.XYZ({
-    url: ESRI_STREET_TILES,
-    attributions: "Tiles © Esri",
-    maxZoom: 19,
-  }),
+const createOpenStreetMapLayer = () => new ol.layer.Tile({
+  source: new ol.source.OSM(),
 });
 
 const createPointStyle = (color) => new ol.style.Style({
@@ -538,17 +700,18 @@ const initializeOpenLayersMaps = () => {
       offset: [0, -10],
       stopEvent: false,
     });
-    const streetLayer = createStreetLayer();
-    const imageryLayer = createImageryLayer();
-    imageryLayer.setVisible(false);
+    const baseMapLayer = createOpenStreetMapLayer();
     const placementLayer = new ol.layer.Vector({ source: placementSource });
     const map = new ol.Map({
       target: journeyMapElement,
       layers: [
-        streetLayer,
-        imageryLayer,
+        baseMapLayer,
         new ol.layer.Vector({ source: vectorSource }),
         placementLayer,
+      ],
+      controls: [
+        new ol.control.Zoom(),
+        new ol.control.Attribution({ collapsible: false }),
       ],
       overlays: [popup],
       view: new ol.View({
@@ -768,18 +931,6 @@ const initializeOpenLayersMaps = () => {
       journeyMapElement.style.cursor = activePlaceId !== null
         ? "crosshair"
         : map.hasFeatureAtPixel(event.pixel) ? "pointer" : "";
-    });
-    document.querySelectorAll("[data-map-layer]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const useImagery = button.dataset.mapLayer === "imagery";
-        streetLayer.setVisible(!useImagery);
-        imageryLayer.setVisible(useImagery);
-        document.querySelectorAll("[data-map-layer]").forEach((control) => {
-          const active = control === button;
-          control.classList.toggle("active", active);
-          control.setAttribute("aria-pressed", String(active));
-        });
-      });
     });
     if (mapData.places.length === 1) {
       map.getView().setCenter(pointsById.values().next().value);

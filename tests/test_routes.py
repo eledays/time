@@ -13,7 +13,7 @@ from sqlalchemy import text
 from app import create_app
 from app.config import Config
 from app.extensions import db, oauth
-from app.models import ActiveTrip, Place, Trip, User
+from app.models import ActiveTrip, Place, SavedRoute, Trip, User
 from app.services import get_or_create_place
 
 
@@ -41,6 +41,11 @@ def test_home_is_available_without_login(client) -> None:
         "form-action 'self' https://oauth.yandex.ru"
         in response.headers["Content-Security-Policy"]
     )
+    assert (
+        "img-src 'self' data: https://tile.openstreetmap.org"
+        in response.headers["Content-Security-Policy"]
+    )
+    assert "arcgisonline.com" not in response.headers["Content-Security-Policy"]
     assert response.headers["Cross-Origin-Opener-Policy"] == "same-origin"
     styles = client.get("/static/css/style.css").text
     assert (
@@ -287,9 +292,9 @@ def test_departure_time_is_hidden_by_default(auth_client) -> None:
     assert 'data-picker-clock step="60" required disabled' in page.text
     assert 'class="material-symbols-rounded"' in page.text
     assert ">schedule</span>" in page.text
-    for icon in ("add_circle", "route", "map", "person"):
+    for icon in ("add_circle", "route", "map", "history", "person"):
         assert f">{icon}</span><small>" in page.text
-    assert page.text.count('class="bottom-nav-item') == 4
+    assert page.text.count('class="bottom-nav-item') == 5
     assert "fonts.googleapis.com/css2?family=Material+Symbols+Rounded" in page.text
 
 
@@ -551,6 +556,65 @@ def test_migrations_create_a_fresh_database(tmp_path: Path) -> None:
     assert {"alembic_version", "user", "place", "trip", "active_trip"} <= tables
 
 
+def test_profile_minimization_migration_preserves_sqlite_foreign_keys(
+    tmp_path: Path,
+) -> None:
+    """Удаление старых полей не пересоздаёт родительскую таблицу SQLite."""
+
+    database_path = tmp_path / "legacy-with-relations.sqlite3"
+    with sqlite3.connect(database_path) as connection:
+        connection.executescript(
+            """
+            PRAGMA foreign_keys=ON;
+            CREATE TABLE user (
+                id INTEGER PRIMARY KEY,
+                yandex_id VARCHAR NOT NULL,
+                display_name VARCHAR NOT NULL,
+                email VARCHAR,
+                avatar_url VARCHAR,
+                created_at DATETIME NOT NULL
+            );
+            CREATE TABLE place (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES user(id),
+                name VARCHAR NOT NULL,
+                normalized_name VARCHAR NOT NULL,
+                created_at DATETIME NOT NULL,
+                UNIQUE(user_id, normalized_name)
+            );
+            INSERT INTO user
+                (id, yandex_id, display_name, email, avatar_url, created_at)
+            VALUES
+                (1, 'legacy-user', 'Лев', 'old@example.test', 'old-avatar',
+                 '2026-09-01 08:00:00');
+            INSERT INTO place
+                (id, user_id, name, normalized_name, created_at)
+            VALUES
+                (1, 1, 'Дом', 'дом', '2026-09-01 08:00:00');
+            """
+        )
+
+    class RelatedLegacyConfig(Config):
+        """Конфигурация миграции базы с существующими связями."""
+
+        model_config = SettingsConfigDict(env_file=None, populate_by_name=True)
+        environment: Literal["testing"] = "testing"
+        secret_key: SecretStr = SecretStr("migration-test")
+        database_url: str = f"sqlite:///{database_path}"
+
+    application = create_app(RelatedLegacyConfig)
+    result = application.test_cli_runner().invoke(args=["db", "upgrade"])
+    assert result.exit_code == 0, result.output
+    with sqlite3.connect(database_path) as connection:
+        user_columns = {row[1] for row in connection.execute("PRAGMA table_info(user)")}
+        assert "email" not in user_columns
+        assert "avatar_url" not in user_columns
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+        assert connection.execute(
+            "SELECT user_id, name FROM place WHERE id = 1"
+        ).fetchone() == (1, "Дом")
+
+
 def test_sqlite_connections_enable_secure_deletion(app: Flask) -> None:
     """SQLite затирает удалённые значения, а не оставляет их в свободных страницах."""
 
@@ -685,6 +749,87 @@ def test_route_uses_average_duration(app: Flask, auth_client, user) -> None:
     assert response.json["total_minutes"] == 35
     assert response.json["complete"] is True
     assert response.json["segments"][0]["samples"] == 2
+
+
+def test_route_segments_are_equivalent_in_both_directions(
+    app: Flask, auth_client, user
+) -> None:
+    """Один и тот же отрезок используется и усредняется в обоих направлениях."""
+
+    with app.app_context():
+        first = get_or_create_place(user.id, "A")
+        second = get_or_create_place(user.id, "B")
+        db.session.flush()
+        for origin, destination, departed, arrived in (
+            (first, second, "08:00", "08:20"),
+            (second, first, "09:00", "09:30"),
+        ):
+            db.session.add(
+                Trip(
+                    user_id=user.id,
+                    origin_id=origin.id,
+                    destination_id=destination.id,
+                    departed_at=datetime.fromisoformat(f"2026-09-03T{departed}"),
+                    arrived_at=datetime.fromisoformat(f"2026-09-03T{arrived}"),
+                    transport_type="walk",
+                )
+            )
+        db.session.commit()
+
+    headers = {"X-CSRF-Token": "test-csrf"}
+    forward = auth_client.post(
+        "/api/calculate", json={"points": ["A", "B"]}, headers=headers
+    )
+    backward = auth_client.post(
+        "/api/calculate", json={"points": ["B", "A"]}, headers=headers
+    )
+    assert forward.json["total_minutes"] == backward.json["total_minutes"] == 25
+    assert forward.json["segments"][0]["samples"] == 2
+    assert backward.json["segments"][0]["from"] == "B"
+    assert backward.json["segments"][0]["to"] == "A"
+
+
+def test_route_search_finds_reverse_composed_route(
+    app: Flask, auth_client, user
+) -> None:
+    """Составной путь из истории доступен также в обратном направлении."""
+
+    with app.app_context():
+        points = {name: get_or_create_place(user.id, name) for name in ("A", "B", "C")}
+        db.session.flush()
+        for origin, destination in (("A", "B"), ("B", "C")):
+            db.session.add(
+                Trip(
+                    user_id=user.id,
+                    origin_id=points[origin].id,
+                    destination_id=points[destination].id,
+                    departed_at=datetime.fromisoformat("2026-09-03T08:00"),
+                    arrived_at=datetime.fromisoformat("2026-09-03T08:10"),
+                    transport_type="walk",
+                )
+            )
+        db.session.commit()
+
+    response = auth_client.post(
+        "/api/calculate",
+        json={"origin": "C", "destination": "A"},
+        headers={"X-CSRF-Token": "test-csrf"},
+    )
+    assert response.status_code == 200
+    assert [point["name"] for point in response.json["variants"][0]["points"]] == [
+        "C",
+        "B",
+        "A",
+    ]
+    assert response.json["variants"][0]["total_minutes"] == 20
+
+
+def test_autocomplete_does_not_replace_custom_trip_time(auth_client) -> None:
+    """Выбор подсказки обновляет только время, оставленное в режиме «сейчас»."""
+
+    script = auth_client.get("/static/js/app.js").text
+    assert 'timeInput?.dataset.timeMode === "now"' in script
+    assert "setCurrentTime(input.dataset.timeTarget)" in script
 
 
 def test_route_search_finds_and_merges_history_variants(
@@ -897,6 +1042,86 @@ def test_route_result_is_a_separate_page_with_geo_summary(
     assert "Путь рассчитан как сумма расстояний" in response.text
 
 
+def test_route_can_be_saved_shared_and_revoked(app: Flask, auth_client, user) -> None:
+    """Карточка хранится в профиле, открывается без входа и отзывается удалением."""
+
+    with app.app_context():
+        origin = get_or_create_place(user.id, "Дом")
+        origin.latitude, origin.longitude = 55.751244, 37.618423
+        destination = get_or_create_place(user.id, "Офис")
+        destination.latitude, destination.longitude = 55.760186, 37.618711
+        db.session.flush()
+        db.session.add(
+            Trip(
+                user_id=user.id,
+                origin_id=origin.id,
+                destination_id=destination.id,
+                departed_at=datetime.fromisoformat("2026-09-03T08:00"),
+                arrived_at=datetime.fromisoformat("2026-09-03T08:12"),
+                transport_type="walk",
+            )
+        )
+        db.session.commit()
+
+    result = auth_client.get("/calculate/result?origin=Дом&destination=Офис")
+    assert result.status_code == 200
+    assert 'class="route-save-form" action="/routes"' in result.text
+    assert 'name="variant_index" value="0"' in result.text
+    assert 'value="Дом — Офис"' in result.text
+
+    saved_response = auth_client.post(
+        "/routes",
+        data={
+            "csrf_token": "test-csrf",
+            "title": "Утренний маршрут",
+            "origin": "Дом",
+            "destination": "Офис",
+            "variant_index": "0",
+        },
+    )
+    assert saved_response.status_code == 302
+    assert saved_response.headers["Location"].endswith("/profile#saved-routes")
+    with app.app_context():
+        saved = db.session.scalar(db.select(SavedRoute))
+        assert saved is not None
+        assert saved.title == "Утренний маршрут"
+        assert len(saved.public_token) == 32
+        assert "latitude" not in saved.route_data
+        assert "longitude" not in saved.route_data
+        assert "from_id" not in saved.route_data
+        saved_id = saved.id
+        share_path = f"/r/{saved.public_token}"
+
+    profile = auth_client.get("/profile")
+    assert "Сохранённые маршруты" in profile.text
+    assert "Утренний маршрут" in profile.text
+    assert "data-share-route-link" in profile.text
+    assert "data-share-route-image" in profile.text
+    assert "Ссылка открывается без входа" in profile.text
+
+    anonymous = app.test_client()
+    shared = anonymous.get(share_path)
+    assert shared.status_code == 200
+    assert "Общедоступная карточка" in shared.text
+    assert "Утренний маршрут" in shared.text
+    assert "Лев" not in shared.text
+    assert 'class="bottom-nav"' not in shared.text
+    assert shared.headers["Cache-Control"] == "private, no-store"
+    assert shared.headers["Referrer-Policy"] == "no-referrer"
+    assert shared.headers["X-Robots-Tag"] == "noindex, nofollow"
+
+    deleted = auth_client.post(
+        f"/routes/{saved_id}/delete", data={"csrf_token": "test-csrf"}
+    )
+    assert deleted.status_code == 302
+    assert anonymous.get(share_path).status_code == 404
+
+    script = auth_client.get("/static/js/app.js").text
+    assert "createRouteShareImage" in script
+    assert "navigator.canShare?.({ files: [file] })" in script
+    assert 'download.download = "route-card.png"' in script
+
+
 def test_route_result_explains_when_history_has_no_path(auth_client) -> None:
     """Расчёт без записанного пути предлагает пополнить историю."""
 
@@ -1023,10 +1248,8 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     map_page = auth_client.get("/map")
     assert "cdn.jsdelivr.net/npm/ol@v10.6.1" in map_page.text
     assert "leaflet" not in map_page.text.casefold()
-    assert "OpenStreetMap" not in map_page.text
     assert "<h1>Карта</h1>" not in map_page.text
-    assert 'data-map-layer="street"' in map_page.text
-    assert 'data-map-layer="imagery"' in map_page.text
+    assert "data-map-layer" not in map_page.text
     assert f'id="map-place-{mapped_place_id}"' in map_page.text
     assert f'data-map-edit-place="{mapped_place_id}"' in map_page.text
     assert '<details class="map-place-editor"' not in map_page.text
@@ -1047,10 +1270,13 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     assert "data-map-dialog" not in map_page.text
     assert 'id="coordinate-map"' not in map_page.text
     map_script = auth_client.get("/static/js/app.js")
-    assert "World_Imagery/MapServer/tile" in map_script.text
-    assert "World_Street_Map/MapServer/tile" in map_script.text
+    assert "new ol.source.OSM()" in map_script.text
     assert "new ol.Map" in map_script.text
-    assert "tile.openstreetmap.org" not in map_script.text
+    assert "ESRI_" not in map_script.text
+    assert "arcgisonline.com" not in map_script.text
+    assert "createImageryLayer" not in map_script.text
+    assert "new ol.control.Attribution({ collapsible: false })" in map_script.text
+    assert "ol.control.defaults" not in map_script.text
     assert 'feature?.get("placeId")' in map_script.text
     assert "const placementSource = new ol.source.Vector()" in map_script.text
     assert "journeyMapElement.style.cursor = activePlaceId !== null" in map_script.text
@@ -1182,7 +1408,7 @@ def test_place_can_be_created_directly_on_map(app: Flask, auth_client, user) -> 
         assert place.marker_color == "#abcdef"
 
 
-def test_profile_links_to_history_and_place_searches(
+def test_history_in_bottom_navigation_and_profile_place_search(
     app: Flask, auth_client, user
 ) -> None:
     """Профиль остаётся компактным, а данные и поиск живут на отдельных страницах."""
@@ -1207,9 +1433,9 @@ def test_profile_links_to_history_and_place_searches(
 
     profile = auth_client.get("/profile")
     assert profile.status_code == 200
-    assert "История поездок" in profile.text
-    assert "Все записи и поиск по дате" in profile.text
-    assert 'class="profile-link-card" href="/trips"' in profile.text
+    assert "Все записи и поиск по дате" not in profile.text
+    assert 'class="profile-link-card" href="/trips"' not in profile.text
+    assert 'class="bottom-nav-item " href="/trips"' in profile.text
     assert 'class="profile-link-card" href="/places"' in profile.text
     assert "Последние записи" not in profile.text
     assert "Сохранённые точки" not in profile.text
@@ -1217,7 +1443,7 @@ def test_profile_links_to_history_and_place_searches(
     assert "08:00–08:30" not in profile.text
     assert profile.text.count('class="profile-action-row"') == 4
     assert "›" not in profile.text
-    assert profile.text.count(">chevron_right</span>") >= 6
+    assert profile.text.count(">chevron_right</span>") >= 5
     styles = auth_client.get("/static/css/style.css").text
     assert ".profile-account { overflow: hidden; padding-bottom: 0; }" in styles
     assert (
@@ -1225,11 +1451,22 @@ def test_profile_links_to_history_and_place_searches(
     )
     assert ".endpoint-field input:focus + label" in styles
 
-    dated = auth_client.get("/trips?date=2026-09-03")
+    dated = auth_client.get("/trips?q=дОм%20рАбОта")
     assert dated.status_code == 200
+    assert (
+        'class="bottom-nav-item active" href="/trips" aria-current="page"' in dated.text
+    )
+    assert 'class="bottom-nav-item active" href="/profile"' not in dated.text
+    assert "Профиль · поездки" not in dated.text
     assert "Работа" in dated.text
     assert "Парк" not in dated.text
     assert "1 найдено" in dated.text
+    assert 'name="date"' not in dated.text
+    assert 'class="trip-delete-form"' not in dated.text
+    assert "Удалить всю историю" not in dated.text
+    assert 'href="/trips/manage"' in profile.text
+    assert "Удалить всю историю" in profile.text
+    assert dated.text.index('href="/trips"') < dated.text.index('href="/map"')
 
     places = auth_client.get("/places?q=пАрК")
     assert places.status_code == 200
@@ -1331,6 +1568,20 @@ def test_user_can_delete_account_and_all_personal_data(
             "departed_at": "2026-09-03T09:00",
         },
     )
+    with app.app_context():
+        db.session.add(
+            SavedRoute(
+                user_id=user.id,
+                title="Маршрут",
+                origin_name="Дом",
+                destination_name="Парк",
+                route_data='{"points":[],"segments":[],"total_minutes":0,'
+                '"total_distance_km":null,"average_speed_kmh":null,'
+                '"observations":0}',
+                public_token="a" * 32,
+            )
+        )
+        db.session.commit()
     rejected = auth_client.post(
         "/auth/account/delete",
         data={"csrf_token": "test-csrf", "confirmation": "удалить"},
@@ -1350,3 +1601,71 @@ def test_user_can_delete_account_and_all_personal_data(
         assert db.session.scalar(db.select(db.func.count(User.id))) == 0
         assert db.session.scalar(db.select(db.func.count(ActiveTrip.id))) == 0
         assert db.session.scalar(db.select(db.func.count(Place.id))) == 0
+        assert db.session.scalar(db.select(db.func.count(SavedRoute.id))) == 0
+
+
+def test_trip_editor_validates_changes_and_ownership(app, auth_client, user):
+    with app.app_context():
+        home = get_or_create_place(user.id, "Дом")
+        work = get_or_create_place(user.id, "Работа")
+        other = User(yandex_id="editor-other", display_name="Другой")
+        db.session.add(other)
+        db.session.flush()
+        secret = get_or_create_place(other.id, "Секрет")
+        own_trip = Trip(
+            user_id=user.id,
+            origin=home,
+            destination=work,
+            departed_at=datetime.fromisoformat("2026-09-01T08:00"),
+            arrived_at=datetime.fromisoformat("2026-09-01T09:00"),
+            transport_type="walk",
+        )
+        other_trip = Trip(
+            user_id=other.id,
+            origin=secret,
+            destination=secret,
+            departed_at=datetime.fromisoformat("2026-09-01T08:00"),
+            arrived_at=datetime.fromisoformat("2026-09-01T09:00"),
+            transport_type="walk",
+        )
+        db.session.add_all([own_trip, other_trip])
+        db.session.commit()
+        own_id, other_id = own_trip.id, other_trip.id
+    page = auth_client.get("/trips/manage")
+    assert page.status_code == 200
+    assert "Секрет" not in page.text
+    assert f"/trips/{own_id}/edit" in page.text
+    data = {
+        "csrf_token": "test-csrf",
+        "origin": "Парк",
+        "destination": "Дом",
+        "departed_at": "2026-09-01T10:00",
+        "arrived_at": "2026-09-01T10:45",
+        "transport_type": "bus",
+        "transport_detail": "42",
+        "cost": "",
+    }
+    assert auth_client.post(f"/trips/{other_id}/edit", data=data).status_code == 404
+    assert auth_client.post(f"/trips/{other_id}/delete", data=data).status_code == 404
+    assert auth_client.post(f"/trips/{own_id}/edit", data=data).status_code == 302
+    with app.app_context():
+        trip = db.session.get(Trip, own_id)
+        assert (trip.origin.name, trip.destination.name) == ("Парк", "Дом")
+        assert trip.duration_minutes == 45
+        assert trip.transport_type == "bus"
+        assert trip.transport_detail == "42"
+    for invalid in (
+        {"arrived_at": "2026-09-01T09:00"},
+        {"cost": "nan"},
+        {"transport_type": "unknown"},
+        {"origin": ""},
+    ):
+        response = auth_client.post(f"/trips/{own_id}/edit", data=data | invalid)
+        assert response.status_code == 302
+        with app.app_context():
+            assert db.session.get(Trip, own_id).duration_minutes == 45
+    history = auth_client.get("/trips?q=пАрК%20дОм")
+    assert "1 найдено" in history.text
+    assert "Автобус" in history.text
+    assert "Секрет" not in history.text
+    assert "0 найдено" in auth_client.get("/trips?q=%25").text

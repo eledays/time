@@ -10,7 +10,7 @@ from sqlalchemy import delete
 from app.auth import bp
 from app.auth.helpers import login_required
 from app.extensions import db, limiter, oauth
-from app.models import ActiveTrip, Place, Trip, User, utc_now
+from app.models import ActiveTrip, Place, SavedRoute, Trip, User, utc_now
 
 
 @bp.route("/login", methods=["GET", "POST"])
@@ -98,7 +98,7 @@ def delete_account():
         return redirect(url_for("main.profile", _anchor="delete-account"))
 
     user_id = g.user.id
-    for model in (Trip, ActiveTrip, Place):
+    for model in (SavedRoute, Trip, ActiveTrip, Place):
         db.session.execute(
             delete(model)
             .where(model.user_id == user_id)

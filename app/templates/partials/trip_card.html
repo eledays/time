@@ -1,17 +1,11 @@
-<article class="journey-card">
-  <time>{{ trip.departed_at.strftime('%d.%m.%Y') }}</time>
+<article class="journey-card{% if compact|default(false) %} journey-card-compact{% endif %}">
+  {% if not compact|default(false) %}<time>{{ trip.departed_at.strftime('%d.%m.%Y') }}</time>{% endif %}
   <div class="journey-route"><strong>{{ trip.origin.name }}</strong><span class="material-symbols-rounded route-arrow" aria-hidden="true">chevron_right</span><strong>{{ trip.destination.name }}</strong></div>
   <div class="journey-meta">
-    <span>{{ trip.departed_at.strftime('%H:%M') }}–{{ trip.arrived_at.strftime('%H:%M') }}</span>
-    <span>{{ transport_labels.get(trip.transport_type, 'Другое') }}{% if trip.transport_detail %} · {{ trip.transport_detail }}{% endif %}</span>
+    {% if not compact|default(false) %}<span>{{ trip.departed_at.strftime('%H:%M') }}–{{ trip.arrived_at.strftime('%H:%M') }}</span>{% endif %}
+    <span>{{ transport_labels.get(trip.transport_type, 'Другое') }}{% if trip.transport_detail and not compact|default(false) %} · {{ trip.transport_detail }}{% endif %}</span>
     {% set recorded_cost = trip.cost if trip.cost is not none else trip.taxi_cost %}
-    {% if recorded_cost is not none %}<span>{{ '%.0f'|format(recorded_cost) }} ₽{% if trip.taxi_tariff %} · {{ trip.taxi_tariff }}{% endif %}</span>{% endif %}
+    {% if recorded_cost is not none and not compact|default(false) %}<span>{{ '%.0f'|format(recorded_cost) }} ₽{% if trip.taxi_tariff %} · {{ trip.taxi_tariff }}{% endif %}</span>{% endif %}
   </div>
   <b>{{ trip.duration_minutes }} <small>мин</small></b>
-  {% if allow_delete|default(false) %}
-    <form class="trip-delete-form" action="{{ url_for('main.delete_trip', trip_id=trip.id) }}" method="post" data-confirm="Удалить эту поездку из активной базы? Срок очистки резервных копий указан в политике обработки данных.">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" aria-label="Удалить поездку">Удалить</button>
-    </form>
-  {% endif %}
 </article>

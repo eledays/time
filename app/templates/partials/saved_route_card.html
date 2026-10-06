@@ -1,0 +1,30 @@
+<article class="saved-route-card" data-saved-route-card>
+  <header>
+    <span>Маршрут</span>
+    <time datetime="{{ saved_route.created_at.isoformat() }}">{{ saved_route.created_at.strftime('%d.%m.%Y') }}</time>
+  </header>
+  <a class="saved-route-title" href="{{ saved_route.share_url }}">
+    <h3>{{ saved_route.title }}</h3>
+    <p>{{ saved_route.origin }} <span class="material-symbols-rounded route-arrow" aria-hidden="true">chevron_right</span> {{ saved_route.destination }}</p>
+  </a>
+  <div class="saved-route-chain" aria-label="Порядок мест">
+    {% for point in saved_route.route.points %}<span>{{ point.name }}</span>{% if not loop.last %}<span class="material-symbols-rounded route-arrow" aria-hidden="true">chevron_right</span>{% endif %}{% endfor %}
+  </div>
+  <div class="saved-route-stats">
+    <span><b>{{ saved_route.route.total_minutes }}</b> мин</span>
+    <span><b>{{ saved_route.route.total_distance_km if saved_route.route.total_distance_km is not none else '—' }}</b> км</span>
+    <span><b>{{ saved_route.route.segments|length }}</b> {{ 'отрезок' if saved_route.route.segments|length == 1 else 'отрезка' if saved_route.route.segments|length < 5 else 'отрезков' }}</span>
+  </div>
+  <div class="saved-route-actions">
+    <button type="button" data-share-route-link><span class="material-symbols-rounded" aria-hidden="true">link</span><span>Ссылкой</span></button>
+    <button type="button" data-share-route-image><span class="material-symbols-rounded" aria-hidden="true">image</span><span>Картинкой</span></button>
+    {% if can_delete %}
+      <form action="{{ url_for('main.delete_saved_route', saved_route_id=saved_route.id) }}" method="post" data-confirm="Удалить маршрут и отозвать публичную ссылку?">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" aria-label="Удалить маршрут" title="Удалить маршрут"><span class="material-symbols-rounded" aria-hidden="true">delete</span></button>
+      </form>
+    {% endif %}
+  </div>
+  <p class="saved-route-status" data-share-route-status role="status" aria-live="polite"></p>
+  <script type="application/json" data-saved-route-share>{{ saved_route.share_payload|tojson }}</script>
+</article>

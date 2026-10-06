@@ -36,6 +36,17 @@
                 <article><span>Путь</span><strong>{{ result.total_distance_km if result.total_distance_km is not none else '—' }}</strong><small>км</small></article>
                 <article><span>Скорость</span><strong>{{ result.average_speed_kmh if result.average_speed_kmh is not none else '—' }}</strong><small>км/ч</small></article>
               </div>
+              <form class="route-save-form" action="{{ url_for('main.save_route') }}" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="origin" value="{{ route_search.origin }}">
+                <input type="hidden" name="destination" value="{{ route_search.destination }}">
+                <input type="hidden" name="variant_index" value="{{ loop.index0 }}">
+                <label for="route-title-{{ loop.index }}-save">Название карточки</label>
+                <div>
+                  <input id="route-title-{{ loop.index }}-save" name="title" type="text" maxlength="{{ config.MAX_TEXT_LENGTH }}" value="{{ route_search.origin }} — {{ route_search.destination }}" required>
+                  <button type="submit">Сохранить</button>
+                </div>
+              </form>
             </section>
 
             <section class="route-details">

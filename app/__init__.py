@@ -105,7 +105,7 @@ def create_app(config_object: Config | type[Config] = Config) -> Flask:
             "script-src 'self' https://cdn.jsdelivr.net; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
             "font-src 'self' https://fonts.gstatic.com; "
-            "img-src 'self' data: https://server.arcgisonline.com; "
+            "img-src 'self' data: https://tile.openstreetmap.org; "
             "connect-src 'self'; object-src 'none'; base-uri 'self'; "
             "form-action 'self' https://oauth.yandex.ru; frame-ancestors 'none'",
         )

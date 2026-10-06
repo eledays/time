@@ -17,15 +17,32 @@
   </section>
 
   <nav class="profile-section-links" aria-label="Личные данные">
-    <a class="profile-link-card" href="{{ url_for('main.trips') }}">
-      <span><strong>История поездок</strong><small>Все записи и поиск по дате</small></span>
-      <b>{{ stats.trips }}</b><span class="material-symbols-rounded ui-chevron" aria-hidden="true">chevron_right</span>
-    </a>
     <a class="profile-link-card" href="{{ url_for('main.places') }}">
       <span><strong>Места</strong><small>Список, поиск и редактирование</small></span>
       <b>{{ stats.places }}</b><span class="material-symbols-rounded ui-chevron" aria-hidden="true">chevron_right</span>
     </a>
   </nav>
+
+  <section class="saved-routes-section" id="saved-routes" aria-labelledby="saved-routes-title">
+    <header>
+      <div><p>До 50 карточек</p><h2 id="saved-routes-title">Сохранённые маршруты</h2></div>
+      <span>{{ saved_routes|length }}</span>
+    </header>
+    {% if saved_routes %}
+      <p class="saved-routes-privacy">Ссылка открывается без входа. Удаление карточки сразу отзывает доступ.</p>
+      <div class="saved-route-grid">
+        {% for saved_route in saved_routes %}
+          {% set can_delete = true %}
+          {% include "partials/saved_route_card.html" %}
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="saved-routes-empty">
+        <p>Здесь появятся варианты, которые вы сохраните после расчёта.</p>
+        <a href="{{ url_for('main.calculate') }}">Рассчитать маршрут</a>
+      </div>
+    {% endif %}
+  </section>
 
   <section class="profile-block" id="settings">
     <h2>Настройки</h2>
@@ -38,6 +55,20 @@
       </select>
       <button class="secondary-button" type="submit">Сохранить пояс</button>
     </form>
+    <details class="history-settings">
+      <summary>Управление историей поездок</summary>
+      <div>
+        <a class="secondary-button" href="{{ url_for('main.manage_trips') }}">Редактировать поездки</a>
+        <details class="history-clear">
+          <summary>Удаление всей истории</summary>
+          <p>Все записанные поездки будут удалены. Сохранённые места останутся.</p>
+          <form class="delete-history-form" action="{{ url_for('main.delete_all_trips') }}" method="post" data-confirm="Удалить всю историю поездок? Это действие нельзя отменить.">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" name="confirm_delete" value="1">Удалить всю историю</button>
+          </form>
+        </details>
+      </div>
+    </details>
   </section>
 
   <section class="profile-block profile-account" aria-labelledby="account-title">

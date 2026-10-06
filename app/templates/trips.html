@@ -2,30 +2,23 @@
 {% block title %}История поездок{% endblock %}
 {% block page %}trips{% endblock %}
 {% block content %}
-<main class="page-shell app-page">
+<main class="page-shell app-page history-page">
   <header class="page-heading search-page-heading">
-    <p>Профиль · поездки</p>
     <h1>История</h1>
   </header>
   <form class="search-bar" method="get" action="{{ url_for('main.trips') }}">
-    <label for="trip-date">Найти поездки по дате</label>
-    <div><input id="trip-date" type="date" name="date" value="{{ selected_date }}"><button type="submit">Найти</button></div>
+    <label for="trip-search">Поиск по местам</label>
+    <div><input id="trip-search" type="search" name="q" value="{{ query }}" placeholder="Дом Работа" maxlength="{{ config.MAX_TEXT_LENGTH }}"><button type="submit">Найти</button></div>
   </form>
-  {% if selected_date %}
-    <div class="search-summary"><span>{{ trips|length }} найдено · {{ selected_date }}</span><a href="{{ url_for('main.trips') }}">Сбросить</a></div>
+  {% if query %}
+    <div class="search-summary"><span>{{ trips|length }} найдено · {{ query }}</span><a href="{{ url_for('main.trips') }}">Сбросить</a></div>
   {% endif %}
   {% if trips %}
     <div class="journey-list">
-      {% for trip in trips %}{% with allow_delete=true %}{% include "partials/trip_card.html" %}{% endwith %}{% endfor %}
+      {% for trip in trips %}{% with compact=true %}{% include "partials/trip_card.html" %}{% endwith %}{% endfor %}
     </div>
-    {% if not selected_date %}
-      <form class="delete-history-form" action="{{ url_for('main.delete_all_trips') }}" method="post" data-confirm="Удалить всю историю из активной базы? Срок очистки резервных копий указан в политике обработки данных.">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" name="confirm_delete" value="1">Удалить всю историю</button>
-      </form>
-    {% endif %}
   {% else %}
-    <div class="quiet-empty"><p>{{ 'В эту дату поездок нет.' if selected_date else 'Поездок пока нет.' }}</p>{% if selected_date %}<a href="{{ url_for('main.trips') }}">Показать всю историю</a>{% else %}<a href="{{ url_for('main.index') }}">Записать первую</a>{% endif %}</div>
+    <div class="quiet-empty"><p>{{ 'По этим местам поездок нет.' if query else 'Поездок пока нет.' }}</p>{% if query %}<a href="{{ url_for('main.trips') }}">Показать всю историю</a>{% else %}<a href="{{ url_for('main.index') }}">Записать первую</a>{% endif %}</div>
   {% endif %}
 </main>
 {% endblock %}

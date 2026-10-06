@@ -25,14 +25,17 @@ def upgrade() -> None:
     for column_name in removable_columns:
         op.execute(sa.text(f'UPDATE "user" SET "{column_name}" = NULL'))
     if removable_columns:
-        with op.batch_alter_table("user") as batch_op:
+        if connection.dialect.name == "sqlite":
             for column_name in removable_columns:
-                batch_op.drop_column(column_name)
+                op.execute(sa.text(f'ALTER TABLE "user" DROP COLUMN "{column_name}"'))
+        else:
+            with op.batch_alter_table("user") as batch_op:
+                for column_name in removable_columns:
+                    batch_op.drop_column(column_name)
 
 
 def downgrade() -> None:
     """Restore nullable legacy columns without restoring deleted values."""
 
-    with op.batch_alter_table("user") as batch_op:
-        batch_op.add_column(sa.Column("avatar_url", sa.String(), nullable=True))
-        batch_op.add_column(sa.Column("email", sa.String(), nullable=True))
+    op.add_column("user", sa.Column("avatar_url", sa.String(), nullable=True))
+    op.add_column("user", sa.Column("email", sa.String(), nullable=True))

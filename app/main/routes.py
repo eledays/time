@@ -1,8 +1,9 @@
 """Страницы, JSON API и сохранение поездок."""
 
+import json
 import re
+import secrets
 from collections import Counter
-from datetime import date, datetime, time, timedelta
 from math import isfinite
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -11,18 +12,19 @@ from flask import (
     flash,
     g,
     jsonify,
+    make_response,
     redirect,
     render_template,
     request,
     url_for,
 )
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from app.auth.helpers import login_required
 from app.extensions import db, limiter
 from app.main import bp
-from app.models import ActiveTrip, Place, Trip, utc_now
+from app.models import ActiveTrip, Place, SavedRoute, Trip, utc_now
 from app.services import (
     TAXI_TARIFFS,
     TIMEZONE_CHOICES,
@@ -35,6 +37,8 @@ from app.services import (
 )
 
 COLOR_PATTERN = re.compile(r"^#[0-9a-fA-F]{6}$")
+SHARE_TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_-]{32}$")
+MAX_SAVED_ROUTES = 50
 
 
 @bp.get("/")
@@ -290,31 +294,216 @@ def calculate_result():
     )
 
 
+@bp.post("/routes")
+@limiter.limit("30 per minute")
+@login_required
+def save_route():
+    """Сохранить проверенный снимок выбранного варианта маршрута."""
+
+    title = " ".join(request.form.get("title", "").split())
+    origin = request.form.get("origin", "").strip()
+    destination = request.form.get("destination", "").strip()
+    variant_index = request.form.get("variant_index", type=int)
+    result_url = url_for(
+        "main.calculate_result", origin=origin, destination=destination
+    )
+    max_length = current_app.config["MAX_TEXT_LENGTH"]
+    if not title:
+        flash("Введите название маршрута", "error")
+        return redirect(result_url)
+    if any(len(value) > max_length for value in (title, origin, destination)):
+        flash("Название маршрута или точки слишком длинное", "error")
+        return redirect(result_url)
+    if not origin or not destination or variant_index is None or variant_index < 0:
+        flash("Не удалось определить вариант маршрута", "error")
+        return redirect(result_url)
+    saved_count = db.session.scalar(
+        select(db.func.count(SavedRoute.id)).where(SavedRoute.user_id == g.user.id)
+    )
+    if (saved_count or 0) >= MAX_SAVED_ROUTES:
+        flash("Можно сохранить не больше 50 маршрутов", "warning")
+        return redirect(result_url)
+    route_search = calculate_route_variants(
+        g.user.id,
+        origin,
+        destination,
+        max_intermediate_points=current_app.config["MAX_ROUTE_INTERMEDIATE_POINTS"],
+        max_variants=current_app.config["MAX_ROUTE_VARIANTS"],
+    )
+    if variant_index >= len(route_search["variants"]):
+        flash("Этот вариант маршрута больше недоступен", "error")
+        return redirect(result_url)
+    snapshot = _shareable_route_snapshot(route_search["variants"][variant_index])
+    saved_route = SavedRoute(
+        user_id=g.user.id,
+        title=title,
+        origin_name=route_search["origin"],
+        destination_name=route_search["destination"],
+        route_data=json.dumps(snapshot, ensure_ascii=False, separators=(",", ":")),
+        public_token=_new_share_token(),
+    )
+    db.session.add(saved_route)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        current_app.logger.warning("Не удалось создать уникальную ссылку маршрута")
+        flash("Не удалось сохранить маршрут. Попробуйте ещё раз.", "error")
+        return redirect(result_url)
+    flash("Маршрут сохранён в профиле", "success")
+    return redirect(url_for("main.profile", _anchor="saved-routes"))
+
+
+@bp.get("/r/<token>")
+@limiter.limit("60 per minute")
+def shared_route(token: str):
+    """Показать обезличенную карточку маршрута по публичной ссылке."""
+
+    if not SHARE_TOKEN_PATTERN.fullmatch(token):
+        return render_template("error.html", code=404, message="Маршрут не найден"), 404
+    saved_route = db.session.scalar(
+        select(SavedRoute).where(SavedRoute.public_token == token)
+    )
+    route = _load_saved_route(saved_route) if saved_route else None
+    if saved_route is None or route is None:
+        return render_template("error.html", code=404, message="Маршрут не найден"), 404
+    response = make_response(
+        render_template(
+            "shared_route.html",
+            saved_route=_saved_route_view(saved_route, route),
+        )
+    )
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    return response
+
+
+@bp.post("/routes/<int:saved_route_id>/delete")
+@login_required
+def delete_saved_route(saved_route_id: int):
+    """Удалить карточку пользователя и отозвать её публичную ссылку."""
+
+    saved_route = db.session.scalar(
+        select(SavedRoute).where(
+            SavedRoute.id == saved_route_id,
+            SavedRoute.user_id == g.user.id,
+        )
+    )
+    if saved_route is None:
+        return render_template("error.html", code=404, message="Маршрут не найден"), 404
+    db.session.delete(saved_route)
+    db.session.commit()
+    flash("Маршрут удалён, публичная ссылка отозвана", "success")
+    return redirect(url_for("main.profile", _anchor="saved-routes"))
+
+
+def _filtered_trips(query):
+    statement = select(Trip).where(Trip.user_id == g.user.id)
+    for word in normalize_place(query).split():
+        statement = statement.where(
+            or_(
+                Trip.origin.has(Place.normalized_name.contains(word, autoescape=True)),
+                Trip.destination.has(
+                    Place.normalized_name.contains(word, autoescape=True)
+                ),
+            )
+        )
+    return db.session.scalars(
+        statement.order_by(Trip.departed_at.desc(), Trip.id.desc())
+    ).all()
+
+
 @bp.get("/trips")
 @login_required
 def trips():
-    """Показать историю пользователя с поиском по дате."""
-
-    selected_date = request.args.get("date", "").strip()
-    statement = select(Trip).where(Trip.user_id == g.user.id)
-    if selected_date:
-        try:
-            requested_date = date.fromisoformat(selected_date)
-        except ValueError:
-            flash("Укажите корректную дату", "error")
-            return redirect(url_for("main.trips"))
-        day_start = datetime.combine(requested_date, time.min)
-        statement = statement.where(
-            Trip.departed_at >= day_start,
-            Trip.departed_at < day_start + timedelta(days=1),
-        )
-    trip_items = db.session.scalars(statement.order_by(Trip.departed_at.desc())).all()
+    """История с поиском по названиям начального и конечного места."""
+    query = request.args.get("q", "").strip()
+    if len(query) > current_app.config["MAX_TEXT_LENGTH"]:
+        flash("Запрос слишком длинный", "error")
+        return redirect(url_for("main.trips"))
     return render_template(
         "trips.html",
-        trips=trip_items,
+        trips=_filtered_trips(query),
         transport_labels=TRANSPORT_LABELS,
-        selected_date=selected_date,
+        query=query,
     )
+
+
+@bp.get("/trips/manage")
+@login_required
+def manage_trips():
+    query = request.args.get("q", "").strip()
+    if len(query) > current_app.config["MAX_TEXT_LENGTH"]:
+        flash("Запрос слишком длинный", "error")
+        return redirect(url_for("main.manage_trips"))
+    return render_template(
+        "manage_trips.html",
+        trips=_filtered_trips(query),
+        transport_labels=TRANSPORT_LABELS,
+        taxi_tariffs=TAXI_TARIFFS,
+        query=query,
+    )
+
+
+@bp.post("/trips/<int:trip_id>/edit")
+@login_required
+def edit_trip(trip_id: int):
+    trip = db.session.scalar(
+        select(Trip).where(Trip.id == trip_id, Trip.user_id == g.user.id)
+    )
+    if trip is None:
+        return render_template(
+            "error.html", code=404, message="Поездка не найдена"
+        ), 404
+    try:
+        origin = request.form.get("origin", "").strip()
+        destination = request.form.get("destination", "").strip()
+        detail = request.form.get("transport_detail", "").strip() or None
+        if not origin or not destination:
+            raise ValueError("Укажите начальное и конечное место")
+        if any(
+            len(value) > current_app.config["MAX_TEXT_LENGTH"]
+            for value in (origin, destination, detail or "")
+        ):
+            raise ValueError("Название или описание слишком длинное")
+        try:
+            departed_at = parse_local_datetime(request.form.get("departed_at", ""))
+            arrived_at = parse_local_datetime(request.form.get("arrived_at", ""))
+        except ValueError:
+            raise ValueError("Проверьте время отправления и прибытия") from None
+        if arrived_at <= departed_at:
+            raise ValueError("Прибытие должно быть позже отправления")
+        transport = request.form.get("transport_type", "")
+        if transport not in TRANSPORT_LABELS:
+            raise ValueError("Выберите тип перемещения")
+        if transport == "other" and not detail:
+            raise ValueError("Укажите вид перемещения")
+        cost_value = request.form.get("cost", "").strip()
+        try:
+            cost = float(cost_value) if cost_value else None
+        except ValueError:
+            raise ValueError("Стоимость должна быть числом") from None
+        if cost is not None and (not isfinite(cost) or cost < 0):
+            raise ValueError("Стоимость должна быть конечным неотрицательным числом")
+        tariff = request.form.get("taxi_tariff", "").strip() or None
+        if transport == "taxi" and tariff not in TAXI_TARIFFS:
+            raise ValueError("Выберите тариф такси")
+    except ValueError as error:
+        flash(str(error) or "Проверьте данные поездки", "error")
+        return redirect(url_for("main.manage_trips", _anchor=f"trip-{trip_id}"))
+    trip.origin = get_or_create_place(g.user.id, origin)
+    trip.destination = get_or_create_place(g.user.id, destination)
+    trip.departed_at = departed_at
+    trip.arrived_at = arrived_at
+    trip.transport_type = transport
+    trip.transport_detail = detail if transport in {"bus", "metro", "other"} else None
+    trip.cost = cost if transport in {"taxi", "ebike", "scooter"} else None
+    trip.taxi_cost = None
+    trip.taxi_tariff = tariff if transport == "taxi" else None
+    db.session.commit()
+    flash("Поездка изменена", "success")
+    return redirect(url_for("main.manage_trips", _anchor=f"trip-{trip_id}"))
 
 
 @bp.post("/trips/<int:trip_id>/delete")
@@ -332,7 +521,7 @@ def delete_trip(trip_id: int):
     db.session.delete(trip)
     db.session.commit()
     flash("Поездка удалена", "success")
-    return redirect(url_for("main.trips"))
+    return redirect(url_for("main.manage_trips"))
 
 
 @bp.post("/trips/delete-all")
@@ -342,14 +531,14 @@ def delete_all_trips():
 
     if request.form.get("confirm_delete") != "1":
         flash("Подтвердите удаление поездок", "warning")
-        return redirect(url_for("main.trips"))
+        return redirect(url_for("main.profile", _anchor="settings"))
     deleted_count = db.session.scalar(
         select(db.func.count(Trip.id)).where(Trip.user_id == g.user.id)
     )
     db.session.execute(delete(Trip).where(Trip.user_id == g.user.id))
     db.session.commit()
     flash(f"История удалена · {deleted_count or 0} поездок", "success")
-    return redirect(url_for("main.trips"))
+    return redirect(url_for("main.profile", _anchor="settings"))
 
 
 @bp.get("/places")
@@ -548,9 +737,21 @@ def profile():
         "places": place_count or 0,
         "favorite": TRANSPORT_LABELS.get(favorite, "—") if favorite else "—",
     }
+    saved_route_models = db.session.scalars(
+        select(SavedRoute)
+        .where(SavedRoute.user_id == g.user.id)
+        .order_by(SavedRoute.created_at.desc())
+        .limit(MAX_SAVED_ROUTES)
+    ).all()
+    saved_routes = [
+        _saved_route_view(saved_route, route)
+        for saved_route in saved_route_models
+        if (route := _load_saved_route(saved_route)) is not None
+    ]
     return render_template(
         "profile.html",
         stats=stats,
+        saved_routes=saved_routes,
         timezone_choices=TIMEZONE_CHOICES,
     )
 
@@ -585,6 +786,94 @@ def detect_timezone():
         g.user.timezone = timezone
         db.session.commit()
     return "", 204
+
+
+def _shareable_route_snapshot(route: dict) -> dict:
+    """Удалить внутренние идентификаторы и координаты из публичного снимка."""
+
+    segment_fields = (
+        "from",
+        "to",
+        "known",
+        "minutes",
+        "min_minutes",
+        "max_minutes",
+        "samples",
+        "transport",
+        "transport_detail",
+        "distance_km",
+        "speed_kmh",
+    )
+    return {
+        "points": [{"name": point["name"]} for point in route["points"]],
+        "segments": [
+            {field: segment.get(field) for field in segment_fields}
+            for segment in route["segments"]
+        ],
+        "total_minutes": route["total_minutes"],
+        "total_distance_km": route["total_distance_km"],
+        "average_speed_kmh": route["average_speed_kmh"],
+        "observations": route["observations"],
+    }
+
+
+def _new_share_token() -> str:
+    """Создать непредсказуемый токен, отсутствующий в текущей базе."""
+
+    while True:
+        token = secrets.token_urlsafe(24)
+        exists = db.session.scalar(
+            select(SavedRoute.id).where(SavedRoute.public_token == token)
+        )
+        if exists is None:
+            return token
+
+
+def _load_saved_route(saved_route: SavedRoute) -> dict | None:
+    """Безопасно прочитать сохранённый сервером снимок маршрута."""
+
+    try:
+        route = json.loads(saved_route.route_data)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    required = {
+        "points",
+        "segments",
+        "total_minutes",
+        "total_distance_km",
+        "average_speed_kmh",
+        "observations",
+    }
+    if not isinstance(route, dict) or not required.issubset(route):
+        return None
+    if not isinstance(route["points"], list) or not isinstance(route["segments"], list):
+        return None
+    return route
+
+
+def _saved_route_view(saved_route: SavedRoute, route: dict) -> dict:
+    """Подготовить карточку и её минимальные данные для клиентского шаринга."""
+
+    share_url = url_for(
+        "main.shared_route", token=saved_route.public_token, _external=True
+    )
+    share_payload = {
+        "title": saved_route.title,
+        "origin": saved_route.origin_name,
+        "destination": saved_route.destination_name,
+        "route": route,
+        "shareUrl": share_url,
+    }
+    return {
+        "id": saved_route.id,
+        "title": saved_route.title,
+        "origin": saved_route.origin_name,
+        "destination": saved_route.destination_name,
+        "route": route,
+        "created_at": saved_route.created_at,
+        "share_url": share_url,
+        "share_payload": share_payload,
+    }
 
 
 def _is_valid_timezone(value: str) -> bool:

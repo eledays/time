@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ saved_route.title }}{% endblock %}
+{% block page %}shared-route{% endblock %}
+{% block content %}
+<main class="shared-route-page">
+  <header class="shared-route-head">
+    <span class="material-symbols-rounded" aria-hidden="true">route</span>
+    <p>Общедоступная карточка</p>
+  </header>
+  {% set can_delete = false %}
+  {% include "partials/saved_route_card.html" %}
+  <footer class="shared-route-footer">
+    <p>Карточка не содержит имени владельца, внутренних идентификаторов и точных координат.</p>
+    {% if g.user %}<a href="{{ url_for('main.profile', _anchor='saved-routes') }}">К сохранённым маршрутам</a>{% else %}<a href="{{ url_for('main.index') }}">Открыть дневник поездок</a>{% endif %}
+  </footer>
+</main>
+{% endblock %}
