@@ -87,3 +87,85 @@ def test_merge_rejects_other_users_place(auth_client, app, user):
     )
     with app.app_context():
         assert db.session.get(Place, source_id) is not None
+
+
+def test_delete_unused_place(auth_client, app, user):
+    with app.app_context():
+        place = Place(user_id=user.id, name="Точка", normalized_name="точка")
+        db.session.add(place)
+        db.session.commit()
+        place_id = place.id
+    assert "Удалить место" in auth_client.get("/places").text
+    response = auth_client.post(
+        f"/places/{place_id}/delete", data={"csrf_token": "test-csrf"}
+    )
+    assert response.status_code == 302
+    with app.app_context():
+        assert db.session.get(Place, place_id) is None
+
+
+def test_delete_related_requires_explicit_choice(auth_client, app, user):
+    with app.app_context():
+        place = Place(user_id=user.id, name="А", normalized_name="а")
+        other = Place(user_id=user.id, name="Б", normalized_name="б")
+        db.session.add_all([place, other])
+        db.session.flush()
+        place_id, other_id = place.id, other.id
+        now = datetime.now(UTC)
+        for origin, destination in [
+            (place.id, other.id),
+            (other.id, place.id),
+            (other.id, other.id),
+        ]:
+            db.session.add(
+                Trip(
+                    user_id=user.id,
+                    origin_id=origin,
+                    destination_id=destination,
+                    departed_at=now,
+                    arrived_at=now + timedelta(minutes=10),
+                    transport_type="walk",
+                )
+            )
+        db.session.add(ActiveTrip(user_id=user.id, origin_id=place.id, departed_at=now))
+        db.session.commit()
+    auth_client.post(f"/places/{place_id}/delete", data={"csrf_token": "test-csrf"})
+    with app.app_context():
+        assert db.session.get(Place, place_id) is not None
+        assert len(db.session.scalars(db.select(Trip)).all()) == 3
+        assert db.session.scalar(db.select(ActiveTrip)) is not None
+    auth_client.post(
+        f"/places/{place_id}/delete",
+        data={"csrf_token": "test-csrf", "delete_related": "1"},
+    )
+    with app.app_context():
+        assert db.session.get(Place, place_id) is None
+        assert db.session.get(Place, other_id) is not None
+        assert len(db.session.scalars(db.select(Trip)).all()) == 1
+        assert db.session.scalar(db.select(ActiveTrip)) is None
+
+
+def test_delete_rejects_foreign_place_and_missing_csrf(auth_client, app, user):
+    with app.app_context():
+        other = User(yandex_id="other-delete", display_name="Other")
+        db.session.add(other)
+        db.session.flush()
+        place = Place(user_id=other.id, name="А", normalized_name="а")
+        db.session.add(place)
+        db.session.commit()
+        place_id = place.id
+    assert (
+        auth_client.post(
+            f"/places/{place_id}/delete", data={"delete_related": "1"}
+        ).status_code
+        == 400
+    )
+    assert (
+        auth_client.post(
+            f"/places/{place_id}/delete",
+            data={"csrf_token": "test-csrf", "delete_related": "1"},
+        ).status_code
+        == 404
+    )
+    with app.app_context():
+        assert db.session.get(Place, place_id) is not None

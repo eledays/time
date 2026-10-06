@@ -38,6 +38,12 @@
           <button class="primary-button" type="submit">Объединить места</button>
         </form>
         {% endif %}
+        <form action="{{ url_for('main.delete_place', place_id=place.id) }}" method="post" class="place-form" data-confirm="Удалить место? Если отмечено удаление связанных поездок, они также будут удалены, включая текущую поездку. Это действие нельзя отменить.">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="place-delete-related"><input type="checkbox" name="delete_related" value="1"> Удалить также связанные поездки, включая текущую</label>
+          <p>Чтобы сохранить поездки, объедините место с другим.</p>
+          <button class="danger-button" type="submit">Удалить место</button>
+        </form>
       </details>
     {% endfor %}
     {% if not places and query %}<div class="quiet-empty"><p>Мест с таким названием нет.</p><a href="{{ url_for('main.places') }}">Показать все места</a></div>{% endif %}

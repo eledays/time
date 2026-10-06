@@ -599,3 +599,7 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
   .places-page .place-editor > summary { padding: 12px; gap: 10px; }
   .places-page .place-editor > summary > span { font-size: 14px; }
 }
+
+.place-form .place-delete-related { display: flex; align-items: center; gap: 10px; }
+.place-form .place-delete-related input { width: 18px; min-height: 18px; flex: 0 0 18px; }
+.place-form .danger-button { min-height: 44px; border: 1px solid var(--danger); border-radius: 10px; background: transparent; color: var(--danger); cursor: pointer; }

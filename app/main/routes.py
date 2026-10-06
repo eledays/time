@@ -698,6 +698,42 @@ def _place_response(return_url, place=None):
     )
 
 
+@bp.post("/places/<int:place_id>/delete")
+@login_required
+def delete_place(place_id):
+    """Удалить своё место; связанные поездки — только при явном выборе."""
+    place = db.session.scalar(
+        select(Place).where(Place.id == place_id, Place.user_id == g.user.id)
+    )
+    if place is None:
+        return render_template("error.html", code=404, message="Место не найдено"), 404
+    trip_filter = (Trip.user_id == g.user.id) & or_(
+        Trip.origin_id == place.id, Trip.destination_id == place.id
+    )
+    active_filter = (ActiveTrip.user_id == g.user.id) & (
+        ActiveTrip.origin_id == place.id
+    )
+    has_trips = (
+        db.session.scalar(select(Trip.id).where(trip_filter).limit(1)) is not None
+    )
+    has_active = (
+        db.session.scalar(select(ActiveTrip.id).where(active_filter).limit(1))
+        is not None
+    )
+    if (has_trips or has_active) and request.form.get("delete_related") != "1":
+        flash(
+            "У места есть поездки. Объедините его с другим местом, чтобы сохранить историю, или отметьте удаление связанных поездок.",
+            "error",
+        )
+        return redirect(url_for("main.places"))
+    db.session.execute(delete(Trip).where(trip_filter))
+    db.session.execute(delete(ActiveTrip).where(active_filter))
+    db.session.delete(place)
+    db.session.commit()
+    flash("Место удалено", "success")
+    return redirect(url_for("main.places"))
+
+
 @bp.post("/places/<int:place_id>/merge")
 @login_required
 def merge_place(place_id):
