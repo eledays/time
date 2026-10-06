@@ -610,11 +610,13 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .place-card > span:not(.ui-chevron) { min-width: 0; display: grid; gap: 6px; font-size: 15px; font-weight: 560; line-height: 1.35; overflow-wrap: anywhere; }
 .place-card small { color: var(--muted); font-size: 11px; font-weight: 400; }
 .place-card .ui-chevron { margin-left: auto; flex: none; }
-.place-edit-page h1 { overflow-wrap: anywhere; }
+.place-edit-page { font-size: 14px; }
+.place-edit-page .field-group input, .place-edit-page .field-group textarea, .place-edit-page select { font-size: 14px; font-weight: 400; line-height: 1.5; }
+.place-edit-page .place-delete-related { font-size: 12px; line-height: 1.5; }
 .place-edit-page .place-form { padding: 0; }
 .place-edit-page .color-field { margin-bottom: 20px; }
 .place-edit-page .place-merge-form { margin-bottom: 0; }
-.place-edit-page select { width: 100%; min-height: 52px; padding: 13px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg); color: var(--text); font: inherit; color-scheme: dark; }
+.place-edit-page select { width: 100%; min-height: 52px; padding: 13px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg); color: var(--text); color-scheme: dark; }
 .place-edit-page select:focus-visible { outline: 2px solid var(--faint); outline-offset: 2px; }
 .place-edit-page .place-delete-form { display: grid; gap: 16px; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
 @media (max-width: 600px) {
