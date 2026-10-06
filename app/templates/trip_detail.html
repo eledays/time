@@ -15,10 +15,7 @@
     {% if recorded_cost is not none %}<div><dt>Стоимость</dt><dd>{{ '%g'|format(recorded_cost) }} ₽</dd></div>{% endif %}
     {% if trip.taxi_tariff %}<div><dt>Тариф такси</dt><dd>{{ trip.taxi_tariff }}</dd></div>{% endif %}
   </dl>
-  <details class="trip-editor">
-    <summary class="trip-detail-edit-toggle">Редактировать поездку</summary>
-    <div class="trip-editor-body">{% include "partials/trip_edit_forms.html" %}</div>
-  </details>
+  <a class="trip-action-button" href="{{ url_for('main.trip_edit_page', trip_id=trip.id) }}">Редактировать поездку</a>
   {% include "partials/trip_delete_form.html" %}
 </main>
 {% endblock %}

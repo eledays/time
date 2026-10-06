@@ -1,5 +1,5 @@
           <form class="trip-delete-form" action="{{ url_for('main.delete_trip', trip_id=trip.id) }}" method="post" data-confirm="Удалить эту поездку? Это действие нельзя отменить.">
             {% if trip_detail|default(false) %}<input type="hidden" name="return_to" value="trip">{% endif %}
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit">Удалить поездку</button>
+            <button{% if trip_detail|default(false) %} class="trip-action-button trip-action-danger"{% endif %} type="submit">Удалить поездку</button>
           </form>

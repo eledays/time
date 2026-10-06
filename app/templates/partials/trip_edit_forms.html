@@ -1,15 +1,23 @@
           <form class="trip-edit-form" action="{{ url_for('main.edit_trip', trip_id=trip.id) }}" method="post">
             {% if trip_detail|default(false) %}<input type="hidden" name="return_to" value="trip">{% endif %}
+            {% if edit_page|default(false) %}<input type="hidden" name="edit_page" value="1">{% endif %}
+            {% set values = edit_values|default({}) %}
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <label>Откуда<input name="origin" value="{{ trip.origin.name }}" required maxlength="{{ config.MAX_TEXT_LENGTH }}"></label>
-            <label>Куда<input name="destination" value="{{ trip.destination.name }}" required maxlength="{{ config.MAX_TEXT_LENGTH }}"></label>
-            <label>Отправление<input type="datetime-local" name="departed_at" value="{{ trip.departed_at.strftime('%Y-%m-%dT%H:%M') }}" required></label>
-            <label>Прибытие<input type="datetime-local" name="arrived_at" value="{{ trip.arrived_at.strftime('%Y-%m-%dT%H:%M') }}" required></label>
-            <label>Транспорт<select name="transport_type">{% for value, label in transport_labels.items() %}<option value="{{ value }}" {% if trip.transport_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
-            <label>Номер или вид транспорта<input name="transport_detail" value="{{ trip.transport_detail or '' }}" maxlength="{{ config.MAX_TEXT_LENGTH }}"></label>
+            <fieldset><legend>Маршрут</legend>
+            <label>Откуда<input name="origin" value="{{ values.get('origin', trip.origin.name) }}" required maxlength="{{ config.MAX_TEXT_LENGTH }}"></label>
+            <label>Куда<input name="destination" value="{{ values.get('destination', trip.destination.name) }}" required maxlength="{{ config.MAX_TEXT_LENGTH }}"></label>
+            </fieldset>
+            <fieldset><legend>Время</legend>
+            <label>Отправление<input type="datetime-local" name="departed_at" value="{{ values.get('departed_at', trip.departed_at.strftime('%Y-%m-%dT%H:%M')) }}" required></label>
+            <label>Прибытие<input type="datetime-local" name="arrived_at" value="{{ values.get('arrived_at', trip.arrived_at.strftime('%Y-%m-%dT%H:%M')) }}" required></label>
+            </fieldset>
+            <fieldset><legend>Транспорт и стоимость</legend>
+            <label>Транспорт<select name="transport_type">{% for value, label in transport_labels.items() %}<option value="{{ value }}" {% if values.get('transport_type', trip.transport_type) == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+            <label>Номер или вид транспорта<input name="transport_detail" value="{{ values.get('transport_detail', trip.transport_detail or '') }}" maxlength="{{ config.MAX_TEXT_LENGTH }}"></label>
             {% set recorded_cost = trip.cost if trip.cost is not none else trip.taxi_cost %}
-            <label>Стоимость аренды или такси, ₽<input type="number" name="cost" min="0" step="any" value="{{ recorded_cost if recorded_cost is not none else '' }}"></label>
-            <label>Тариф такси<select name="taxi_tariff"><option value="">Не выбран</option>{% for tariff in taxi_tariffs %}<option value="{{ tariff }}" {% if trip.taxi_tariff == tariff %}selected{% endif %}>{{ tariff }}</option>{% endfor %}</select></label>
+            <label>Стоимость аренды или такси, ₽<input type="number" name="cost" min="0" step="any" value="{{ values.get('cost', recorded_cost if recorded_cost is not none else '') }}"></label>
+            <label>Тариф такси<select name="taxi_tariff"><option value="">Не выбран</option>{% for tariff in taxi_tariffs %}<option value="{{ tariff }}" {% if values.get('taxi_tariff', trip.taxi_tariff) == tariff %}selected{% endif %}>{{ tariff }}</option>{% endfor %}</select></label>
+            </fieldset>
             <button class="primary-button" type="submit">Сохранить изменения</button>
           </form>
           {% if not trip_detail|default(false) %}{% include "partials/trip_delete_form.html" %}{% endif %}

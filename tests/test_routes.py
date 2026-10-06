@@ -1695,6 +1695,13 @@ def test_trip_detail_edit_and_delete(app: Flask, auth_client, user) -> None:
     assert "30 мин" in page.text
     assert "Редактировать поездку" in page.text
     assert "Удалить поездку" in page.text
+    assert f'href="{url}/edit"' in page.text
+    assert 'class="trip-action-button trip-action-danger"' in page.text
+    assert "<details" not in page.text
+    editor = auth_client.get(f"{url}/edit")
+    assert editor.status_code == 200
+    assert 'value="Дом"' in editor.text
+    assert 'name="edit_page" value="1"' in editor.text
     data = {
         "csrf_token": "test-csrf",
         "return_to": "trip",
@@ -1710,6 +1717,13 @@ def test_trip_detail_edit_and_delete(app: Flask, auth_client, user) -> None:
     data["arrived_at"] = "2026-10-06T07:00"
     invalid = auth_client.post(f"{url}/edit", data=data)
     assert invalid.headers["Location"].endswith(url)
+    assert "45 мин" in auth_client.get(url).text
+    data["edit_page"] = "1"
+    data["destination"] = "Новое место"
+    invalid_page = auth_client.post(f"{url}/edit", data=data)
+    assert invalid_page.status_code == 400
+    assert 'value="Новое место"' in invalid_page.text
+    assert "Прибытие должно быть позже отправления" in invalid_page.text
     assert "45 мин" in auth_client.get(url).text
     deleted = auth_client.post(
         f"{url}/delete", data={"csrf_token": "test-csrf", "return_to": "trip"}
@@ -1736,4 +1750,5 @@ def test_trip_detail_is_private(app: Flask, auth_client, user) -> None:
         db.session.commit()
         trip_id = trip.id
     assert auth_client.get(f"/trips/{trip_id}").status_code == 404
+    assert auth_client.get(f"/trips/{trip_id}/edit").status_code == 404
     assert auth_client.get("/trips/999999").status_code == 404

@@ -573,3 +573,13 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .trip-detail-edit-toggle { padding: 16px; font-size: 14px; }
 
 .trip-detail-page > .trip-delete-form button { min-height: 44px; color: var(--danger); font-size: 14px; }
+
+.trip-action-button, .trip-detail-page > .trip-delete-form .trip-action-button { width: 100%; min-height: 52px; display: flex; align-items: center; justify-content: center; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text); font: inherit; font-size: 14px; cursor: pointer; }
+.trip-detail-page > .trip-delete-form .trip-action-danger { color: var(--danger); border-color: rgba(255, 123, 114, .3); background: rgba(255, 123, 114, .08); }
+.trip-action-button:hover { opacity: .85; }
+.trip-edit-form fieldset { min-width: 0; display: grid; gap: 14px; margin: 0; padding: 16px; border: 1px solid var(--line); border-radius: 14px; }
+.trip-edit-form legend { padding: 0 6px; color: var(--text); font-size: 13px; }
+.trip-edit-form label { min-width: 0; }
+.trip-edit-form input:focus, .trip-edit-form select:focus { outline: 2px solid var(--faint); outline-offset: 2px; }
+.trip-edit-page .trip-edit-form input, .trip-edit-page .trip-edit-form select { font-size: 16px; min-height: 48px; }
+.trip-edit-cancel { display: block; padding: 16px; text-align: center; color: var(--muted); font-size: 14px; }

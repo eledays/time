@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Редактирование поездки{% endblock %}
+{% block page %}trip-edit{% endblock %}
+{% block content %}
+<main class="page-shell app-page history-page trip-edit-page">
+  <a class="manage-back" href="{{ url_for('main.trip_detail', trip_id=trip.id) }}">← К поездке</a>
+  <header class="page-heading"><h1>Редактирование поездки</h1></header>
+  {% include "partials/trip_edit_forms.html" %}
+  <a class="trip-edit-cancel" href="{{ url_for('main.trip_detail', trip_id=trip.id) }}">Отменить</a>
+</main>
+{% endblock %}

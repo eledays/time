@@ -465,6 +465,26 @@ def trip_detail(trip_id: int):
     )
 
 
+@bp.get("/trips/<int:trip_id>/edit")
+@login_required
+def trip_edit_page(trip_id: int):
+    trip = db.session.scalar(
+        select(Trip).where(Trip.id == trip_id, Trip.user_id == g.user.id)
+    )
+    if trip is None:
+        return render_template(
+            "error.html", code=404, message="Поездка не найдена"
+        ), 404
+    return render_template(
+        "trip_edit.html",
+        trip=trip,
+        transport_labels=TRANSPORT_LABELS,
+        taxi_tariffs=TAXI_TARIFFS,
+        trip_detail=True,
+        edit_page=True,
+    )
+
+
 @bp.post("/trips/<int:trip_id>/edit")
 @login_required
 def edit_trip(trip_id: int):
@@ -510,6 +530,16 @@ def edit_trip(trip_id: int):
             raise ValueError("Выберите тариф такси")
     except ValueError as error:
         flash(str(error) or "Проверьте данные поездки", "error")
+        if request.form.get("edit_page") == "1":
+            return render_template(
+                "trip_edit.html",
+                trip=trip,
+                transport_labels=TRANSPORT_LABELS,
+                taxi_tariffs=TAXI_TARIFFS,
+                trip_detail=True,
+                edit_page=True,
+                edit_values=request.form,
+            ), 400
         return redirect(
             url_for("main.trip_detail", trip_id=trip_id)
             if request.form.get("return_to") == "trip"
