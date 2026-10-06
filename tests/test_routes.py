@@ -1283,8 +1283,6 @@ def test_sections_and_place_metadata(app: Flask, auth_client, user) -> None:
     assert "startPlaceEditor(placeId)" in map_script.text
     assert "startNewPlaceEditor(latitude, longitude)" in map_script.text
     assert "hiddenPointFeature?.setStyle(new ol.style.Style({}))" in map_script.text
-    assert 'window.matchMedia("(pointer: coarse)")' in map_script.text
-    assert "}, 600)" in map_script.text
     assert "map.getView().animate({" in map_script.text
     assert "zoom: 15" in map_script.text
     assert "duration: 450" in map_script.text

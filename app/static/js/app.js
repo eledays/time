@@ -861,10 +861,12 @@ const initializeOpenLayersMaps = () => {
         vectorSource.addFeature(line);
       }
     });
-    const usesLongPress = window.matchMedia("(pointer: coarse)").matches;
-    let suppressSingleClickUntil = 0;
+    const activeMapPointers = new Set();
+    let mapGestureStart = null;
+    let mapGestureMoved = false;
+    let mapGestureMultitouch = false;
     map.on("singleclick", (event) => {
-      if (performance.now() < suppressSingleClickUntil) return;
+      if (mapGestureMoved || mapGestureMultitouch) return;
       if (activePlaceId !== null) {
         const [longitude, latitude] = ol.proj.toLonLat(event.coordinate);
         setPlacementMarker(latitude, longitude);
@@ -879,7 +881,7 @@ const initializeOpenLayersMaps = () => {
         return;
       }
       const popupHtml = feature?.get("popupHtml");
-      if (!popupHtml && !usesLongPress) {
+      if (!popupHtml) {
         const [longitude, latitude] = ol.proj.toLonLat(event.coordinate);
         startNewPlaceEditor(latitude, longitude);
         return;
@@ -888,45 +890,30 @@ const initializeOpenLayersMaps = () => {
       popupElement.innerHTML = popupHtml || "";
       popup.setPosition(popupHtml ? event.coordinate : undefined);
     });
-    let longPressTimer = null;
-    let longPressStart = null;
-    const cancelLongPress = () => {
-      window.clearTimeout(longPressTimer);
-      longPressTimer = null;
-      longPressStart = null;
-    };
     journeyMapElement.addEventListener("pointerdown", (event) => {
-      if (!usesLongPress || event.pointerType === "mouse" || activePlaceId !== null) return;
-      longPressStart = { x: event.clientX, y: event.clientY };
-      longPressTimer = window.setTimeout(() => {
-        const rect = journeyMapElement.getBoundingClientRect();
-        const pixel = [
-          event.clientX - rect.left,
-          event.clientY - rect.top,
-        ];
-        if (map.hasFeatureAtPixel(pixel)) {
-          cancelLongPress();
-          return;
-        }
-        const coordinate = map.getCoordinateFromPixel(pixel);
-        const [longitude, latitude] = ol.proj.toLonLat(coordinate);
-        suppressSingleClickUntil = performance.now() + 800;
-        startNewPlaceEditor(latitude, longitude);
-        longPressTimer = null;
-        longPressStart = null;
-      }, 600);
-    });
-    journeyMapElement.addEventListener("pointermove", (event) => {
-      if (!longPressStart) return;
-      if (Math.hypot(event.clientX - longPressStart.x, event.clientY - longPressStart.y) > 10) {
-        cancelLongPress();
+      if (activeMapPointers.size === 0) {
+        mapGestureStart = { x: event.clientX, y: event.clientY };
+        mapGestureMoved = false;
+        mapGestureMultitouch = false;
       }
-    });
-    journeyMapElement.addEventListener("pointerup", cancelLongPress);
-    journeyMapElement.addEventListener("pointercancel", cancelLongPress);
-    journeyMapElement.addEventListener("contextmenu", (event) => {
-      if (usesLongPress) event.preventDefault();
-    });
+      activeMapPointers.add(event.pointerId);
+      if (activeMapPointers.size > 1) mapGestureMultitouch = true;
+    }, { capture: true });
+    window.addEventListener("pointermove", (event) => {
+      if (!activeMapPointers.has(event.pointerId) || !mapGestureStart) return;
+      if (Math.hypot(event.clientX - mapGestureStart.x, event.clientY - mapGestureStart.y) > 10) {
+        mapGestureMoved = true;
+      }
+    }, { capture: true });
+    const finishMapPointer = (event) => {
+      activeMapPointers.delete(event.pointerId);
+      if (activeMapPointers.size === 0) mapGestureStart = null;
+    };
+    window.addEventListener("pointerup", finishMapPointer, { capture: true });
+    window.addEventListener("pointercancel", (event) => {
+      if (activeMapPointers.has(event.pointerId)) mapGestureMoved = true;
+      finishMapPointer(event);
+    }, { capture: true });
     map.on("pointermove", (event) => {
       journeyMapElement.style.cursor = activePlaceId !== null
         ? "crosshair"
