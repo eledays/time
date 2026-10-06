@@ -1469,7 +1469,7 @@ def test_history_in_bottom_navigation_and_profile_place_search(
     places = auth_client.get("/places?q=пАрК")
     assert places.status_code == 200
     assert "Парк" in places.text
-    assert "Работа" not in places.text
+    assert "<span>Работа" not in places.text
     assert "1 найдено" in places.text
 
 

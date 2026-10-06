@@ -42,6 +42,7 @@
       <input id="map-placement-name" name="name" type="text" maxlength="{{ config.MAX_TEXT_LENGTH }}" placeholder="Название места" required data-map-placement-name>
       <label class="visually-hidden" for="map-placement-description">Описание</label>
       <textarea id="map-placement-description" name="description" rows="2" maxlength="{{ config.MAX_TEXT_LENGTH }}" placeholder="Описание" data-map-placement-description></textarea>
+      <span role="status" data-map-save-status></span>
       <span class="map-placement-hint"><span class="material-symbols-rounded" aria-hidden="true">location_on</span> Нажмите на карту, чтобы изменить положение</span>
     </div>
     <div class="map-placement-actions">

@@ -2,14 +2,15 @@
 {% block title %}Места{% endblock %}
 {% block page %}places{% endblock %}
 {% block content %}
-<main class="page-shell app-page">
-  <header class="page-heading search-page-heading"><p>Профиль · места</p><h1>Места</h1></header>
+<main class="page-shell app-page history-page places-page">
+  <header class="page-heading search-page-heading"><h1>Места</h1></header>
 
-  <form class="search-bar place-search" method="get" action="{{ url_for('main.places') }}">
-    <label for="place-query">Найти место</label>
+  <form class="search-bar" method="get" action="{{ url_for('main.places') }}">
+    <label for="place-query">Поиск по местам</label>
     <div><input id="place-query" type="search" name="q" value="{{ query }}" maxlength="{{ config.MAX_TEXT_LENGTH }}" placeholder="Название"><button type="submit">Найти</button></div>
   </form>
-  {% if query %}<div class="search-summary"><span>{{ places|length }} найдено</span><a href="{{ url_for('main.places') }}">Сбросить</a></div>{% endif %}
+  <span role="status" data-place-search-status></span>
+  <div class="search-summary"><span>{{ places|length }} {{ "найдено" if query else "мест" }}</span><a href="{{ url_for('main.places') }}">Сбросить</a></div>
 
   <details class="place-editor new-place" {% if not places and not query %}open{% endif %}>
     <summary>＋ Добавить</summary>
@@ -29,6 +30,14 @@
           {% with current=place %}{% include "partials/place_fields.html" %}{% endwith %}
           <button class="primary-button" type="submit">Сохранить изменения</button>
         </form>
+        {% if merge_targets|length > 1 %}
+        <form action="{{ url_for('main.merge_place', place_id=place.id) }}" method="post" class="place-form" data-confirm="Объединить это место с выбранным? Все поездки будут перенесены, название и координаты выбранного места сохранятся.">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label>Объединить с<select name="target_id" required><option value="">Выберите место</option>{% for target in merge_targets if target.id != place.id %}<option value="{{ target.id }}">{{ target.name }}</option>{% endfor %}</select></label>
+          <p>Поездки перенесутся в выбранное место. Его название и координаты сохранятся.</p>
+          <button class="primary-button" type="submit">Объединить места</button>
+        </form>
+        {% endif %}
       </details>
     {% endfor %}
     {% if not places and query %}<div class="quiet-empty"><p>Мест с таким названием нет.</p><a href="{{ url_for('main.places') }}">Показать все места</a></div>{% endif %}

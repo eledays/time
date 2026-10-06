@@ -664,7 +664,10 @@ const initializeOpenLayersMaps = () => {
     mapPanel.setAttribute("aria-hidden", String(!open));
     panelOpenButton.setAttribute("aria-expanded", String(open));
   };
-  panelOpenButton?.addEventListener("click", () => setMapPanelOpen(true));
+  panelOpenButton?.addEventListener("click", () => {
+    mapPanel?.dispatchEvent(new Event("open-places"));
+    setMapPanelOpen(true);
+  });
   mapPanel?.querySelector("[data-map-panel-close]")
     ?.addEventListener("click", () => setMapPanelOpen(false));
 
@@ -754,6 +757,7 @@ const initializeOpenLayersMaps = () => {
     };
 
     const closePlaceEditor = () => {
+      if (placementApply?.disabled) return;
       restoreHiddenPoint();
       placementSource.clear();
       placementCoordinates = null;
@@ -764,6 +768,7 @@ const initializeOpenLayersMaps = () => {
     };
 
     const startPlaceEditor = (placeId) => {
+      if (placementApply?.disabled) return;
       if (!placementPanel || !placementName || !placementDescription
           || !placementColor || !placementApply) return;
       const place = placeEditors.get(Number(placeId));
@@ -797,6 +802,7 @@ const initializeOpenLayersMaps = () => {
     };
 
     const startNewPlaceEditor = (latitude, longitude) => {
+      if (placementApply?.disabled) return;
       if (!placementPanel || !placementName || !placementDescription
           || !placementColor || !placementApply || !mapData.createUrl) return;
       restoreHiddenPoint();
@@ -810,8 +816,13 @@ const initializeOpenLayersMaps = () => {
       setPlacementMarker(latitude, longitude);
     };
 
-    document.querySelectorAll("[data-map-edit-place]").forEach((button) => {
-      button.addEventListener("click", () => startPlaceEditor(button.dataset.mapEditPlace));
+    mapPanel?.addEventListener("open-places", () => {
+      if (placementApply?.disabled) return;
+      if (activePlaceId !== null) closePlaceEditor();
+    });
+    mapPanel?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-map-edit-place]");
+      if (button) startPlaceEditor(button.dataset.mapEditPlace);
     });
     placementColor?.addEventListener("input", () => {
       placementColorButton?.style.setProperty("--marker-color", placementColor.value);
@@ -819,7 +830,9 @@ const initializeOpenLayersMaps = () => {
       setPlacementMarker(...placementCoordinates);
     });
     placementCancel?.addEventListener("click", closePlaceEditor);
-    placementPanel?.addEventListener("submit", (event) => {
+    placementPanel?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (placementApply.disabled) return;
       if (activePlaceId === null) {
         event.preventDefault();
         return;
@@ -829,13 +842,41 @@ const initializeOpenLayersMaps = () => {
       placementApply.setAttribute("aria-label", "Сохраняем место");
       placementApply.title = "Сохраняем место";
       if (placementApplyIcon) placementApplyIcon.textContent = "progress_activity";
+      const status = placementPanel.querySelector("[data-map-save-status]");
+      status.textContent = "";
+      try {
+        const response = await fetch(placementPanel.action, {
+          method: "POST", body: new FormData(placementPanel),
+          headers: { Accept: "application/json" },
+        });
+        const result = await response.json();
+        if (!response.ok || !result.place) throw new Error(result.error || "Не удалось сохранить место");
+        const place = result.place;
+        placeEditors.set(place.id, place);
+        restoreHiddenPoint();
+        placementApply.disabled = false;
+        closePlaceEditor();
+        refreshMapPlaces();
+      } catch (error) {
+        status.textContent = error.message || "Не удалось сохранить место. Попробуйте ещё раз.";
+      } finally {
+        placementApply.disabled = false;
+        placementApply.classList.remove("is-saving");
+        placementApply.setAttribute("aria-label", "Сохранить место");
+        placementApply.title = "Сохранить место";
+        if (placementApplyIcon) placementApplyIcon.textContent = "check";
+      }
     });
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && activePlaceId !== null) closePlaceEditor();
     });
 
     const pointsById = new Map();
-    mapData.places.forEach((place) => {
+    const refreshMapPlaces = () => {
+      vectorSource.clear();
+      pointsById.clear();
+      pointFeaturesById.clear();
+    [...placeEditors.values()].filter((place) => place.lat !== null && place.lng !== null).forEach((place) => {
       const point = ol.proj.fromLonLat([place.lng, place.lat]);
       pointsById.set(place.id, point);
       const marker = new ol.Feature({
@@ -861,6 +902,38 @@ const initializeOpenLayersMaps = () => {
         vectorSource.addFeature(line);
       }
     });
+
+      const scroll = mapPanel?.querySelector(".map-panel-scroll");
+      if (scroll) {
+        scroll.innerHTML = "";
+        if (!placeEditors.size) {
+          const empty = document.createElement("div");
+          empty.className = "map-panel-empty";
+          empty.textContent = "Сохранённых мест пока нет. Нажмите на карту, чтобы добавить место.";
+          scroll.append(empty);
+        }
+        for (const mapped of [false, true]) {
+          const places = [...placeEditors.values()].filter(place => (place.lat !== null && place.lng !== null) === mapped);
+          if (!places.length) continue;
+          const group = document.createElement("section");
+          group.className = "map-place-group";
+          group.innerHTML = `<div class="map-place-group-head"><h2>${mapped ? "На карте" : "Без точки на карте"}</h2><span>${places.length}</span></div>`;
+          for (const place of places) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "map-place-editor";
+            button.dataset.mapEditPlace = place.id;
+            button.setAttribute("aria-label", `Редактировать место ${place.name}`);
+            button.innerHTML = `<i style="--marker: ${escapeHtml(place.color)}"></i><span><strong>${escapeHtml(place.name)}</strong><small>${escapeHtml(place.description || (mapped ? "Точка указана" : "Нужна точка"))}</small></span><span class="material-symbols-rounded ui-chevron" aria-hidden="true">chevron_right</span>`;
+            group.append(button);
+          }
+          scroll.append(group);
+        }
+      }
+      const count = panelOpenButton?.querySelector("span");
+      if (count) count.textContent = placeEditors.size;
+    };
+    refreshMapPlaces();
     const activeMapPointers = new Set();
     let mapGestureStart = null;
     let mapGestureMoved = false;
@@ -938,6 +1011,7 @@ const initializeOpenLayersMaps = () => {
 if (window.ol) initializeOpenLayersMaps();
 
 document.querySelectorAll("form[data-confirm]").forEach((form) => {
+  form.dataset.confirmBound = "true";
   form.addEventListener("submit", (event) => {
     if (!window.confirm(form.dataset.confirm)) event.preventDefault();
   });
@@ -949,5 +1023,49 @@ if ("serviceWorker" in navigator && window.isSecureContext) {
       scope: "/",
       updateViaCache: "none",
     }).catch(() => {});
+  });
+}
+
+const placesPage = document.querySelector(".places-page");
+if (placesPage) {
+  const form = placesPage.querySelector(".search-bar");
+  const input = form.querySelector("input");
+  let timer;
+  let controller;
+  const searchPlaces = async () => {
+    controller?.abort();
+    controller = new AbortController();
+    const url = new URL(form.action);
+    const searchStatus = placesPage.querySelector("[data-place-search-status]");
+    searchStatus.textContent = "";
+    if (input.value.trim()) url.searchParams.set("q", input.value.trim());
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      if (!response.ok) throw new Error("search");
+      const page = new DOMParser().parseFromString(await response.text(), "text/html");
+      for (const selector of [".places-list", ".search-summary", ".history-pagination"]) {
+        const current = placesPage.querySelector(selector);
+        const next = page.querySelector(selector);
+        if (current && next) current.replaceWith(next);
+        else if (current) current.remove();
+        else if (next) placesPage.append(next);
+      }
+      history.replaceState(null, "", url);
+    } catch (error) {
+      if (error.name !== "AbortError") searchStatus.textContent = "Не удалось выполнить поиск. Попробуйте ещё раз.";
+    }
+  };
+  input.addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(searchPlaces, 180);
+  });
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    clearTimeout(timer);
+    searchPlaces();
+  });
+  placesPage.addEventListener("submit", (event) => {
+    if (event.target.matches("form[data-confirm]") && !event.target.dataset.confirmBound
+        && !window.confirm(event.target.dataset.confirm)) event.preventDefault();
   });
 }

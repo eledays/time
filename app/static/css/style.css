@@ -309,7 +309,7 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .map-toolbar { position: absolute; z-index: 510; top: max(10px, calc(env(safe-area-inset-top) + 10px)); left: 10px; display: flex; gap: 8px; }
 .map-places-button { min-height: 46px; padding: 0 14px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-raised); color: var(--text); box-shadow: var(--shadow); font-size: 11px; cursor: pointer; backdrop-filter: blur(14px); }
 .map-places-button span { display: inline-grid; min-width: 19px; height: 19px; margin-left: 6px; place-items: center; border-radius: 9px; background: var(--line); color: var(--muted); font-size: 9px; }
-.map-page.is-picking .map-places-button { opacity: .38; pointer-events: none; }
+
 .map-placement-panel { position: absolute; z-index: 700; bottom: max(92px, calc(env(safe-area-inset-bottom) + 82px)); left: 50%; width: min(520px, calc(100% - 24px)); display: flex; align-items: flex-end; gap: 8px; padding: 0; border: 0; background: transparent; box-shadow: none; transform: translateX(-50%); animation: map-placement-enter .3s cubic-bezier(.2,.75,.25,1) both; }
 .map-placement-fields { min-width: 0; height: 152px; flex: 1; display: flex; flex-direction: column; padding: 13px 15px 12px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface-raised); box-shadow: var(--shadow); backdrop-filter: blur(18px); }
 .map-placement-fields input[type="text"], .map-placement-fields textarea { width: 100%; display: block; padding: 0; border: 0; outline: 0; background: transparent; color: var(--text); }
@@ -588,3 +588,14 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .history-pagination a { padding: 12px; border: 1px solid var(--line); border-radius: 10px; }
 .history-limit-note { color: var(--muted); font-size: 12px; line-height: 1.5; }
 .history-pagination[hidden], .history-pagination [hidden], .quiet-empty[hidden] { display: none; }
+
+.places-page .places-list { gap: 8px; }
+.places-page .place-editor { border-radius: 14px; }
+.places-page .place-editor > summary { min-height: 0; padding: 12px 16px; gap: 14px; }
+.places-page .place-editor > summary > span { font-size: 15px; line-height: 1.35; }
+.places-page .place-editor > summary small { line-height: 1.3; }
+.places-page .new-place { margin-bottom: 8px; }
+@media (max-width: 600px) {
+  .places-page .place-editor > summary { padding: 12px; gap: 10px; }
+  .places-page .place-editor > summary > span { font-size: 14px; }
+}

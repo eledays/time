@@ -11,6 +11,7 @@ from flask import (
     current_app,
     flash,
     g,
+    get_flashed_messages,
     jsonify,
     make_response,
     redirect,
@@ -18,7 +19,7 @@ from flask import (
     request,
     url_for,
 )
-from sqlalchemy import delete, or_, select
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import aliased
 
@@ -672,7 +673,58 @@ def places():
             Place.normalized_name.contains(normalize_place(query), autoescape=True)
         )
     place_items = db.session.scalars(statement.order_by(Place.name)).all()
-    return render_template("places.html", places=place_items, query=query)
+    return render_template("places.html", places=place_items, query=query,
+        merge_targets=db.session.scalars(select(Place).where(Place.user_id == g.user.id).order_by(Place.name)).all())
+
+
+def _place_response(return_url, place=None):
+    if request.accept_mimetypes.best != "application/json":
+        return redirect(return_url)
+    if place is None:
+        messages = get_flashed_messages()
+        return jsonify(
+            error=messages[-1] if messages else "Не удалось сохранить место"
+        ), 400
+    return jsonify(
+        place={
+            "id": place.id,
+            "name": place.name,
+            "description": place.description or "",
+            "lat": place.latitude,
+            "lng": place.longitude,
+            "color": place.marker_color,
+            "updateUrl": url_for("main.update_place", place_id=place.id),
+        }
+    )
+
+
+@bp.post("/places/<int:place_id>/merge")
+@login_required
+def merge_place(place_id):
+    source = db.session.scalar(
+        select(Place).where(Place.id == place_id, Place.user_id == g.user.id)
+    )
+    target_id = request.form.get("target_id", type=int)
+    target = db.session.scalar(
+        select(Place).where(Place.id == target_id, Place.user_id == g.user.id)
+    )
+    if source is None or target is None or source.id == target.id:
+        flash("Выберите другое своё место для объединения", "error")
+        return redirect(url_for("main.places"))
+    for model, field in (
+        (Trip, "origin_id"),
+        (Trip, "destination_id"),
+        (ActiveTrip, "origin_id"),
+    ):
+        db.session.execute(
+            update(model)
+            .where(model.user_id == g.user.id, getattr(model, field) == source.id)
+            .values({field: target.id})
+        )
+    db.session.delete(source)
+    db.session.commit()
+    flash(f"Места объединены в «{target.name}» · поездки сохранены", "success")
+    return redirect(url_for("main.places"))
 
 
 @bp.post("/places")
@@ -688,25 +740,27 @@ def create_place():
     name = request.form.get("name", "").strip()
     if not name:
         flash("Введите название места", "error")
-        return redirect(return_url)
+        return _place_response(return_url)
     if len(name) > current_app.config["MAX_TEXT_LENGTH"]:
         flash("Название места слишком длинное", "error")
-        return redirect(return_url)
+        return _place_response(return_url)
     place = get_or_create_place(g.user.id, name)
     if not _update_place_fields(place):
         db.session.rollback()
-        return redirect(return_url)
+        return _place_response(return_url)
     try:
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
         flash("Место с таким названием уже существует", "warning")
-        return redirect(return_url)
+        return _place_response(return_url)
+    if request.accept_mimetypes.best == "application/json":
+        return _place_response(return_url, place)
     if request.form.get("choose_on_map") == "1":
         flash("Место сохранено · выберите положение на карте", "success")
         return redirect(url_for("main.map_view", pick=place.id))
     flash("Место сохранено", "success")
-    return redirect(return_url)
+    return _place_response(return_url)
 
 
 @bp.post("/places/<int:place_id>")
@@ -728,10 +782,10 @@ def update_place(place_id: int):
     name = request.form.get("name", "").strip()
     if not name:
         flash("Название не может быть пустым", "error")
-        return redirect(return_url)
+        return _place_response(return_url)
     if len(name) > current_app.config["MAX_TEXT_LENGTH"]:
         flash("Название места слишком длинное", "error")
-        return redirect(return_url)
+        return _place_response(return_url)
     normalized = normalize_place(name)
     duplicate = db.session.scalar(
         select(Place).where(
@@ -742,23 +796,25 @@ def update_place(place_id: int):
     )
     if duplicate:
         flash("Место с таким названием уже существует", "error")
-        return redirect(return_url)
+        return _place_response(return_url)
     place.name = " ".join(name.split())
     place.normalized_name = normalized
     if not _update_place_fields(place):
         db.session.rollback()
-        return redirect(return_url)
+        return _place_response(return_url)
     try:
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
         flash("Место с таким названием уже существует", "warning")
-        return redirect(return_url)
+        return _place_response(return_url)
+    if request.accept_mimetypes.best == "application/json":
+        return _place_response(return_url, place)
     if choose_on_map:
         flash("Данные сохранены · выберите положение на карте", "success")
         return redirect(url_for("main.map_view", pick=place.id))
     flash("Изменения сохранены", "success")
-    return redirect(return_url)
+    return _place_response(return_url)
 
 
 @bp.get("/map")
