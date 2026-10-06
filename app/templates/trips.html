@@ -2,23 +2,32 @@
 {% block title %}История поездок{% endblock %}
 {% block page %}trips{% endblock %}
 {% block content %}
-<main class="page-shell app-page history-page">
-  <header class="page-heading search-page-heading">
-    <h1>История</h1>
-  </header>
-  <form class="search-bar" method="get" action="{{ url_for('main.trips') }}">
+<main class="page-shell app-page history-page" data-history data-page-size="{{ page_size }}" data-page="{{ page }}">
+  <header class="page-heading search-page-heading"><h1>История</h1></header>
+  <form class="search-bar" method="get" action="{{ url_for('main.trips') }}" data-history-search>
     <label for="trip-search">Поиск по местам</label>
     <div><input id="trip-search" type="search" name="q" value="{{ query }}" placeholder="Дом Работа" maxlength="{{ config.MAX_TEXT_LENGTH }}"><button type="submit">Найти</button></div>
   </form>
-  {% if query %}
-    <div class="search-summary"><span>{{ trips|length }} найдено · {{ query }}</span><a href="{{ url_for('main.trips') }}">Сбросить</a></div>
-  {% endif %}
-  {% if trips %}
-    <div class="journey-list">
-      {% for trip in trips %}{% with compact=true %}<a class="journey-card-link" href="{{ url_for('main.trip_detail', trip_id=trip.id) }}">{% include "partials/trip_card.html" %}</a>{% endwith %}{% endfor %}
-    </div>
-  {% else %}
-    <div class="quiet-empty"><p>{{ 'По этим местам поездок нет.' if query else 'Поездок пока нет.' }}</p>{% if query %}<a href="{{ url_for('main.trips') }}">Показать всю историю</a>{% else %}<a href="{{ url_for('main.index') }}">Записать первую</a>{% endif %}</div>
-  {% endif %}
+  {% if history_limited %}<p class="history-limit-note">Загружены последние {{ history_limit }} поездок. Поиск выполняется среди них.</p>{% endif %}
+  <div class="search-summary"><span data-history-count>{{ match_count }} {{ 'найдено' if query else 'поездок' }}</span><a href="{{ url_for('main.trips') }}" data-history-reset>Сбросить</a></div>
+  <div class="journey-list" data-history-list>
+    {% for trip in visible_trips %}
+      <a class="journey-card-link" href="{{ url_for('main.trip_detail', trip_id=trip.id) }}">
+        <article class="journey-card journey-card-compact">
+          <div class="journey-route"><strong title="{{ trip.origin }}">{{ trip.origin }}</strong><span class="material-symbols-rounded route-arrow" aria-hidden="true">chevron_right</span><strong title="{{ trip.destination }}">{{ trip.destination }}</strong></div>
+          <div class="journey-meta"><span>{{ trip.transport }}</span></div>
+          <b>{{ trip.minutes }} <small>мин</small></b>
+        </article>
+      </a>
+    {% endfor %}
+  </div>
+  <div class="quiet-empty" data-history-empty {% if match_count %}hidden{% endif %}><p>{{ 'По этим местам поездок нет.' if query else 'Поездок пока нет.' }}</p><a href="{{ url_for('main.index') }}">Записать поездку</a></div>
+  <nav class="history-pagination" aria-label="Страницы истории" data-history-pagination {% if page_count <= 1 %}hidden{% endif %}>
+    <a href="{{ url_for('main.trips', q=query, page=page-1) }}" data-history-previous {% if page == 1 %}hidden{% endif %}>Назад</a>
+    <span data-history-position>{{ page }} / {{ page_count }}</span>
+    <a href="{{ url_for('main.trips', q=query, page=page+1) }}" data-history-next {% if page == page_count %}hidden{% endif %}>Далее</a>
+  </nav>
+  <script type="application/json" id="history-data">{{ history|tojson }}</script>
 </main>
 {% endblock %}
+{% block scripts %}<script defer src="{{ url_for('static', filename='js/history.js') }}"></script>{% endblock %}

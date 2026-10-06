@@ -20,6 +20,7 @@ from flask import (
 )
 from sqlalchemy import delete, or_, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import aliased
 
 from app.auth.helpers import login_required
 from app.extensions import db, limiter
@@ -422,11 +423,63 @@ def trips():
     if len(query) > current_app.config["MAX_TEXT_LENGTH"]:
         flash("Запрос слишком длинный", "error")
         return redirect(url_for("main.trips"))
+    # Project only the fields used by the history; avoid loading ORM relations.
+    origin = aliased(Place)
+    destination = aliased(Place)
+    limit = 10_000
+    page_size = 50
+    rows = db.session.execute(
+        select(
+            Trip.id,
+            origin.name,
+            destination.name,
+            Trip.transport_type,
+            Trip.departed_at,
+            Trip.arrived_at,
+        )
+        .join(origin, Trip.origin_id == origin.id)
+        .join(destination, Trip.destination_id == destination.id)
+        .where(Trip.user_id == g.user.id)
+        .order_by(Trip.departed_at.desc(), Trip.id.desc())
+        .limit(limit + 1)
+    ).all()
+    history = [
+        {
+            "id": row[0],
+            "origin": row[1],
+            "destination": row[2],
+            "transport": TRANSPORT_LABELS.get(row[3], "Другое"),
+            "minutes": round((row[5] - row[4]).total_seconds() / 60),
+        }
+        for row in rows[:limit]
+    ]
+    words = normalize_place(query).split()
+    matches = [
+        trip
+        for trip in history
+        if all(
+            word in normalize_place(trip["origin"])
+            or word in normalize_place(trip["destination"])
+            for word in words
+        )
+    ]
+    try:
+        page = max(1, int(request.args.get("page", "1")))
+    except ValueError:
+        page = 1
+    page_count = max(1, (len(matches) + page_size - 1) // page_size)
+    page = min(page, page_count)
     return render_template(
         "trips.html",
-        trips=_filtered_trips(query),
-        transport_labels=TRANSPORT_LABELS,
+        history=history,
+        visible_trips=matches[(page - 1) * page_size : page * page_size],
+        match_count=len(matches),
         query=query,
+        page=page,
+        page_count=page_count,
+        history_limited=len(rows) > limit,
+        history_limit=limit,
+        page_size=page_size,
     )
 
 

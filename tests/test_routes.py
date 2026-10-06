@@ -1752,3 +1752,58 @@ def test_trip_detail_is_private(app: Flask, auth_client, user) -> None:
     assert auth_client.get(f"/trips/{trip_id}").status_code == 404
     assert auth_client.get(f"/trips/{trip_id}/edit").status_code == 404
     assert auth_client.get("/trips/999999").status_code == 404
+
+
+def test_history_payload_is_bounded_and_private(app: Flask, auth_client, user) -> None:
+    import json
+    import re
+
+    with app.app_context():
+        home = get_or_create_place(user.id, "<script>bad()</script>")
+        work = get_or_create_place(user.id, "Работа")
+        other = User(yandex_id="history-other", display_name="Другой")
+        db.session.add(other)
+        db.session.flush()
+        private = get_or_create_place(other.id, "Чужая секретная точка")
+        db.session.execute(
+            db.insert(Trip),
+            [
+                {
+                    "user_id": user.id,
+                    "origin_id": home.id,
+                    "destination_id": work.id,
+                    "departed_at": datetime.fromisoformat("2026-10-06T08:00"),
+                    "arrived_at": datetime.fromisoformat("2026-10-06T08:30"),
+                    "transport_type": "walk",
+                    "transport_detail": "Секретные подробности",
+                }
+                for _ in range(10_001)
+            ],
+        )
+        db.session.add(
+            Trip(
+                user_id=other.id,
+                origin=private,
+                destination=private,
+                departed_at=datetime.fromisoformat("2026-10-06T08:00"),
+                arrived_at=datetime.fromisoformat("2026-10-06T08:30"),
+                transport_type="walk",
+            )
+        )
+        db.session.commit()
+    page = auth_client.get("/trips")
+    assert page.status_code == 200
+    assert page.headers["Cache-Control"] == "no-store"
+    payload = json.loads(
+        re.search(r'id="history-data">(.*?)</script>', page.text, re.DOTALL)[1]
+    )
+    assert len(payload) == 10_000
+    assert set(payload[0]) == {"id", "origin", "destination", "transport", "minutes"}
+    assert all(trip["origin"] == "<script>bad()</script>" for trip in payload)
+    assert page.text.count('class="journey-card-link"') == 50
+    assert "Загружены последние 10000 поездок" in page.text
+    assert "Секретные подробности" not in page.text
+    assert "<script>bad()</script>" not in page.text
+    last = auth_client.get("/trips?page=999999")
+    assert last.status_code == 200
+    assert "200 / 200" in last.text

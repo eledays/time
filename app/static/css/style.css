@@ -583,3 +583,8 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .trip-edit-form input:focus, .trip-edit-form select:focus { outline: 2px solid var(--faint); outline-offset: 2px; }
 .trip-edit-page .trip-edit-form input, .trip-edit-page .trip-edit-form select { font-size: 16px; min-height: 48px; }
 .trip-edit-cancel { display: block; padding: 16px; text-align: center; color: var(--muted); font-size: 14px; }
+
+.history-pagination { display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 20px; font-size: 13px; }
+.history-pagination a { padding: 12px; border: 1px solid var(--line); border-radius: 10px; }
+.history-limit-note { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.history-pagination[hidden], .history-pagination [hidden], .quiet-empty[hidden] { display: none; }
