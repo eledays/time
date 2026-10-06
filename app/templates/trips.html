@@ -15,7 +15,7 @@
   {% endif %}
   {% if trips %}
     <div class="journey-list">
-      {% for trip in trips %}{% with compact=true %}{% include "partials/trip_card.html" %}{% endwith %}{% endfor %}
+      {% for trip in trips %}{% with compact=true %}<a class="journey-card-link" href="{{ url_for('main.trip_detail', trip_id=trip.id) }}">{% include "partials/trip_card.html" %}</a>{% endwith %}{% endfor %}
     </div>
   {% else %}
     <div class="quiet-empty"><p>{{ 'По этим местам поездок нет.' if query else 'Поездок пока нет.' }}</p>{% if query %}<a href="{{ url_for('main.trips') }}">Показать всю историю</a>{% else %}<a href="{{ url_for('main.index') }}">Записать первую</a>{% endif %}</div>

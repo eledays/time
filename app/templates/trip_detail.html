@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Поездка · {{ trip.origin.name }} → {{ trip.destination.name }}{% endblock %}
+{% block page %}trip-detail{% endblock %}
+{% block content %}
+<main class="page-shell app-page history-page trip-detail-page">
+  <a class="manage-back" href="{{ url_for('main.trips') }}">← История поездок</a>
+  <header class="page-heading"><h1>Поездка</h1></header>
+  <h2 class="trip-detail-route">{{ trip.origin.name }} → {{ trip.destination.name }}</h2>
+  <dl class="trip-detail-info">
+    <div><dt>Отправление</dt><dd>{{ trip.departed_at.strftime('%d.%m.%Y · %H:%M') }}</dd></div>
+    <div><dt>Прибытие</dt><dd>{{ trip.arrived_at.strftime('%d.%m.%Y · %H:%M') }}</dd></div>
+    <div><dt>В пути</dt><dd>{{ trip.duration_minutes }} мин</dd></div>
+    <div><dt>Транспорт</dt><dd>{{ transport_labels.get(trip.transport_type, 'Другое') }}{% if trip.transport_detail %} · {{ trip.transport_detail }}{% endif %}</dd></div>
+    {% set recorded_cost = trip.cost if trip.cost is not none else trip.taxi_cost %}
+    {% if recorded_cost is not none %}<div><dt>Стоимость</dt><dd>{{ '%g'|format(recorded_cost) }} ₽</dd></div>{% endif %}
+    {% if trip.taxi_tariff %}<div><dt>Тариф такси</dt><dd>{{ trip.taxi_tariff }}</dd></div>{% endif %}
+  </dl>
+  <details class="trip-editor">
+    <summary class="trip-detail-edit-toggle">Редактировать поездку</summary>
+    <div class="trip-editor-body">{% include "partials/trip_edit_forms.html" %}</div>
+  </details>
+</main>
+{% endblock %}

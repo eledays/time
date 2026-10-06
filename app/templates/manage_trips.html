@@ -15,23 +15,7 @@
       <details class="trip-editor" id="trip-{{ trip.id }}">
         <summary>{% include "partials/trip_card.html" %}<span class="trip-editor-hint">Изменить поездку</span></summary>
         <div class="trip-editor-body">
-          <form class="trip-edit-form" action="{{ url_for('main.edit_trip', trip_id=trip.id) }}" method="post">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <label>Откуда<input name="origin" value="{{ trip.origin.name }}" required maxlength="{{ config.MAX_TEXT_LENGTH }}"></label>
-            <label>Куда<input name="destination" value="{{ trip.destination.name }}" required maxlength="{{ config.MAX_TEXT_LENGTH }}"></label>
-            <label>Отправление<input type="datetime-local" name="departed_at" value="{{ trip.departed_at.strftime('%Y-%m-%dT%H:%M') }}" required></label>
-            <label>Прибытие<input type="datetime-local" name="arrived_at" value="{{ trip.arrived_at.strftime('%Y-%m-%dT%H:%M') }}" required></label>
-            <label>Транспорт<select name="transport_type">{% for value, label in transport_labels.items() %}<option value="{{ value }}" {% if trip.transport_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
-            <label>Номер или вид транспорта<input name="transport_detail" value="{{ trip.transport_detail or '' }}" maxlength="{{ config.MAX_TEXT_LENGTH }}"></label>
-            {% set recorded_cost = trip.cost if trip.cost is not none else trip.taxi_cost %}
-            <label>Стоимость аренды или такси, ₽<input type="number" name="cost" min="0" step="any" value="{{ recorded_cost if recorded_cost is not none else '' }}"></label>
-            <label>Тариф такси<select name="taxi_tariff"><option value="">Не выбран</option>{% for tariff in taxi_tariffs %}<option value="{{ tariff }}" {% if trip.taxi_tariff == tariff %}selected{% endif %}>{{ tariff }}</option>{% endfor %}</select></label>
-            <button class="primary-button" type="submit">Сохранить изменения</button>
-          </form>
-          <form class="trip-delete-form" action="{{ url_for('main.delete_trip', trip_id=trip.id) }}" method="post" data-confirm="Удалить эту поездку? Это действие нельзя отменить.">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit">Удалить поездку</button>
-          </form>
+          {% include "partials/trip_edit_forms.html" %}
         </div>
       </details>
     {% else %}<div class="quiet-empty"><p>{{ 'По этим местам поездок нет.' if query else 'Поездок пока нет.' }}</p></div>{% endfor %}

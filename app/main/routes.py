@@ -446,6 +446,25 @@ def manage_trips():
     )
 
 
+@bp.get("/trips/<int:trip_id>")
+@login_required
+def trip_detail(trip_id: int):
+    trip = db.session.scalar(
+        select(Trip).where(Trip.id == trip_id, Trip.user_id == g.user.id)
+    )
+    if trip is None:
+        return render_template(
+            "error.html", code=404, message="Поездка не найдена"
+        ), 404
+    return render_template(
+        "trip_detail.html",
+        trip=trip,
+        transport_labels=TRANSPORT_LABELS,
+        taxi_tariffs=TAXI_TARIFFS,
+        trip_detail=True,
+    )
+
+
 @bp.post("/trips/<int:trip_id>/edit")
 @login_required
 def edit_trip(trip_id: int):
@@ -491,7 +510,11 @@ def edit_trip(trip_id: int):
             raise ValueError("Выберите тариф такси")
     except ValueError as error:
         flash(str(error) or "Проверьте данные поездки", "error")
-        return redirect(url_for("main.manage_trips", _anchor=f"trip-{trip_id}"))
+        return redirect(
+            url_for("main.trip_detail", trip_id=trip_id)
+            if request.form.get("return_to") == "trip"
+            else url_for("main.manage_trips", _anchor=f"trip-{trip_id}")
+        )
     trip.origin = get_or_create_place(g.user.id, origin)
     trip.destination = get_or_create_place(g.user.id, destination)
     trip.departed_at = departed_at
@@ -503,7 +526,11 @@ def edit_trip(trip_id: int):
     trip.taxi_tariff = tariff if transport == "taxi" else None
     db.session.commit()
     flash("Поездка изменена", "success")
-    return redirect(url_for("main.manage_trips", _anchor=f"trip-{trip_id}"))
+    return redirect(
+        url_for("main.trip_detail", trip_id=trip_id)
+        if request.form.get("return_to") == "trip"
+        else url_for("main.manage_trips", _anchor=f"trip-{trip_id}")
+    )
 
 
 @bp.post("/trips/<int:trip_id>/delete")
@@ -521,7 +548,13 @@ def delete_trip(trip_id: int):
     db.session.delete(trip)
     db.session.commit()
     flash("Поездка удалена", "success")
-    return redirect(url_for("main.manage_trips"))
+    return redirect(
+        url_for(
+            "main.trips"
+            if request.form.get("return_to") == "trip"
+            else "main.manage_trips"
+        )
+    )
 
 
 @bp.post("/trips/delete-all")

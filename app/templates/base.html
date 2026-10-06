@@ -55,7 +55,7 @@
           ('main.profile', 'person', 'Профиль')
         ] %}
         {% for endpoint, icon, label in items %}
-          {% set item_active = request.endpoint == endpoint or (endpoint == 'main.calculate' and request.endpoint == 'main.calculate_result') or (endpoint == 'main.profile' and request.endpoint in ['main.places', 'main.manage_trips', 'main.edit_trip']) %}
+          {% set item_active = request.endpoint == endpoint or (endpoint == 'main.trips' and request.endpoint == 'main.trip_detail') or (endpoint == 'main.calculate' and request.endpoint == 'main.calculate_result') or (endpoint == 'main.profile' and request.endpoint in ['main.places', 'main.manage_trips', 'main.edit_trip']) %}
           <a class="bottom-nav-item {{ 'active' if item_active }}" href="{{ url_for(endpoint) }}" {% if item_active %}aria-current="page"{% endif %}>
             <span class="material-symbols-rounded" aria-hidden="true">{{ icon }}</span><small>{{ label }}</small>
           </a>

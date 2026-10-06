@@ -561,3 +561,13 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
   .journey-card-compact > b { font-size: 14px; }
   .journey-card-compact > b small { font-size: 10px; }
 }
+
+.journey-card-link { display: block; min-width: 0; border-radius: 14px; }
+.journey-card-link:hover .journey-card { border-color: var(--faint); }
+.journey-card-link:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+.trip-detail-route { margin: 0 0 24px; font-size: 22px; line-height: 1.35; overflow-wrap: anywhere; }
+.trip-detail-info { margin: 0 0 24px; }
+.trip-detail-info > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.trip-detail-info dt { color: var(--muted); }
+.trip-detail-info dd { margin: 0; overflow-wrap: anywhere; min-width: 0; }
+.trip-detail-edit-toggle { padding: 16px; font-size: 14px; }

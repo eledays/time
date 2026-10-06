@@ -1667,3 +1667,73 @@ def test_trip_editor_validates_changes_and_ownership(app, auth_client, user):
     assert "Автобус" in history.text
     assert "Секрет" not in history.text
     assert "0 найдено" in auth_client.get("/trips?q=%25").text
+
+
+def test_trip_detail_edit_and_delete(app: Flask, auth_client, user) -> None:
+    with app.app_context():
+        origin = get_or_create_place(user.id, "Дом")
+        destination = get_or_create_place(user.id, "Работа")
+        trip = Trip(
+            user_id=user.id,
+            origin=origin,
+            destination=destination,
+            departed_at=datetime.fromisoformat("2026-10-06T08:00"),
+            arrived_at=datetime.fromisoformat("2026-10-06T08:30"),
+            transport_type="taxi",
+            cost=250.5,
+            taxi_tariff="Эконом",
+        )
+        db.session.add(trip)
+        db.session.commit()
+        trip_id = trip.id
+    url = f"/trips/{trip_id}"
+    assert f'href="{url}"' in auth_client.get("/trips").text
+    page = auth_client.get(url)
+    assert page.status_code == 200
+    assert "250.5 ₽" in page.text
+    assert "06.10.2026 · 08:30" in page.text
+    assert "30 мин" in page.text
+    assert "Редактировать поездку" in page.text
+    assert "Удалить поездку" in page.text
+    data = {
+        "csrf_token": "test-csrf",
+        "return_to": "trip",
+        "origin": "Дом",
+        "destination": "Парк",
+        "departed_at": "2026-10-06T08:00",
+        "arrived_at": "2026-10-06T08:45",
+        "transport_type": "walk",
+    }
+    edited = auth_client.post(f"{url}/edit", data=data)
+    assert edited.headers["Location"].endswith(url)
+    assert "45 мин" in auth_client.get(url).text
+    data["arrived_at"] = "2026-10-06T07:00"
+    invalid = auth_client.post(f"{url}/edit", data=data)
+    assert invalid.headers["Location"].endswith(url)
+    assert "45 мин" in auth_client.get(url).text
+    deleted = auth_client.post(
+        f"{url}/delete", data={"csrf_token": "test-csrf", "return_to": "trip"}
+    )
+    assert deleted.headers["Location"].endswith("/trips")
+    assert auth_client.get(url).status_code == 404
+
+
+def test_trip_detail_is_private(app: Flask, auth_client, user) -> None:
+    with app.app_context():
+        other = User(yandex_id="trip-detail-other", display_name="Другой")
+        db.session.add(other)
+        db.session.flush()
+        origin = get_or_create_place(other.id, "Чужой дом")
+        trip = Trip(
+            user_id=other.id,
+            origin=origin,
+            destination=origin,
+            departed_at=datetime.fromisoformat("2026-10-06T08:00"),
+            arrived_at=datetime.fromisoformat("2026-10-06T08:30"),
+            transport_type="walk",
+        )
+        db.session.add(trip)
+        db.session.commit()
+        trip_id = trip.id
+    assert auth_client.get(f"/trips/{trip_id}").status_code == 404
+    assert auth_client.get("/trips/999999").status_code == 404
