@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ place.name }} · Места{% endblock %}
+{% block page %}place-edit{% endblock %}
+{% block content %}
+<main class="page-shell app-page history-page place-edit-page">
+  <a class="manage-back" href="{{ url_for('main.places') }}">← Места</a>
+  <header class="page-heading"><h1>{{ place.name }}</h1></header>
+  <form id="place-save" action="{{ url_for('main.update_place', place_id=place.id) }}" method="post" class="place-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="return_to" value="edit">
+    {% with current=place %}{% include "partials/place_fields.html" %}{% endwith %}
+  </form>
+  {% if merge_targets %}
+  <form action="{{ url_for('main.merge_place', place_id=place.id) }}" method="post" class="place-form place-merge-form" data-confirm="Объединить это место с выбранным? Все поездки будут перенесены, название и координаты выбранного места сохранятся.">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field-group">
+      <label for="merge-target">Объединить с</label>
+      <select id="merge-target" name="target_id" required>
+        <option value="">Выберите место</option>
+        {% for target in merge_targets %}<option value="{{ target.id }}">{{ target.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <button class="secondary-button" type="submit">Объединить места</button>
+  </form>
+  {% endif %}
+  <button class="primary-button" type="submit" form="place-save">Сохранить</button>
+  <form action="{{ url_for('main.delete_place', place_id=place.id) }}" method="post" class="place-form place-delete-form" data-confirm="Удалить место? Если отмечено удаление связанных поездок, они также будут удалены, включая текущую поездку. Это действие нельзя отменить.">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="place-delete-related"><input type="checkbox" name="delete_related" value="1"> Удалить также связанные поездки, включая текущую</label>
+    <button class="danger-button" type="submit">Удалить место</button>
+  </form>
+</main>
+{% endblock %}

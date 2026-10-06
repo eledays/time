@@ -95,7 +95,8 @@ def test_delete_unused_place(auth_client, app, user):
         db.session.add(place)
         db.session.commit()
         place_id = place.id
-    assert "Удалить место" in auth_client.get("/places").text
+    assert f'href="/places/{place_id}/edit"' in auth_client.get("/places").text
+    assert "Удалить место" in auth_client.get(f"/places/{place_id}/edit").text
     response = auth_client.post(
         f"/places/{place_id}/delete", data={"csrf_token": "test-csrf"}
     )
@@ -169,3 +170,43 @@ def test_delete_rejects_foreign_place_and_missing_csrf(auth_client, app, user):
     )
     with app.app_context():
         assert db.session.get(Place, place_id) is not None
+
+
+def test_separate_place_editor_and_save(auth_client, app, user):
+    with app.app_context():
+        place = Place(user_id=user.id, name="Дом", normalized_name="дом")
+        target = Place(user_id=user.id, name="Работа", normalized_name="работа")
+        db.session.add_all([place, target])
+        db.session.commit()
+        place_id = place.id
+    listing = auth_client.get("/places").text
+    assert f'href="/places/{place_id}/edit"' in listing
+    assert "Объединить места" not in listing
+    page = auth_client.get(f"/places/{place_id}/edit")
+    assert page.status_code == 200
+    assert 'class="secondary-button" type="submit">Объединить места' in page.text
+    assert (
+        page.text.index('id="merge-target"')
+        < page.text.index(">Объединить места")
+        < page.text.index(">Сохранить</button>")
+    )
+    assert "Поездки перенесутся в выбранное место" not in page.text
+    response = auth_client.post(
+        f"/places/{place_id}",
+        data={"csrf_token": "test-csrf", "return_to": "edit", "name": "Новый дом"},
+    )
+    assert response.location.endswith(f"/places/{place_id}/edit")
+    assert "Новый дом" in auth_client.get(response.location).text
+
+
+def test_place_editor_ownership(auth_client, app, user):
+    with app.app_context():
+        other = User(yandex_id="editor-other", display_name="Other")
+        db.session.add(other)
+        db.session.flush()
+        place = Place(user_id=other.id, name="Чужое", normalized_name="чужое")
+        db.session.add(place)
+        db.session.commit()
+        place_id = place.id
+    assert auth_client.get(f"/places/{place_id}/edit").status_code == 404
+    assert auth_client.get("/places/999999/edit").status_code == 404

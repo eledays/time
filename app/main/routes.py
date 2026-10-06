@@ -673,8 +673,24 @@ def places():
             Place.normalized_name.contains(normalize_place(query), autoescape=True)
         )
     place_items = db.session.scalars(statement.order_by(Place.name)).all()
-    return render_template("places.html", places=place_items, query=query,
-        merge_targets=db.session.scalars(select(Place).where(Place.user_id == g.user.id).order_by(Place.name)).all())
+    return render_template("places.html", places=place_items, query=query)
+
+
+@bp.get("/places/<int:place_id>/edit")
+@login_required
+def place_edit_page(place_id):
+    """Открыть редактор принадлежащего пользователю места."""
+    place = db.session.scalar(
+        select(Place).where(Place.id == place_id, Place.user_id == g.user.id)
+    )
+    if place is None:
+        return render_template("error.html", code=404, message="Место не найдено"), 404
+    targets = db.session.scalars(
+        select(Place)
+        .where(Place.user_id == g.user.id, Place.id != place.id)
+        .order_by(Place.name)
+    ).all()
+    return render_template("place_edit.html", place=place, merge_targets=targets)
 
 
 def _place_response(return_url, place=None):
@@ -813,6 +829,8 @@ def update_place(place_id: int):
     return_url = (
         url_for("main.map_view")
         if request.form.get("return_to") == "map"
+        else url_for("main.place_edit_page", place_id=place.id)
+        if request.form.get("return_to") == "edit"
         else url_for("main.places")
     )
     name = request.form.get("name", "").strip()

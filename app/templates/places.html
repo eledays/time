@@ -23,28 +23,9 @@
 
   <div class="places-list">
     {% for place in places %}
-      <details class="place-editor" id="place-{{ place.id }}">
-        <summary><i style="--marker: {{ place.marker_color }}"></i><span>{{ place.name }}{% if place.description %}<small>{{ place.description }}</small>{% endif %}</span><span class="material-symbols-rounded ui-chevron" aria-hidden="true">chevron_right</span></summary>
-        <form action="{{ url_for('main.update_place', place_id=place.id) }}" method="post" class="place-form">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          {% with current=place %}{% include "partials/place_fields.html" %}{% endwith %}
-          <button class="primary-button" type="submit">Сохранить изменения</button>
-        </form>
-        {% if merge_targets|length > 1 %}
-        <form action="{{ url_for('main.merge_place', place_id=place.id) }}" method="post" class="place-form" data-confirm="Объединить это место с выбранным? Все поездки будут перенесены, название и координаты выбранного места сохранятся.">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <label>Объединить с<select name="target_id" required><option value="">Выберите место</option>{% for target in merge_targets if target.id != place.id %}<option value="{{ target.id }}">{{ target.name }}</option>{% endfor %}</select></label>
-          <p>Поездки перенесутся в выбранное место. Его название и координаты сохранятся.</p>
-          <button class="primary-button" type="submit">Объединить места</button>
-        </form>
-        {% endif %}
-        <form action="{{ url_for('main.delete_place', place_id=place.id) }}" method="post" class="place-form" data-confirm="Удалить место? Если отмечено удаление связанных поездок, они также будут удалены, включая текущую поездку. Это действие нельзя отменить.">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <label class="place-delete-related"><input type="checkbox" name="delete_related" value="1"> Удалить также связанные поездки, включая текущую</label>
-          <p>Чтобы сохранить поездки, объедините место с другим.</p>
-          <button class="danger-button" type="submit">Удалить место</button>
-        </form>
-      </details>
+      <a class="place-card" id="place-{{ place.id }}" href="{{ url_for('main.place_edit_page', place_id=place.id) }}">
+        <i style="--marker: {{ place.marker_color }}"></i><span>{{ place.name }}{% if place.description %}<small>{{ place.description }}</small>{% endif %}</span><span class="material-symbols-rounded ui-chevron" aria-hidden="true">chevron_right</span>
+      </a>
     {% endfor %}
     {% if not places and query %}<div class="quiet-empty"><p>Мест с таким названием нет.</p><a href="{{ url_for('main.places') }}">Показать все места</a></div>{% endif %}
   </div>

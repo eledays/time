@@ -603,3 +603,21 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .place-form .place-delete-related { display: flex; align-items: center; gap: 10px; }
 .place-form .place-delete-related input { width: 18px; min-height: 18px; flex: 0 0 18px; }
 .place-form .danger-button { min-height: 44px; border: 1px solid var(--danger); border-radius: 10px; background: transparent; color: var(--danger); cursor: pointer; }
+
+.place-card { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg); }
+.place-card:hover { border-color: var(--faint); }
+.place-card > i { width: 10px; height: 10px; flex: 0 0 auto; border-radius: 50%; background: var(--marker); }
+.place-card > span:not(.ui-chevron) { min-width: 0; display: grid; gap: 6px; font-size: 15px; font-weight: 560; line-height: 1.35; overflow-wrap: anywhere; }
+.place-card small { color: var(--muted); font-size: 11px; font-weight: 400; }
+.place-card .ui-chevron { margin-left: auto; flex: none; }
+.place-edit-page h1 { overflow-wrap: anywhere; }
+.place-edit-page .place-form { padding: 0; }
+.place-edit-page .color-field { margin-bottom: 20px; }
+.place-edit-page .place-merge-form { margin-bottom: 16px; }
+.place-edit-page select { width: 100%; min-height: 52px; padding: 13px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg); color: var(--text); font: inherit; color-scheme: dark; }
+.place-edit-page select:focus-visible { outline: 2px solid var(--faint); outline-offset: 2px; }
+.place-edit-page .place-delete-form { display: grid; gap: 16px; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
+@media (max-width: 600px) {
+  .place-card { gap: 10px; padding: 12px; }
+  .place-card > span:not(.ui-chevron) { font-size: 14px; }
+}
