@@ -1,6 +1,6 @@
 <article class="journey-card{% if compact|default(false) %} journey-card-compact{% endif %}">
   {% if not compact|default(false) %}<time>{{ trip.departed_at.strftime('%d.%m.%Y') }}</time>{% endif %}
-  <div class="journey-route"><strong>{{ trip.origin.name }}</strong><span class="material-symbols-rounded route-arrow" aria-hidden="true">chevron_right</span><strong>{{ trip.destination.name }}</strong></div>
+  <div class="journey-route"><strong title="{{ trip.origin.name }}">{{ trip.origin.name }}</strong><span class="material-symbols-rounded route-arrow" aria-hidden="true">chevron_right</span><strong title="{{ trip.destination.name }}">{{ trip.destination.name }}</strong></div>
   <div class="journey-meta">
     {% if not compact|default(false) %}<span>{{ trip.departed_at.strftime('%H:%M') }}–{{ trip.arrived_at.strftime('%H:%M') }}</span>{% endif %}
     <span>{{ transport_labels.get(trip.transport_type, 'Другое') }}{% if trip.transport_detail and not compact|default(false) %} · {{ trip.transport_detail }}{% endif %}</span>
